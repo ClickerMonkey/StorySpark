@@ -34,11 +34,12 @@ Preferred communication style: Simple, everyday language.
 - **Request Logging**: Custom middleware for API request logging and performance monitoring
 
 ## Data Storage Solutions
-- **Database**: PostgreSQL with Drizzle ORM for type-safe database operations
+- **Database**: PostgreSQL with Drizzle ORM for type-safe database operations (active)
 - **Schema Management**: Drizzle Kit for migrations and schema synchronization
 - **Connection**: Neon Database serverless PostgreSQL for cloud hosting
-- **Fallback Storage**: In-memory storage implementation for development and testing
+- **Persistent Storage**: All stories, images, characters, and user data saved to database
 - **Data Models**: Strongly typed schemas with Zod validation for stories and user entities
+- **Image Regeneration**: Custom prompts for page image modification and regeneration
 
 ## Authentication and Authorization
 - **Current State**: No authentication system implemented
@@ -48,6 +49,7 @@ Preferred communication style: Simple, everyday language.
 ## External Service Integrations
 - **AI Text Generation**: OpenAI GPT-4o for story text generation, setting expansion, and character extraction
 - **AI Image Generation**: OpenAI DALL-E 3 with HD quality for character portraits and story page illustrations
+- **Custom Image Regeneration**: User-defined prompts to modify and regenerate specific page illustrations
 - **Smart Workflow**: Multi-step approval process with setting expansion, character definition, and story refinement
 - **Demo Mode**: Automatic fallback system with sample content during API quota limitations
 - **Font Loading**: Google Fonts integration for typography
@@ -60,6 +62,8 @@ Preferred communication style: Simple, everyday language.
 - **Enhanced Multi-Step Workflow**: Six-step creation process (details → setting expansion → character definition → story review → image generation → completion)
 - **Character-Driven Generation**: Individual character portraits and enhanced page illustrations using character context
 - **Interactive Story Library**: Clickable entries for viewing, editing, and managing story collection
+- **Database Persistence**: All content permanently saved with PostgreSQL database integration
+- **Image Customization**: User-controlled image regeneration with custom prompts for specific page adjustments
 - **Responsive Design**: Mobile-first approach with TailwindCSS responsive utilities
 - **Code Splitting**: Vite-based bundling with automatic code splitting and hot reloading
 

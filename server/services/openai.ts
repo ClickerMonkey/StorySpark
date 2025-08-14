@@ -290,7 +290,8 @@ export async function generatePageImage(
   coreImageUrl: string, 
   previousPageImageUrl?: string,
   setting?: string,
-  characters?: Character[]
+  characters?: Character[],
+  customPrompt?: string
 ): Promise<string> {
   // Check for demo mode or fallback
   if (USE_DEMO_MODE) {
@@ -311,7 +312,8 @@ export async function generatePageImage(
     ? "Maintain visual consistency with the previous page illustration." 
     : "";
 
-  const prompt = `Create a beautiful children's book illustration for this page of text:
+  // Use custom prompt if provided, otherwise use default
+  const prompt = customPrompt || `Create a beautiful children's book illustration for this page of text:
 
 ${pageText}
 

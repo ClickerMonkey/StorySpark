@@ -3,6 +3,15 @@ import { pgTable, text, varchar, integer, jsonb, timestamp } from "drizzle-orm/p
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
+  password: text("password").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const stories = pgTable("stories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
@@ -18,6 +27,12 @@ export const stories = pgTable("stories", {
   status: text("status").notNull().default("draft"), // draft, setting_expansion, characters_extracted, text_approved, generating_images, completed
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertStorySchema = createInsertSchema(stories).omit({
@@ -57,6 +72,12 @@ export const approveStorySchema = z.object({
   })),
 });
 
+export const regenerateImageSchema = z.object({
+  storyId: z.string(),
+  pageNumber: z.number(),
+  customPrompt: z.string().min(10, "Custom prompt must be at least 10 characters"),
+});
+
 export type Character = {
   name: string;
   description: string;
@@ -70,24 +91,12 @@ export type StoryPage = {
   imagePrompt?: string;
 };
 
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Story = typeof stories.$inferSelect;
 export type InsertStory = z.infer<typeof insertStorySchema>;
 export type CreateStory = z.infer<typeof createStorySchema>;
 export type ApproveSetting = z.infer<typeof approveSettingSchema>;
 export type ApproveCharacters = z.infer<typeof approveCharactersSchema>;
 export type ApproveStory = z.infer<typeof approveStorySchema>;
-
-// Keep existing users table
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-});
-
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
-
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type RegenerateImage = z.infer<typeof regenerateImageSchema>;

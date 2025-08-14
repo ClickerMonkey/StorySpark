@@ -1,8 +1,14 @@
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type Story } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Volume2, Bookmark, Share, Download, Edit, Save, BookOpen, Users, Clock } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { ChevronLeft, ChevronRight, Volume2, Bookmark, Share, Download, Edit, Save, BookOpen, Users, Clock, RefreshCw, Loader2 } from "lucide-react";
 
 interface StoryReaderProps {
   story: Story;
@@ -12,6 +18,10 @@ interface StoryReaderProps {
 
 export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const currentPage = story.pages[currentPageIndex];
   const isFirstPage = currentPageIndex === 0;
@@ -28,6 +38,31 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
       setCurrentPageIndex(currentPageIndex - 1);
     }
   };
+
+  const regenerateImageMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/stories/${story.id}/pages/${currentPage.pageNumber}/regenerate-image`, {
+        customPrompt,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/stories/${story.id}`] });
+      toast({
+        title: "Image Regenerated!",
+        description: "The page illustration has been updated with your custom prompt.",
+      });
+      setIsRegenerateDialogOpen(false);
+      setCustomPrompt("");
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to regenerate image",
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <Card className="bg-white shadow-lg overflow-hidden">
@@ -73,6 +108,66 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
             <Button variant="ghost" size="sm" data-testid="button-read-aloud">
               <Volume2 className="h-4 w-4" />
             </Button>
+            {currentPage?.imageUrl && (
+              <Dialog open={isRegenerateDialogOpen} onOpenChange={setIsRegenerateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" data-testid="button-regenerate-image">
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[525px]">
+                  <DialogHeader>
+                    <DialogTitle>Regenerate Page Image</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">
+                        Custom Image Prompt
+                      </label>
+                      <Textarea
+                        value={customPrompt}
+                        onChange={(e) => setCustomPrompt(e.target.value)}
+                        placeholder="Describe how you want this page to look. For example: 'Make the characters look happier', 'Add more colorful flowers in the background', 'Show the characters in a different pose'..."
+                        className="min-h-[120px]"
+                        data-testid="textarea-custom-prompt"
+                      />
+                      <p className="text-sm text-gray-500 mt-2">
+                        Current page: "{currentPage.text.slice(0, 100)}..."
+                      </p>
+                    </div>
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setIsRegenerateDialogOpen(false);
+                          setCustomPrompt("");
+                        }}
+                        data-testid="button-cancel-regenerate"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => regenerateImageMutation.mutate()}
+                        disabled={regenerateImageMutation.isPending || !customPrompt.trim()}
+                        data-testid="button-confirm-regenerate"
+                      >
+                        {regenerateImageMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Regenerating...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Regenerate Image
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
             <Button variant="ghost" size="sm" data-testid="button-bookmark">
               <Bookmark className="h-4 w-4" />
             </Button>

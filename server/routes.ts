@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateStoryText, generateCoreImage, generatePageImage, expandSetting, extractCharacters, generateCharacterImage } from "./services/openai";
-import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema } from "@shared/schema";
+import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -295,6 +295,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating character images:", error);
       res.status(500).json({ message: "Failed to generate character images" });
+    }
+  });
+
+  // Regenerate page image with custom prompt
+  app.post("/api/stories/:id/pages/:pageNumber/regenerate-image", async (req, res) => {
+    try {
+      const { storyId, pageNumber, customPrompt } = regenerateImageSchema.parse({
+        storyId: req.params.id,
+        pageNumber: parseInt(req.params.pageNumber),
+        ...req.body
+      });
+      
+      const story = await storage.getStory(storyId);
+      if (!story) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+
+      const page = story.pages.find(p => p.pageNumber === pageNumber);
+      if (!page) {
+        return res.status(404).json({ message: "Page not found" });
+      }
+
+      // Get previous page image URL for context
+      const previousPage = story.pages.find(p => p.pageNumber === pageNumber - 1);
+      const previousPageImageUrl = previousPage?.imageUrl;
+
+      // Generate new image with custom prompt
+      const imageUrl = await generatePageImage(
+        page.text,
+        story.coreImageUrl || "",
+        previousPageImageUrl,
+        story.expandedSetting || story.setting,
+        story.extractedCharacters,
+        customPrompt
+      );
+      
+      // Update page with new image
+      const updatedStory = await storage.updateStoryPageImage(storyId, pageNumber, imageUrl);
+
+      res.json({ imageUrl, story: updatedStory });
+    } catch (error) {
+      console.error("Error regenerating page image:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to regenerate page image" });
+      }
     }
   });
 

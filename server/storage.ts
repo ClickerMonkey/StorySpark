@@ -1,4 +1,6 @@
-import { type User, type InsertUser, type Story, type InsertStory, type StoryPage, type Character } from "@shared/schema";
+import { type User, type InsertUser, type Story, type InsertStory, type StoryPage, type Character, stories, users } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -133,4 +135,97 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database Storage Implementation
+export class DatabaseStorage implements IStorage {
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  async createStory(insertStory: InsertStory): Promise<Story> {
+    const [story] = await db
+      .insert(stories)
+      .values(insertStory)
+      .returning();
+    return story;
+  }
+
+  async getStory(id: string): Promise<Story | undefined> {
+    const [story] = await db.select().from(stories).where(eq(stories.id, id));
+    return story || undefined;
+  }
+
+  async getAllStories(): Promise<Story[]> {
+    return await db.select().from(stories).orderBy(stories.createdAt);
+  }
+
+  async updateStory(id: string, updates: Partial<Story>): Promise<Story | undefined> {
+    const [updatedStory] = await db
+      .update(stories)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(stories.id, id))
+      .returning();
+    return updatedStory || undefined;
+  }
+
+  async updateStoryPages(id: string, pages: StoryPage[]): Promise<Story | undefined> {
+    return this.updateStory(id, { pages });
+  }
+
+  async updateStoryStatus(id: string, status: string): Promise<Story | undefined> {
+    return this.updateStory(id, { status });
+  }
+
+  async updateStoryCoreImage(id: string, coreImageUrl: string): Promise<Story | undefined> {
+    return this.updateStory(id, { coreImageUrl });
+  }
+
+  async updateStoryPageImage(id: string, pageNumber: number, imageUrl: string): Promise<Story | undefined> {
+    const story = await this.getStory(id);
+    if (!story) return undefined;
+
+    const updatedPages = story.pages.map(page =>
+      page.pageNumber === pageNumber
+        ? { ...page, imageUrl }
+        : page
+    );
+
+    return this.updateStory(id, { pages: updatedPages });
+  }
+
+  async updateStoryExpandedSetting(id: string, expandedSetting: string): Promise<Story | undefined> {
+    return this.updateStory(id, { expandedSetting });
+  }
+
+  async updateStoryExtractedCharacters(id: string, characters: Character[]): Promise<Story | undefined> {
+    return this.updateStory(id, { extractedCharacters: characters });
+  }
+
+  async updateCharacterImage(id: string, characterName: string, imageUrl: string): Promise<Story | undefined> {
+    const story = await this.getStory(id);
+    if (!story) return undefined;
+
+    const updatedCharacters = story.extractedCharacters.map(char =>
+      char.name === characterName
+        ? { ...char, imageUrl }
+        : char
+    );
+
+    return this.updateStory(id, { extractedCharacters: updatedCharacters });
+  }
+}
+
+export const storage = new DatabaseStorage();
