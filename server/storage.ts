@@ -6,7 +6,10 @@ import { randomUUID } from "crypto";
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  upsertUser(user: any): Promise<User>;
+  updateUserOpenAI(userId: string, apiKey: string, baseUrl?: string): Promise<User | undefined>;
   
   createStory(story: InsertStory): Promise<Story>;
   getStory(id: string): Promise<Story | undefined>;
@@ -36,8 +39,59 @@ export class MemStorage implements IStorage {
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
-      (user) => user.username === username,
+      (user) => user.email === username,
     );
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.email === email,
+    );
+  }
+
+  async upsertUser(userData: any): Promise<User> {
+    const existingUser = await this.getUserByEmail(userData.email);
+    if (existingUser) {
+      // Update existing user
+      const updatedUser = { 
+        ...existingUser, 
+        name: userData.name,
+        profileImageUrl: userData.profileImageUrl 
+      };
+      this.users.set(existingUser.id, updatedUser);
+      return updatedUser;
+    } else {
+      // Create new user
+      const id = randomUUID();
+      const now = new Date();
+      const user: User = {
+        id: userData.googleId || id,
+        email: userData.email,
+        name: userData.name,
+        profileImageUrl: userData.profileImageUrl || null,
+        googleId: userData.googleId || null,
+        openaiApiKey: null,
+        openaiBaseUrl: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.users.set(user.id, user);
+      return user;
+    }
+  }
+
+  async updateUserOpenAI(userId: string, apiKey: string, baseUrl?: string): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+    
+    const updatedUser = { 
+      ...user, 
+      openaiApiKey: apiKey,
+      openaiBaseUrl: baseUrl || null,
+      updatedAt: new Date()
+    };
+    this.users.set(userId, updatedUser);
+    return updatedUser;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -137,6 +191,15 @@ export class MemStorage implements IStorage {
 
 // Database Storage Implementation
 export class DatabaseStorage implements IStorage {
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    // Since we're using email as the main identifier, we'll search by email
+    return this.getUserByEmail(username);
+  }
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;

@@ -8,6 +8,43 @@ import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Development test login route
+  app.post("/api/auth/test-login", async (req, res) => {
+    try {
+      if (process.env.NODE_ENV !== 'development') {
+        return res.status(403).json({ message: "Test login only available in development" });
+      }
+
+      const { testCredential } = req.body;
+      const payload = JSON.parse(atob(testCredential));
+      
+      const googleUser = {
+        googleId: payload.sub,
+        email: payload.email,
+        name: payload.name,
+        profileImageUrl: payload.picture,
+      };
+      
+      const user = await storage.upsertUser(googleUser);
+      const jwt = generateJWT(user.id);
+
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          profileImageUrl: user.profileImageUrl,
+          openaiApiKey: user.openaiApiKey,
+          openaiBaseUrl: user.openaiBaseUrl,
+        },
+        token: jwt
+      });
+    } catch (error) {
+      console.error("Test auth error:", error);
+      res.status(400).json({ message: "Test login failed" });
+    }
+  });
+
   // Auth routes
   app.post("/api/auth/google", async (req, res) => {
     try {

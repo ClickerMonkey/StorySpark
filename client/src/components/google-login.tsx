@@ -34,19 +34,42 @@ export function GoogleLogin({ onLogin }: GoogleLoginProps) {
     script.async = true;
     script.defer = true;
     script.onload = initializeGoogleAuth;
+    script.onerror = () => {
+      console.error('Failed to load Google Identity Services');
+      toast({
+        title: "Google Services Unavailable",
+        description: "Unable to load Google Sign-In. Please check your internet connection and try again.",
+        variant: "destructive",
+      });
+    };
     document.head.appendChild(script);
 
     return () => {
-      document.head.removeChild(script);
+      try {
+        document.head.removeChild(script);
+      } catch (e) {
+        // Script might already be removed
+      }
     };
-  }, []);
+  }, [toast]);
 
   const initializeGoogleAuth = () => {
     if (window.google) {
-      window.google.accounts.id.initialize({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "your_google_client_id_here",
-        callback: handleCredentialResponse,
-      });
+      try {
+        window.google.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "your_google_client_id_here",
+          callback: handleCredentialResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+      } catch (error) {
+        console.error('Google Auth initialization error:', error);
+        toast({
+          title: "Google Sign-In Setup Issue",
+          description: "Please check your Google OAuth configuration.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -65,11 +88,11 @@ export function GoogleLogin({ onLogin }: GoogleLoginProps) {
         title: "Welcome!",
         description: "Successfully signed in with Google.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
       toast({
         title: "Login Failed",
-        description: "Unable to sign in with Google. Please try again.",
+        description: error?.message || "Can't continue with Google, something went wrong",
         variant: "destructive",
       });
     } finally {
@@ -78,8 +101,82 @@ export function GoogleLogin({ onLogin }: GoogleLoginProps) {
   };
 
   const handleGoogleLogin = () => {
-    if (window.google) {
-      window.google.accounts.id.prompt();
+    try {
+      if (window.google && window.google.accounts) {
+        // First try to render the button if container exists and is empty
+        const buttonContainer = document.getElementById('google-signin-button');
+        if (buttonContainer && !buttonContainer.hasChildNodes()) {
+          try {
+            window.google.accounts.id.renderButton(buttonContainer, {
+              theme: 'outline',
+              size: 'large',
+              width: '100%',
+              text: 'continue_with'
+            });
+          } catch (renderError) {
+            console.warn('Failed to render Google button:', renderError);
+          }
+        }
+        // Always try to prompt for sign-in
+        window.google.accounts.id.prompt();
+      } else {
+        // Dev mode fallback - create a test user
+        if (process.env.NODE_ENV === 'development') {
+          handleTestLogin();
+        } else {
+          toast({
+            title: "Google Sign-In Not Ready",
+            description: "Google authentication is still loading. Please wait a moment and try again.",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Google login error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        handleTestLogin();
+      } else {
+        toast({
+          title: "Authentication Error",
+          description: "Can't continue with Google, something went wrong. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleTestLogin = async () => {
+    setIsLoading(true);
+    try {
+      // Create a test credential for development
+      const testCredential = btoa(JSON.stringify({
+        sub: 'test-user-123',
+        email: 'test@example.com',
+        name: 'Test User',
+        picture: 'https://via.placeholder.com/150'
+      }));
+
+      const result = await apiRequest('POST', '/api/auth/test-login', {
+        testCredential,
+      });
+      
+      const data = await result.json();
+      localStorage.setItem('auth_token', data.token);
+      onLogin(data.user, data.token);
+      
+      toast({
+        title: "Welcome!",
+        description: "Successfully signed in with test account.",
+      });
+    } catch (error: any) {
+      console.error('Test login error:', error);
+      toast({
+        title: "Test Login Failed",
+        description: "Unable to create test account. Please check the console for details.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -91,6 +188,10 @@ export function GoogleLogin({ onLogin }: GoogleLoginProps) {
           <p className="text-gray-600 mt-2">Sign in to create amazing children's stories with AI</p>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Google Sign-In Button Container - Try to render Google's button first */}
+          <div id="google-signin-button" className="w-full min-h-[40px]"></div>
+          
+          {/* Always show fallback button */}
           <Button
             onClick={handleGoogleLogin}
             disabled={isLoading}
@@ -125,6 +226,9 @@ export function GoogleLogin({ onLogin }: GoogleLoginProps) {
           <div className="text-center text-sm text-gray-500">
             <p>By signing in, you agree to use your own OpenAI API key</p>
             <p>for generating stories and images.</p>
+            {process.env.NODE_ENV === 'development' && (
+              <p className="mt-2 text-xs text-blue-600">Development mode: Click button for test login if Google OAuth fails</p>
+            )}
           </div>
         </CardContent>
       </Card>
