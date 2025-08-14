@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createStorySchema, type CreateStory, type Story, type StoryPage } from "@shared/schema";
+import { createStorySchema, type CreateStory, type Story, type StoryPage, type Character } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
 import { Loader2, BookOpen, Users, ScrollText, Palette, Eye, Edit, Check, Plus } from "lucide-react";
 
-type WorkflowStep = "details" | "review" | "images" | "complete";
+type WorkflowStep = "details" | "setting" | "characters" | "review" | "images" | "complete";
 
 interface StoryCreationWorkflowProps {
   onComplete?: (story: Story) => void;
@@ -26,6 +26,8 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [editedPages, setEditedPages] = useState<StoryPage[]>([]);
   const [imageGenerationProgress, setImageGenerationProgress] = useState<{ [key: number]: boolean }>({});
+  const [expandedSetting, setExpandedSetting] = useState("");
+  const [extractedCharacters, setExtractedCharacters] = useState<Character[]>([]);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -46,19 +48,32 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
       const response = await apiRequest("POST", "/api/stories", data);
       return response.json() as Promise<Story>;
     },
-    onSuccess: (story) => {
+    onSuccess: async (story) => {
       setGeneratedStory(story);
-      setEditedPages(story.pages);
-      setCurrentStep("review");
-      toast({
-        title: "Story Generated!",
-        description: "Your story has been created. Please review and edit as needed.",
-      });
+      setCurrentStep("setting");
+      
+      // Automatically expand the setting
+      try {
+        const expandResponse = await apiRequest("POST", `/api/stories/${story.id}/expand-setting`);
+        const { expandedSetting } = await expandResponse.json();
+        setExpandedSetting(expandedSetting);
+        
+        toast({
+          title: "Story Created!",
+          description: "I've expanded your setting. Please review and edit as needed.",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to expand setting",
+          variant: "destructive",
+        });
+      }
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to generate story",
+        description: error instanceof Error ? error.message : "Failed to create story",
         variant: "destructive",
       });
     },
@@ -144,11 +159,64 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
     setEditedPages(updatedPages);
   };
 
+  const approveSettingMutation = useMutation({
+    mutationFn: async () => {
+      if (!generatedStory) throw new Error("No story to approve");
+      const response = await apiRequest("POST", `/api/stories/${generatedStory.id}/approve-setting`, {
+        expandedSetting,
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setExtractedCharacters(data.characters);
+      setCurrentStep("characters");
+      toast({
+        title: "Setting Approved!",
+        description: "I've extracted your characters. Please review and edit them.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to approve setting",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const approveCharactersMutation = useMutation({
+    mutationFn: async () => {
+      if (!generatedStory) throw new Error("No story to approve");
+      const response = await apiRequest("POST", `/api/stories/${generatedStory.id}/approve-characters`, {
+        characters: extractedCharacters,
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setGeneratedStory(data.story);
+      setEditedPages(data.story.pages);
+      setCurrentStep("review");
+      toast({
+        title: "Characters Approved!",
+        description: "Your story has been generated. Please review and edit as needed.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to approve characters",
+        variant: "destructive",
+      });
+    },
+  });
+
   const steps = [
-    { number: 1, label: "Story Details", completed: currentStep !== "details", current: currentStep === "details" },
-    { number: 2, label: "Review Story", completed: ["images", "complete"].includes(currentStep), current: currentStep === "review" },
-    { number: 3, label: "Generate Images", completed: currentStep === "complete", current: currentStep === "images" },
-    { number: 4, label: "Final Story", completed: false, current: currentStep === "complete" },
+    { number: 1, label: "Story Details", completed: !["details"].includes(currentStep), current: currentStep === "details" },
+    { number: 2, label: "Expand Setting", completed: !["details", "setting"].includes(currentStep), current: currentStep === "setting" },
+    { number: 3, label: "Define Characters", completed: !["details", "setting", "characters"].includes(currentStep), current: currentStep === "characters" },
+    { number: 4, label: "Review Story", completed: ["images", "complete"].includes(currentStep), current: currentStep === "review" },
+    { number: 5, label: "Generate Images", completed: currentStep === "complete", current: currentStep === "images" },
+    { number: 6, label: "Final Story", completed: false, current: currentStep === "complete" },
   ];
 
   return (
@@ -353,7 +421,125 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
         </Card>
       )}
 
-      {/* Step 2: Story Review */}
+      {/* Step 2: Setting Expansion */}
+      {currentStep === "setting" && (
+        <Card className="bg-white shadow-lg">
+          <CardContent className="p-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">Let's Expand Your Setting!</h2>
+              <p className="text-lg text-gray-600">I've enriched your story setting. Please review and edit as needed.</p>
+            </div>
+
+            <div className="max-w-4xl mx-auto">
+              <div className="mb-6">
+                <label className="block text-lg font-semibold text-gray-900 mb-3">
+                  Expanded Setting Description
+                </label>
+                <Textarea
+                  value={expandedSetting}
+                  onChange={(e) => setExpandedSetting(e.target.value)}
+                  className="min-h-[200px] border-2 border-gray-200 focus:border-indigo-600 text-base"
+                  placeholder="Your expanded setting will appear here..."
+                  data-testid="textarea-expanded-setting"
+                />
+              </div>
+
+              <div className="flex justify-center">
+                <Button
+                  onClick={() => approveSettingMutation.mutate()}
+                  disabled={approveSettingMutation.isPending || !expandedSetting.trim()}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-xl text-lg font-semibold"
+                  data-testid="button-approve-setting"
+                >
+                  {approveSettingMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="mr-3 h-5 w-5" />
+                      Approve & Continue
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 3: Character Definition */}
+      {currentStep === "characters" && (
+        <Card className="bg-white shadow-lg">
+          <CardContent className="p-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">Meet Your Characters!</h2>
+              <p className="text-lg text-gray-600">I've extracted and detailed your characters. Please review and edit them.</p>
+            </div>
+
+            <div className="max-w-4xl mx-auto">
+              {extractedCharacters.map((character, index) => (
+                <div key={index} className="mb-6 p-6 bg-gray-50 rounded-xl">
+                  <div className="mb-4">
+                    <label className="block text-lg font-semibold text-gray-900 mb-2">
+                      Character Name
+                    </label>
+                    <Input
+                      value={character.name}
+                      onChange={(e) => {
+                        const updated = [...extractedCharacters];
+                        updated[index].name = e.target.value;
+                        setExtractedCharacters(updated);
+                      }}
+                      className="border-2 border-gray-200 focus:border-indigo-600"
+                      data-testid={`input-character-name-${index}`}
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-lg font-semibold text-gray-900 mb-2">
+                      Character Description
+                    </label>
+                    <Textarea
+                      value={character.description}
+                      onChange={(e) => {
+                        const updated = [...extractedCharacters];
+                        updated[index].description = e.target.value;
+                        setExtractedCharacters(updated);
+                      }}
+                      className="min-h-[100px] border-2 border-gray-200 focus:border-indigo-600"
+                      data-testid={`textarea-character-description-${index}`}
+                    />
+                  </div>
+                </div>
+              ))}
+
+              <div className="flex justify-center">
+                <Button
+                  onClick={() => approveCharactersMutation.mutate()}
+                  disabled={approveCharactersMutation.isPending}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-xl text-lg font-semibold"
+                  data-testid="button-approve-characters"
+                >
+                  {approveCharactersMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                      Generating Story...
+                    </>
+                  ) : (
+                    <>
+                      <ScrollText className="mr-3 h-5 w-5" />
+                      Generate Story Text
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 4: Story Review */}
       {currentStep === "review" && generatedStory && (
         <Card className="bg-white shadow-lg">
           <CardContent className="p-8">

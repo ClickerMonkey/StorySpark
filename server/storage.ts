@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Story, type InsertStory, type StoryPage } from "@shared/schema";
+import { type User, type InsertUser, type Story, type InsertStory, type StoryPage, type Character } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -14,6 +14,9 @@ export interface IStorage {
   updateStoryStatus(id: string, status: string): Promise<Story | undefined>;
   updateStoryCoreImage(id: string, coreImageUrl: string): Promise<Story | undefined>;
   updateStoryPageImage(id: string, pageNumber: number, imageUrl: string): Promise<Story | undefined>;
+  updateStoryExpandedSetting(id: string, expandedSetting: string): Promise<Story | undefined>;
+  updateStoryExtractedCharacters(id: string, characters: Character[]): Promise<Story | undefined>;
+  updateCharacterImage(id: string, characterName: string, imageUrl: string): Promise<Story | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -53,6 +56,8 @@ export class MemStorage implements IStorage {
       status: insertStory.status || "draft",
       pages: insertStory.pages || [],
       coreImageUrl: insertStory.coreImageUrl || null,
+      expandedSetting: insertStory.expandedSetting || null,
+      extractedCharacters: insertStory.extractedCharacters || [],
     };
     this.stories.set(id, story);
     return story;
@@ -104,6 +109,27 @@ export class MemStorage implements IStorage {
     );
 
     return this.updateStory(id, { pages: updatedPages });
+  }
+
+  async updateStoryExpandedSetting(id: string, expandedSetting: string): Promise<Story | undefined> {
+    return this.updateStory(id, { expandedSetting });
+  }
+
+  async updateStoryExtractedCharacters(id: string, characters: Character[]): Promise<Story | undefined> {
+    return this.updateStory(id, { extractedCharacters: characters });
+  }
+
+  async updateCharacterImage(id: string, characterName: string, imageUrl: string): Promise<Story | undefined> {
+    const story = this.stories.get(id);
+    if (!story) return undefined;
+
+    const updatedCharacters = story.extractedCharacters.map(char =>
+      char.name === characterName
+        ? { ...char, imageUrl }
+        : char
+    );
+
+    return this.updateStory(id, { extractedCharacters: updatedCharacters });
   }
 }
 

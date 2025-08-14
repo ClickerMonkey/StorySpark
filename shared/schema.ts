@@ -7,13 +7,15 @@ export const stories = pgTable("stories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
   setting: text("setting").notNull(),
+  expandedSetting: text("expanded_setting"),
   characters: text("characters").notNull(),
+  extractedCharacters: jsonb("extracted_characters").$type<Character[]>().default([]),
   plot: text("plot").notNull(),
   ageGroup: text("age_group").notNull(),
   totalPages: integer("total_pages").notNull(),
   pages: jsonb("pages").$type<StoryPage[]>().notNull().default([]),
   coreImageUrl: text("core_image_url"),
-  status: text("status").notNull().default("draft"), // draft, text_approved, generating_images, completed
+  status: text("status").notNull().default("draft"), // draft, setting_expansion, characters_extracted, text_approved, generating_images, completed
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -34,6 +36,19 @@ export const createStorySchema = z.object({
   ageGroup: z.enum(["3-5", "6-8", "9-12"]),
 });
 
+export const approveSettingSchema = z.object({
+  storyId: z.string(),
+  expandedSetting: z.string().min(20, "Setting must be at least 20 characters"),
+});
+
+export const approveCharactersSchema = z.object({
+  storyId: z.string(),
+  characters: z.array(z.object({
+    name: z.string().min(1, "Character name required"),
+    description: z.string().min(10, "Character description must be at least 10 characters"),
+  })),
+});
+
 export const approveStorySchema = z.object({
   storyId: z.string(),
   pages: z.array(z.object({
@@ -41,6 +56,12 @@ export const approveStorySchema = z.object({
     text: z.string().min(50, "Page text must be at least 50 characters"),
   })),
 });
+
+export type Character = {
+  name: string;
+  description: string;
+  imageUrl?: string;
+};
 
 export type StoryPage = {
   pageNumber: number;
@@ -52,6 +73,8 @@ export type StoryPage = {
 export type Story = typeof stories.$inferSelect;
 export type InsertStory = z.infer<typeof insertStorySchema>;
 export type CreateStory = z.infer<typeof createStorySchema>;
+export type ApproveSetting = z.infer<typeof approveSettingSchema>;
+export type ApproveCharacters = z.infer<typeof approveCharactersSchema>;
 export type ApproveStory = z.infer<typeof approveStorySchema>;
 
 // Keep existing users table

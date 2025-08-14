@@ -160,8 +160,7 @@ export default function StoryLibrary() {
                   <Button 
                     className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium"
                     onClick={() => {
-                      // TODO: Navigate to story reader with this story
-                      console.log("Read story:", story.id);
+                      setLocation(`/story/${story.id}`);
                     }}
                     data-testid={`button-read-${story.id}`}
                   >
