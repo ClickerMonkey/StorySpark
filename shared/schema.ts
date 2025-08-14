@@ -5,15 +5,19 @@ import { z } from "zod";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
   email: text("email").notNull().unique(),
-  password: text("password").notNull(),
+  name: text("name").notNull(),
+  profileImageUrl: text("profile_image_url"),
+  googleId: text("google_id").unique(),
+  openaiApiKey: text("openai_api_key"),
+  openaiBaseUrl: text("openai_base_url").default("https://api.openai.com/v1"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const stories = pgTable("stories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
   title: text("title").notNull(),
   setting: text("setting").notNull(),
   expandedSetting: text("expanded_setting"),
@@ -25,6 +29,7 @@ export const stories = pgTable("stories", {
   pages: jsonb("pages").$type<StoryPage[]>().notNull().default([]),
   coreImageUrl: text("core_image_url"),
   status: text("status").notNull().default("draft"), // draft, setting_expansion, characters_extracted, text_approved, generating_images, completed
+  isBookmarked: integer("is_bookmarked").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

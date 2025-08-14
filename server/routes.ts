@@ -3,42 +3,104 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateStoryText, generateCoreImage, generatePageImage, expandSetting, extractCharacters, generateCharacterImage } from "./services/openai";
 import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema } from "@shared/schema";
+import { verifyGoogleToken, generateJWT, requireAuth, optionalAuth, type AuthenticatedRequest } from "./auth";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Create a new story from user input
-  app.post("/api/stories", async (req, res) => {
+  // Auth routes
+  app.post("/api/auth/google", async (req, res) => {
     try {
-      const storyInput = createStorySchema.parse(req.body);
+      const { token } = req.body;
+      if (!token) {
+        return res.status(400).json({ message: "Google token is required" });
+      }
+
+      const googleUser = await verifyGoogleToken(token);
+      const user = await storage.upsertUser(googleUser);
+      const jwt = generateJWT(user.id);
+
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          profileImageUrl: user.profileImageUrl,
+          openaiApiKey: user.openaiApiKey,
+          openaiBaseUrl: user.openaiBaseUrl,
+        },
+        token: jwt
+      });
+    } catch (error) {
+      console.error("Google auth error:", error);
+      res.status(401).json({ message: "Invalid Google token" });
+    }
+  });
+
+  app.get("/api/auth/user", requireAuth, async (req: AuthenticatedRequest, res) => {
+    res.json({
+      user: req.user
+    });
+  });
+
+  app.post("/api/auth/setup-openai", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { openaiApiKey, openaiBaseUrl } = req.body;
+      if (!openaiApiKey) {
+        return res.status(400).json({ message: "OpenAI API key is required" });
+      }
+
+      const updatedUser = await storage.updateUserOpenAI(req.user!.id, openaiApiKey, openaiBaseUrl);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          name: updatedUser.name,
+          profileImageUrl: updatedUser.profileImageUrl,
+          openaiApiKey: updatedUser.openaiApiKey,
+          openaiBaseUrl: updatedUser.openaiBaseUrl,
+        }
+      });
+    } catch (error) {
+      console.error("Setup OpenAI error:", error);
+      res.status(500).json({ message: "Failed to update OpenAI settings" });
+    }
+  });
+
+  // Story routes
+  app.post("/api/stories", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const storyData = createStorySchema.parse(req.body);
       
-      // Create initial story in storage with basic information
+      if (!req.user?.openaiApiKey) {
+        return res.status(400).json({ message: "OpenAI API key required. Please configure it in your settings." });
+      }
+
       const story = await storage.createStory({
-        title: `Story in ${storyInput.setting}`,
-        setting: storyInput.setting,
-        characters: storyInput.characters,
-        plot: storyInput.plot,
-        ageGroup: storyInput.ageGroup,
-        totalPages: storyInput.totalPages,
-        pages: [],
-        status: "setting_expansion",
+        userId: req.user.id,
+        title: "Untitled Story",
+        ...storyData,
+        status: "draft"
       });
 
-      res.json(story);
+      res.status(201).json(story);
     } catch (error) {
       console.error("Error creating story:", error);
       if (error instanceof z.ZodError) {
-        res.status(400).json({ message: "Invalid input data", errors: error.errors });
+        res.status(400).json({ message: "Invalid story data", errors: error.errors });
       } else {
-        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to create story" });
+        res.status(500).json({ message: "Failed to create story" });
       }
     }
   });
 
-  // Get all stories
-  app.get("/api/stories", async (req, res) => {
+  app.get("/api/stories", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const stories = await storage.getAllStories();
+      const stories = await storage.getUserStories(req.user!.id);
       res.json(stories);
     } catch (error) {
       console.error("Error fetching stories:", error);
@@ -46,13 +108,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get a specific story
-  app.get("/api/stories/:id", async (req, res) => {
+  app.get("/api/stories/:id", optionalAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const story = await storage.getStory(req.params.id);
       if (!story) {
         return res.status(404).json({ message: "Story not found" });
       }
+
+      // Check if user owns the story (for private stories in the future)
+      if (req.user && story.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
       res.json(story);
     } catch (error) {
       console.error("Error fetching story:", error);
@@ -60,129 +127,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Approve story text and start image generation
-  app.post("/api/stories/:id/approve", async (req, res) => {
-    try {
-      const { storyId, pages } = approveStorySchema.parse({ 
-        storyId: req.params.id, 
-        ...req.body 
-      });
-      
-      const story = await storage.getStory(storyId);
-      if (!story) {
-        return res.status(404).json({ message: "Story not found" });
-      }
-
-      // Update story with approved text
-      const updatedStory = await storage.updateStoryPages(storyId, pages);
-      if (!updatedStory) {
-        return res.status(500).json({ message: "Failed to update story" });
-      }
-
-      // Update status to text_approved
-      await storage.updateStoryStatus(storyId, "text_approved");
-
-      res.json({ message: "Story approved successfully", story: updatedStory });
-    } catch (error) {
-      console.error("Error approving story:", error);
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ message: "Invalid input data", errors: error.errors });
-      } else {
-        res.status(500).json({ message: "Failed to approve story" });
-      }
-    }
-  });
-
-  // Generate core image for a story
-  app.post("/api/stories/:id/generate-core-image", async (req, res) => {
+  app.post("/api/stories/:id/expand-setting", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const story = await storage.getStory(req.params.id);
       if (!story) {
         return res.status(404).json({ message: "Story not found" });
       }
 
-      if (story.status !== "text_approved") {
-        return res.status(400).json({ message: "Story text must be approved before generating images" });
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
       }
 
-      // Generate core image
-      const coreImageUrl = await generateCoreImage(story.setting, story.characters);
-      
-      // Update story with core image
-      const updatedStory = await storage.updateStoryCoreImage(story.id, coreImageUrl);
-      await storage.updateStoryStatus(story.id, "generating_images");
-
-      res.json({ coreImageUrl, story: updatedStory });
-    } catch (error) {
-      console.error("Error generating core image:", error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to generate core image" });
-    }
-  });
-
-  // Generate image for a specific page
-  app.post("/api/stories/:id/pages/:pageNumber/generate-image", async (req, res) => {
-    try {
-      const storyId = req.params.id;
-      const pageNumber = parseInt(req.params.pageNumber);
-      
-      const story = await storage.getStory(storyId);
-      if (!story) {
-        return res.status(404).json({ message: "Story not found" });
+      if (!req.user?.openaiApiKey) {
+        return res.status(400).json({ message: "OpenAI API key required" });
       }
 
-      if (!story.coreImageUrl) {
-        return res.status(400).json({ message: "Core image must be generated first" });
-      }
-
-      const page = story.pages.find(p => p.pageNumber === pageNumber);
-      if (!page) {
-        return res.status(404).json({ message: "Page not found" });
-      }
-
-      // Get previous page image URL for context
-      const previousPage = story.pages.find(p => p.pageNumber === pageNumber - 1);
-      const previousPageImageUrl = previousPage?.imageUrl;
-
-      // Generate page image
-      const imageUrl = await generatePageImage(
-        page.text, 
-        story.coreImageUrl, 
-        previousPageImageUrl,
-        story.expandedSetting || story.setting,
-        story.extractedCharacters
+      const expandedSetting = await expandSetting(
+        story.setting,
+        story.characters,
+        story.plot,
+        story.ageGroup,
+        req.user.openaiApiKey,
+        req.user.openaiBaseUrl
       );
-      
-      // Update page with image
-      const updatedStory = await storage.updateStoryPageImage(storyId, pageNumber, imageUrl);
-      
-      // Check if all pages have images and update status to completed
-      const allPagesHaveImages = updatedStory?.pages.every(p => p.imageUrl);
-      if (allPagesHaveImages) {
-        await storage.updateStoryStatus(storyId, "completed");
-      }
 
-      res.json({ imageUrl, story: updatedStory });
-    } catch (error) {
-      console.error("Error generating page image:", error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to generate page image" });
-    }
-  });
-
-  // Expand story setting 
-  app.post("/api/stories/:id/expand-setting", async (req, res) => {
-    try {
-      const story = await storage.getStory(req.params.id);
-      if (!story) {
-        return res.status(404).json({ message: "Story not found" });
-      }
-
-      // Expand the setting
-      const expandedSetting = await expandSetting(story.setting, story.characters, story.plot, story.ageGroup);
-      
-      // Update story with expanded setting
       const updatedStory = await storage.updateStoryExpandedSetting(story.id, expandedSetting);
-      await storage.updateStoryStatus(story.id, "setting_expansion");
-
       res.json({ expandedSetting, story: updatedStory });
     } catch (error) {
       console.error("Error expanding setting:", error);
@@ -190,12 +159,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Approve expanded setting
-  app.post("/api/stories/:id/approve-setting", async (req, res) => {
+  app.post("/api/stories/:id/approve-setting", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { storyId, expandedSetting } = approveSettingSchema.parse({ 
-        storyId: req.params.id, 
-        ...req.body 
+      const { storyId, expandedSetting } = approveSettingSchema.parse({
+        storyId: req.params.id,
+        ...req.body
       });
       
       const story = await storage.getStory(storyId);
@@ -203,32 +171,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Story not found" });
       }
 
-      // Update story with approved setting
-      await storage.updateStoryExpandedSetting(storyId, expandedSetting);
-      
-      // Extract characters next
-      const extractedCharacters = await extractCharacters(story.characters, expandedSetting, story.ageGroup);
-      await storage.updateStoryExtractedCharacters(storyId, extractedCharacters);
-      await storage.updateStoryStatus(storyId, "characters_extracted");
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
 
-      const updatedStory = await storage.getStory(storyId);
-      res.json({ characters: extractedCharacters, story: updatedStory });
+      const updatedStory = await storage.updateStory(storyId, {
+        expandedSetting,
+        status: "setting_expansion"
+      });
+
+      res.json({ story: updatedStory });
     } catch (error) {
       console.error("Error approving setting:", error);
       if (error instanceof z.ZodError) {
-        res.status(400).json({ message: "Invalid input data", errors: error.errors });
+        res.status(400).json({ message: "Invalid setting data", errors: error.errors });
       } else {
         res.status(500).json({ message: "Failed to approve setting" });
       }
     }
   });
 
-  // Approve characters and generate character images
-  app.post("/api/stories/:id/approve-characters", async (req, res) => {
+  app.post("/api/stories/:id/extract-characters", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { storyId, characters } = approveCharactersSchema.parse({ 
-        storyId: req.params.id, 
-        ...req.body 
+      const story = await storage.getStory(req.params.id);
+      if (!story) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (!req.user?.openaiApiKey) {
+        return res.status(400).json({ message: "OpenAI API key required" });
+      }
+
+      const extractedCharacters = await extractCharacters(
+        story.characters,
+        story.expandedSetting || story.setting,
+        story.ageGroup,
+        req.user.openaiApiKey,
+        req.user.openaiBaseUrl
+      );
+
+      const updatedStory = await storage.updateStoryExtractedCharacters(story.id, extractedCharacters);
+      res.json({ characters: extractedCharacters, story: updatedStory });
+    } catch (error) {
+      console.error("Error extracting characters:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to extract characters" });
+    }
+  });
+
+  app.post("/api/stories/:id/approve-characters", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { storyId, characters } = approveCharactersSchema.parse({
+        storyId: req.params.id,
+        ...req.body
       });
       
       const story = await storage.getStory(storyId);
@@ -236,70 +234,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Story not found" });
       }
 
-      // Update characters
-      await storage.updateStoryExtractedCharacters(storyId, characters);
-      
-      // Generate story text now that we have detailed characters
-      const storyInput = {
-        setting: story.expandedSetting || story.setting,
-        characters: characters.map(c => `${c.name}: ${c.description}`).join('\n'),
-        plot: story.plot,
-        totalPages: story.totalPages,
-        ageGroup: story.ageGroup
-      };
-      
-      const generatedStory = await generateStoryText(storyInput);
-      
-      // Update story with generated text
-      await storage.updateStory(storyId, {
-        title: generatedStory.title,
-        pages: generatedStory.pages,
-        status: "draft"
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updatedStory = await storage.updateStory(storyId, {
+        extractedCharacters: characters,
+        status: "characters_extracted"
       });
 
-      const updatedStory = await storage.getStory(storyId);
       res.json({ story: updatedStory });
     } catch (error) {
       console.error("Error approving characters:", error);
       if (error instanceof z.ZodError) {
-        res.status(400).json({ message: "Invalid input data", errors: error.errors });
+        res.status(400).json({ message: "Invalid character data", errors: error.errors });
       } else {
         res.status(500).json({ message: "Failed to approve characters" });
       }
     }
   });
 
-  // Generate character images
-  app.post("/api/stories/:id/generate-character-images", async (req, res) => {
+  app.post("/api/stories/:id/generate-story", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const story = await storage.getStory(req.params.id);
       if (!story) {
         return res.status(404).json({ message: "Story not found" });
       }
 
-      const characterImages = [];
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (!req.user?.openaiApiKey) {
+        return res.status(400).json({ message: "OpenAI API key required" });
+      }
+
+      const storyContent = await generateStoryText(
+        {
+          setting: story.setting,
+          characters: story.characters,
+          plot: story.plot,
+          ageGroup: story.ageGroup,
+          totalPages: story.totalPages
+        },
+        story.expandedSetting || story.setting,
+        story.extractedCharacters || [],
+        req.user.openaiApiKey,
+        req.user.openaiBaseUrl
+      );
+
+      const updatedStory = await storage.updateStory(story.id, {
+        title: storyContent.title,
+        pages: storyContent.pages,
+        status: "text_approved"
+      });
+
+      res.json({ story: updatedStory, storyContent });
+    } catch (error) {
+      console.error("Error generating story:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to generate story text" });
+    }
+  });
+
+  app.post("/api/stories/:id/approve-story", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { storyId, pages } = approveStorySchema.parse({
+        storyId: req.params.id,
+        ...req.body
+      });
       
-      // Generate images for each character
-      for (const character of story.extractedCharacters) {
-        try {
-          const imageUrl = await generateCharacterImage(character, story.expandedSetting || story.setting);
-          await storage.updateCharacterImage(story.id, character.name, imageUrl);
-          characterImages.push({ character: character.name, imageUrl });
-        } catch (error) {
-          console.error(`Error generating image for character ${character.name}:`, error);
+      const story = await storage.getStory(storyId);
+      if (!story) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updatedStory = await storage.updateStory(storyId, {
+        pages,
+        status: "text_approved"
+      });
+
+      res.json({ story: updatedStory });
+    } catch (error) {
+      console.error("Error approving story:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid story data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to approve story" });
+      }
+    }
+  });
+
+  app.post("/api/stories/:id/generate-images", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const story = await storage.getStory(req.params.id);
+      if (!story) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (!req.user?.openaiApiKey) {
+        return res.status(400).json({ message: "OpenAI API key required" });
+      }
+
+      await storage.updateStoryStatus(story.id, "generating_images");
+
+      // Generate core image
+      const coreImageUrl = await generateCoreImage(
+        story.expandedSetting || story.setting,
+        story.extractedCharacters || [],
+        req.user.openaiApiKey,
+        req.user.openaiBaseUrl
+      );
+      
+      await storage.updateStoryCoreImage(story.id, coreImageUrl);
+
+      // Generate character images
+      if (story.extractedCharacters && story.extractedCharacters.length > 0) {
+        const characterImages: Record<string, string> = {};
+        for (const character of story.extractedCharacters) {
+          const characterImageUrl = await generateCharacterImage(
+            character,
+            story.expandedSetting || story.setting,
+            req.user.openaiApiKey,
+            req.user.openaiBaseUrl
+          );
+          characterImages[character.name] = characterImageUrl;
+          await storage.updateCharacterImage(story.id, character.name, characterImageUrl);
         }
       }
 
-      const updatedStory = await storage.getStory(req.params.id);
-      res.json({ characterImages, story: updatedStory });
+      // Generate page images
+      const updatedPages = [...story.pages];
+      for (let i = 0; i < story.pages.length; i++) {
+        const page = story.pages[i];
+        const previousPageImageUrl = i > 0 ? updatedPages[i - 1].imageUrl : undefined;
+
+        const imageUrl = await generatePageImage(
+          page.text,
+          coreImageUrl,
+          previousPageImageUrl,
+          story.expandedSetting || story.setting,
+          story.extractedCharacters,
+          req.user.openaiApiKey,
+          req.user.openaiBaseUrl
+        );
+        
+        updatedPages[i] = { ...page, imageUrl };
+      }
+
+      const finalStory = await storage.updateStory(story.id, {
+        pages: updatedPages,
+        status: "completed"
+      });
+
+      res.json({ story: finalStory });
     } catch (error) {
-      console.error("Error generating character images:", error);
-      res.status(500).json({ message: "Failed to generate character images" });
+      console.error("Error generating images:", error);
+      await storage.updateStoryStatus(req.params.id, "text_approved");
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to generate images" });
     }
   });
 
   // Regenerate page image with custom prompt
-  app.post("/api/stories/:id/pages/:pageNumber/regenerate-image", async (req, res) => {
+  app.post("/api/stories/:id/pages/:pageNumber/regenerate-image", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const { storyId, pageNumber, customPrompt } = regenerateImageSchema.parse({
         storyId: req.params.id,
@@ -312,28 +416,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Story not found" });
       }
 
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (!req.user?.openaiApiKey) {
+        return res.status(400).json({ message: "OpenAI API key required" });
+      }
+
       const page = story.pages.find(p => p.pageNumber === pageNumber);
       if (!page) {
         return res.status(404).json({ message: "Page not found" });
       }
 
-      // Get previous page image URL for context
       const previousPage = story.pages.find(p => p.pageNumber === pageNumber - 1);
       const previousPageImageUrl = previousPage?.imageUrl;
 
-      // Generate new image with custom prompt
       const imageUrl = await generatePageImage(
         page.text,
         story.coreImageUrl || "",
         previousPageImageUrl,
         story.expandedSetting || story.setting,
         story.extractedCharacters,
+        req.user.openaiApiKey,
+        req.user.openaiBaseUrl,
         customPrompt
       );
       
-      // Update page with new image
       const updatedStory = await storage.updateStoryPageImage(storyId, pageNumber, imageUrl);
-
       res.json({ imageUrl, story: updatedStory });
     } catch (error) {
       console.error("Error regenerating page image:", error);
@@ -345,21 +455,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update story text (for editing)
-  app.patch("/api/stories/:id", async (req, res) => {
+  // Bookmark story
+  app.post("/api/stories/:id/bookmark", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const story = await storage.getStory(req.params.id);
       if (!story) {
         return res.status(404).json({ message: "Story not found" });
       }
 
-      const updates = req.body;
-      const updatedStory = await storage.updateStory(req.params.id, updates);
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
 
-      res.json(updatedStory);
+      const updatedStory = await storage.toggleStoryBookmark(req.params.id);
+      res.json({ story: updatedStory });
     } catch (error) {
-      console.error("Error updating story:", error);
-      res.status(500).json({ message: "Failed to update story" });
+      console.error("Error bookmarking story:", error);
+      res.status(500).json({ message: "Failed to bookmark story" });
     }
   });
 

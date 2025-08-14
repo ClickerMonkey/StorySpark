@@ -142,12 +142,7 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: Omit<InsertUser, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
     const [user] = await db
       .insert(users)
       .values(insertUser)
@@ -155,7 +150,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createStory(insertStory: InsertStory): Promise<Story> {
+  async createStory(insertStory: Omit<InsertStory, 'id' | 'createdAt' | 'updatedAt'>): Promise<Story> {
     const [story] = await db
       .insert(stories)
       .values(insertStory)
@@ -216,7 +211,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateCharacterImage(id: string, characterName: string, imageUrl: string): Promise<Story | undefined> {
     const story = await this.getStory(id);
-    if (!story) return undefined;
+    if (!story || !story.extractedCharacters) return undefined;
 
     const updatedCharacters = story.extractedCharacters.map(char =>
       char.name === characterName
@@ -225,6 +220,65 @@ export class DatabaseStorage implements IStorage {
     );
 
     return this.updateStory(id, { extractedCharacters: updatedCharacters });
+  }
+
+  async getUserStories(userId: string): Promise<Story[]> {
+    return await db.select().from(stories).where(eq(stories.userId, userId)).orderBy(stories.createdAt);
+  }
+
+  async toggleStoryBookmark(id: string): Promise<Story | undefined> {
+    const story = await this.getStory(id);
+    if (!story) return undefined;
+
+    const newBookmarkStatus = story.isBookmarked ? 0 : 1;
+    return this.updateStory(id, { isBookmarked: newBookmarkStatus });
+  }
+
+  async upsertUser(googleData: {
+    googleId: string;
+    email: string;
+    name: string;
+    profileImageUrl?: string;
+  }): Promise<User> {
+    const [existingUser] = await db.select().from(users).where(eq(users.googleId, googleData.googleId));
+    
+    if (existingUser) {
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          email: googleData.email,
+          name: googleData.name,
+          profileImageUrl: googleData.profileImageUrl,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, existingUser.id))
+        .returning();
+      return updatedUser;
+    } else {
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          googleId: googleData.googleId,
+          email: googleData.email,
+          name: googleData.name,
+          profileImageUrl: googleData.profileImageUrl,
+        })
+        .returning();
+      return newUser;
+    }
+  }
+
+  async updateUserOpenAI(userId: string, openaiApiKey: string, openaiBaseUrl?: string): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        openaiApiKey,
+        openaiBaseUrl: openaiBaseUrl || "https://api.openai.com/v1",
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return updatedUser || undefined;
   }
 }
 

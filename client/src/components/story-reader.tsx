@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { ImageModal } from "@/components/image-modal";
 import { ChevronLeft, ChevronRight, Volume2, Bookmark, Share, Download, Edit, Save, BookOpen, Users, Clock, RefreshCw, Loader2 } from "lucide-react";
 
 interface StoryReaderProps {
@@ -20,6 +21,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [customPrompt, setCustomPrompt] = useState("");
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
+  const [zoomedImage, setZoomedImage] = useState<{ url: string; alt: string } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -188,15 +190,21 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
             {/* Story Image */}
             <div className="order-2 lg:order-1">
               {currentPage?.imageUrl ? (
-                <img 
-                  src={currentPage.imageUrl}
-                  alt={`Story illustration for page ${currentPage.pageNumber}`}
-                  className="w-full rounded-xl shadow-lg"
-                  data-testid="page-image"
-                />
+                <div
+                  className="cursor-pointer transform hover:scale-105 transition-transform"
+                  onClick={() => setZoomedImage({ url: currentPage.imageUrl!, alt: `Story illustration for page ${currentPage.pageNumber}` })}
+                  data-testid="page-image-container"
+                >
+                  <img 
+                    src={currentPage.imageUrl}
+                    alt={`Story illustration for page ${currentPage.pageNumber}`}
+                    className="w-full rounded-xl shadow-lg"
+                    data-testid="page-image"
+                  />
+                </div>
               ) : (
                 <div className="w-full h-64 bg-gray-200 rounded-xl flex items-center justify-center">
-                  <p className="text-gray-500">Image loading...</p>
+                  <p className="text-gray-500">No image available</p>
                 </div>
               )}
             </div>
@@ -215,6 +223,16 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
           </div>
         </div>
       </CardContent>
+
+      {/* Image Modal */}
+      {zoomedImage && (
+        <ImageModal
+          isOpen={true}
+          onClose={() => setZoomedImage(null)}
+          imageUrl={zoomedImage.url}
+          alt={zoomedImage.alt}
+        />
+      )}
 
       {/* Story Footer */}
       <div className="bg-gray-50 px-8 py-6 border-t border-gray-200">

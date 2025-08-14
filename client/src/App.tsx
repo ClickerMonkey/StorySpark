@@ -3,12 +3,33 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/useAuth";
+import { GoogleLogin } from "@/components/google-login";
+import { OpenAISetup } from "@/components/openai-setup";
 import Home from "@/pages/home";
 import StoryLibrary from "@/pages/story-library";
 import StoryView from "@/pages/story-view";
 import NotFound from "@/pages/not-found";
 
 function Router() {
+  const { isAuthenticated, isLoading, user, login, updateUser } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-pink-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <GoogleLogin onLogin={login} />;
+  }
+
+  if (!user?.openaiApiKey) {
+    return <OpenAISetup user={user} onSetupComplete={updateUser} />;
+  }
+
   return (
     <Switch>
       <Route path="/" component={Home} />

@@ -1,22 +1,24 @@
 import OpenAI from "openai";
 import { type CreateStory, type StoryPage, type Character } from "@shared/schema";
-import { generateDemoStoryText, generateDemoCoreImageUrl, generateDemoPageImageUrl } from "./demo-data";
-
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY || "your-api-key-here"
-});
 
 export interface GeneratedStory {
   title: string;
   pages: StoryPage[];
 }
 
-const USE_DEMO_MODE = !process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "your-api-key-here";
-
-export async function expandSetting(setting: string, characters: string, plot: string, ageGroup: string): Promise<string> {
-  if (USE_DEMO_MODE) {
-    return `${setting} is a magical place where extraordinary adventures unfold. The environment is vibrant and colorful, perfect for children aged ${ageGroup}. Every corner holds mysteries and wonders that spark imagination and curiosity.`;
+function createOpenAIClient(apiKey: string, baseURL?: string) {
+  if (!apiKey) {
+    throw new Error("OpenAI API key is required");
   }
+  
+  return new OpenAI({ 
+    apiKey,
+    baseURL: baseURL || "https://api.openai.com/v1"
+  });
+}
+
+export async function expandSetting(setting: string, characters: string, plot: string, ageGroup: string, apiKey: string, baseURL?: string): Promise<string> {
+  const openai = createOpenAIClient(apiKey, baseURL);
 
   const prompt = `Expand and enrich this story setting for a children's book suitable for ages ${ageGroup}:
 
@@ -54,21 +56,12 @@ Return only the expanded setting description, no additional text.`;
     return response.choices[0].message.content || setting;
   } catch (error) {
     console.error("Error expanding setting:", error);
-    if (error instanceof Error && (error.message.includes('insufficient_quota') || error.message.includes('429'))) {
-      return `${setting} is a magical place where extraordinary adventures unfold. The environment is vibrant and colorful, perfect for children aged ${ageGroup}. Every corner holds mysteries and wonders that spark imagination and curiosity.`;
-    }
-    throw new Error("Failed to expand setting. Please try again.");
+    throw new Error("Failed to expand setting. Please check your API key and try again.");
   }
 }
 
-export async function extractCharacters(characters: string, setting: string, ageGroup: string): Promise<Character[]> {
-  if (USE_DEMO_MODE) {
-    const characterNames = characters.split(',').map(c => c.trim()).slice(0, 4);
-    return characterNames.map((name, index) => ({
-      name: name || `Character ${index + 1}`,
-      description: `A brave and kind character who loves adventures. They have a special talent for making friends and solving problems with creativity and courage.`
-    }));
-  }
+export async function extractCharacters(characters: string, setting: string, ageGroup: string, apiKey: string, baseURL?: string): Promise<Character[]> {
+  const openai = createOpenAIClient(apiKey, baseURL);
 
   const prompt = `Extract and expand character details for a children's story suitable for ages ${ageGroup}:
 
@@ -114,21 +107,12 @@ Requirements:
     return result.characters || [];
   } catch (error) {
     console.error("Error extracting characters:", error);
-    if (error instanceof Error && (error.message.includes('insufficient_quota') || error.message.includes('429'))) {
-      const characterNames = characters.split(',').map(c => c.trim()).slice(0, 4);
-      return characterNames.map((name, index) => ({
-        name: name || `Character ${index + 1}`,
-        description: `A brave and kind character who loves adventures. They have a special talent for making friends and solving problems with creativity and courage.`
-      }));
-    }
-    throw new Error("Failed to extract characters. Please try again.");
+    throw new Error("Failed to extract characters. Please check your API key and try again.");
   }
 }
 
-export async function generateCharacterImage(character: Character, setting: string): Promise<string> {
-  if (USE_DEMO_MODE) {
-    return `https://via.placeholder.com/512x512/8B5CF6/FFFFFF?text=${encodeURIComponent(character.name)}`;
-  }
+export async function generateCharacterImage(character: Character, setting: string, apiKey: string, baseURL?: string): Promise<string> {
+  const openai = createOpenAIClient(apiKey, baseURL);
 
   const prompt = `Create a beautiful character portrait for a children's storybook:
 
@@ -141,13 +125,13 @@ Style requirements:
 - Bright, vibrant colors
 - Clear character design suitable for children's books
 - Show the character's personality through expression and pose
-- Safe and wholesome content only
-- High quality digital artwork
-- Focus on the character, simple background or transparent background`;
+- High quality digital illustration
+- No text or words in the image
+- Safe and wholesome content only`;
 
   try {
     const response = await openai.images.generate({
-      model: "dall-e-3",
+      model: "gpt-image-1",
       prompt: prompt,
       n: 1,
       size: "1024x1024",
@@ -155,63 +139,61 @@ Style requirements:
     });
 
     if (!response.data?.[0]?.url) {
-      throw new Error("No image URL returned from DALL-E");
+      throw new Error("No image URL returned from OpenAI");
     }
 
     return response.data[0].url;
   } catch (error) {
     console.error("Error generating character image:", error);
-    if (error instanceof Error && (error.message.includes('insufficient_quota') || error.message.includes('429'))) {
-      return `https://via.placeholder.com/512x512/8B5CF6/FFFFFF?text=${encodeURIComponent(character.name)}`;
-    }
-    throw new Error("Failed to generate character image. Please try again.");
+    throw new Error("Failed to generate character image. Please check your API key and try again.");
   }
 }
 
-export async function generateStoryText(storyInput: CreateStory): Promise<GeneratedStory> {
-  // Check for insufficient quota or demo mode
-  if (USE_DEMO_MODE) {
-    console.log("Using demo mode for story generation");
-    return generateDemoStoryText(storyInput);
-  }
+export async function generateStoryText(story: CreateStory, expandedSetting: string, characters: Character[], apiKey: string, baseURL?: string): Promise<GeneratedStory> {
+  const openai = createOpenAIClient(apiKey, baseURL);
 
-  const { setting, characters, plot, totalPages, ageGroup } = storyInput;
+  const characterDescriptions = characters.map(c => `${c.name}: ${c.description}`).join('\n');
+  
+  const prompt = `Create a complete ${story.totalPages}-page children's story with the following details:
 
-  const prompt = `Create a children's story suitable for ages ${ageGroup}. The story should have exactly ${totalPages} pages.
-
-Setting: ${setting}
-Characters: ${characters}
-Plot: ${plot}
+Title: Generate an engaging title
+Setting: ${expandedSetting}
+Characters: ${characterDescriptions}
+Plot: ${story.plot}
+Age Group: ${story.ageGroup}
+Total Pages: ${story.totalPages}
 
 Requirements:
-- Each page should have 50-150 words of engaging, age-appropriate text
-- The story should be complete and satisfying
-- Include dialogue and action appropriate for the age group
-- Ensure the story flows naturally across all pages
-- Generate a catchy, child-friendly title
+- Each page should have 2-4 sentences of story text
+- Text should be age-appropriate for ${story.ageGroup} year olds
+- Include all the characters meaningfully
+- Create a complete story arc with beginning, middle, and satisfying end
+- Use simple, engaging language that children can understand
+- Make it educational or include a positive message
+- Ensure the story flows naturally across all ${story.totalPages} pages
 
-Return the response as JSON in this exact format:
+Please return a JSON response in this exact format:
 {
-  "title": "Story Title Here",
+  "title": "Story Title",
   "pages": [
     {
       "pageNumber": 1,
-      "text": "Page 1 text content here..."
+      "text": "Page 1 text content..."
     },
     {
-      "pageNumber": 2,
-      "text": "Page 2 text content here..."
+      "pageNumber": 2, 
+      "text": "Page 2 text content..."
     }
   ]
 }`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "You are a professional children's book author who creates engaging, educational, and age-appropriate stories. Always respond with valid JSON in the exact format requested."
+          content: "You are an expert children's book author. Create engaging, age-appropriate stories that inspire imagination and learning. Always respond with valid JSON."
         },
         {
           role: "user",
@@ -219,38 +201,38 @@ Return the response as JSON in this exact format:
         }
       ],
       response_format: { type: "json_object" },
-      temperature: 0.8,
+      temperature: 0.7,
+      max_tokens: 1500,
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
-    
-    if (!result.title || !result.pages || !Array.isArray(result.pages)) {
-      throw new Error("Invalid response format from OpenAI");
-    }
-
-    return result as GeneratedStory;
+    return {
+      title: result.title || "My Story",
+      pages: result.pages || []
+    };
   } catch (error) {
     console.error("Error generating story text:", error);
-    // Fallback to demo mode if API fails
-    if (error instanceof Error && (error.message.includes('insufficient_quota') || error.message.includes('429'))) {
-      console.log("OpenAI quota exceeded, falling back to demo mode");
-      return generateDemoStoryText(storyInput);
-    }
-    throw new Error("Failed to generate story text. Please try again.");
+    throw new Error("Failed to generate story text. Please check your API key and try again.");
   }
 }
 
-export async function generateCoreImage(setting: string, characters: string): Promise<string> {
-  // Check for demo mode or fallback
-  if (USE_DEMO_MODE) {
-    console.log("Using demo mode for core image generation");
-    return generateDemoCoreImageUrl(setting, characters);
-  }
+export async function generateCoreImage(setting: string, characters: Character[], apiKey: string, baseURL?: string): Promise<string> {
+  const openai = createOpenAIClient(apiKey, baseURL);
 
-  const prompt = `Create a beautiful, child-friendly illustration showing the main characters and setting for a children's storybook. 
+  const characterDescriptions = characters.length > 0
+    ? characters.map(c => `${c.name}: ${c.description}`).join('\n')
+    : "";
+
+  const prompt = `Create a beautiful core reference image for a children's storybook:
 
 Setting: ${setting}
-Characters: ${characters}
+${characterDescriptions ? `Characters:\n${characterDescriptions}` : ""}
+
+This image will serve as the visual foundation for the entire story. Create a scene that captures:
+- The overall mood and atmosphere of the setting
+- Key characters in a natural, welcoming scene
+- The magical or special elements of this world
+- A composition that could serve as a book cover
 
 Style requirements:
 - Bright, vibrant colors
@@ -262,7 +244,7 @@ Style requirements:
 
   try {
     const response = await openai.images.generate({
-      model: "dall-e-3",
+      model: "gpt-image-1",
       prompt: prompt,
       n: 1,
       size: "1024x1024",
@@ -270,35 +252,27 @@ Style requirements:
     });
 
     if (!response.data?.[0]?.url) {
-      throw new Error("No image URL returned from DALL-E");
+      throw new Error("No image URL returned from OpenAI");
     }
 
     return response.data[0].url;
   } catch (error) {
     console.error("Error generating core image:", error);
-    // Fallback to demo mode if API fails
-    if (error instanceof Error && (error.message.includes('insufficient_quota') || error.message.includes('429'))) {
-      console.log("OpenAI quota exceeded, falling back to demo mode");
-      return generateDemoCoreImageUrl(setting, characters);
-    }
-    throw new Error("Failed to generate core image. Please try again.");
+    throw new Error("Failed to generate core image. Please check your API key and try again.");
   }
 }
 
 export async function generatePageImage(
   pageText: string, 
   coreImageUrl: string, 
-  previousPageImageUrl?: string,
-  setting?: string,
-  characters?: Character[],
+  previousPageImageUrl: string | undefined,
+  setting: string | undefined,
+  characters: Character[] | undefined,
+  apiKey: string,
+  baseURL?: string,
   customPrompt?: string
 ): Promise<string> {
-  // Check for demo mode or fallback
-  if (USE_DEMO_MODE) {
-    console.log("Using demo mode for page image generation");
-    const pageNumber = parseInt(pageText.split(' ')[0]) || 1;
-    return generateDemoPageImageUrl(pageNumber, pageText);
-  }
+  const openai = createOpenAIClient(apiKey, baseURL);
 
   const characterDescriptions = characters && characters.length > 0
     ? `Characters in this story:\n${characters.map(c => `- ${c.name}: ${c.description}`).join('\n')}\n`
@@ -333,7 +307,7 @@ The illustration should directly relate to the events or emotions described in t
 
   try {
     const response = await openai.images.generate({
-      model: "dall-e-3",
+      model: "gpt-image-1",
       prompt: prompt,
       n: 1,
       size: "1024x1024", 
@@ -341,18 +315,12 @@ The illustration should directly relate to the events or emotions described in t
     });
 
     if (!response.data?.[0]?.url) {
-      throw new Error("No image URL returned from DALL-E");
+      throw new Error("No image URL returned from OpenAI");
     }
 
     return response.data[0].url;
   } catch (error) {
     console.error("Error generating page image:", error);
-    // Fallback to demo mode if API fails
-    if (error instanceof Error && (error.message.includes('insufficient_quota') || error.message.includes('429'))) {
-      console.log("OpenAI quota exceeded, falling back to demo mode");
-      const pageNumber = parseInt(pageText.split(' ')[0]) || 1;
-      return generateDemoPageImageUrl(pageNumber, pageText);
-    }
-    throw new Error("Failed to generate page image. Please try again.");
+    throw new Error("Failed to generate page image. Please check your API key and try again.");
   }
 }
