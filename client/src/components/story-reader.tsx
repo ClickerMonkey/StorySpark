@@ -1,0 +1,157 @@
+import { useState } from "react";
+import { type Story } from "@shared/schema";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { ChevronLeft, ChevronRight, Volume2, Bookmark, Share, Download, Edit, Save, BookOpen, Users, Clock } from "lucide-react";
+
+interface StoryReaderProps {
+  story: Story;
+  onEdit?: () => void;
+  onSave?: () => void;
+}
+
+export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
+  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  
+  const currentPage = story.pages[currentPageIndex];
+  const isFirstPage = currentPageIndex === 0;
+  const isLastPage = currentPageIndex === story.pages.length - 1;
+
+  const nextPage = () => {
+    if (!isLastPage) {
+      setCurrentPageIndex(currentPageIndex + 1);
+    }
+  };
+
+  const previousPage = () => {
+    if (!isFirstPage) {
+      setCurrentPageIndex(currentPageIndex - 1);
+    }
+  };
+
+  return (
+    <Card className="bg-white shadow-lg overflow-hidden">
+      {/* Story Header */}
+      <div className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white p-8 text-center">
+        <h2 className="text-4xl font-bold mb-2" data-testid="story-title">{story.title}</h2>
+        <p className="text-xl opacity-90">A magical adventure story</p>
+        <div className="flex justify-center space-x-6 mt-4 text-sm">
+          <span><BookOpen className="inline mr-1" size={16} />{story.totalPages} Pages</span>
+          <span><Users className="inline mr-1" size={16} />Ages {story.ageGroup}</span>
+          <span><Clock className="inline mr-1" size={16} />5 min read</span>
+        </div>
+      </div>
+
+      {/* Story Navigation */}
+      <div className="bg-gray-50 px-8 py-4 border-b border-gray-200">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button
+              variant="outline"
+              onClick={previousPage}
+              disabled={isFirstPage}
+              data-testid="button-previous"
+            >
+              <ChevronLeft className="mr-2 h-4 w-4" />
+              Previous
+            </Button>
+            <span className="text-gray-600 font-medium">
+              Page <span data-testid="current-page-number">{currentPageIndex + 1}</span> of <span data-testid="total-pages">{story.totalPages}</span>
+            </span>
+            <Button
+              onClick={nextPage}
+              disabled={isLastPage}
+              className="bg-indigo-600 hover:bg-indigo-700"
+              data-testid="button-next"
+            >
+              Next
+              <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Button variant="ghost" size="sm" data-testid="button-read-aloud">
+              <Volume2 className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" data-testid="button-bookmark">
+              <Bookmark className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" data-testid="button-share">
+              <Share className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" data-testid="button-download">
+              <Download className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Story Page Content */}
+      <CardContent className="p-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+            {/* Story Image */}
+            <div className="order-2 lg:order-1">
+              {currentPage?.imageUrl ? (
+                <img 
+                  src={currentPage.imageUrl}
+                  alt={`Story illustration for page ${currentPage.pageNumber}`}
+                  className="w-full rounded-xl shadow-lg"
+                  data-testid="page-image"
+                />
+              ) : (
+                <div className="w-full h-64 bg-gray-200 rounded-xl flex items-center justify-center">
+                  <p className="text-gray-500">Image loading...</p>
+                </div>
+              )}
+            </div>
+
+            {/* Story Text */}
+            <div className="order-1 lg:order-2">
+              <div className="prose prose-lg max-w-none">
+                <p 
+                  className="text-xl leading-relaxed text-gray-800"
+                  data-testid="page-text"
+                >
+                  {currentPage?.text}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+
+      {/* Story Footer */}
+      <div className="bg-gray-50 px-8 py-6 border-t border-gray-200">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-4">
+            {onEdit && (
+              <Button
+                onClick={onEdit}
+                className="bg-amber-500 hover:bg-amber-600 text-white font-medium"
+                data-testid="button-edit-story"
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Story
+              </Button>
+            )}
+            {onSave && (
+              <Button
+                onClick={onSave}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                data-testid="button-save-story"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                Save to Library
+              </Button>
+            )}
+          </div>
+
+          <div className="text-sm text-gray-600">
+            Created with StoryMaker AI
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
