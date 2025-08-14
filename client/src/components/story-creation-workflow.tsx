@@ -160,6 +160,11 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
         <Card className="bg-white shadow-lg">
           <CardContent className="p-8">
             <div className="text-center mb-8">
+              <div className="mb-4 p-3 bg-amber-100 border border-amber-300 rounded-lg inline-block">
+                <p className="text-amber-800 text-sm font-medium">
+                  🎭 Demo Mode: Using sample content while OpenAI quota is resolved
+                </p>
+              </div>
               <h2 className="text-3xl font-bold text-gray-900 mb-3">Let's Create Your Amazing Story!</h2>
               <p className="text-lg text-gray-600">Tell me about your story idea and I'll help bring it to life with words and pictures.</p>
             </div>

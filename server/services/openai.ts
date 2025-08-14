@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { type CreateStory, type StoryPage } from "@shared/schema";
+import { generateDemoStoryText, generateDemoCoreImageUrl, generateDemoPageImageUrl } from "./demo-data";
 
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY || process.env.VITE_OPENAI_API_KEY || "your-api-key-here"
@@ -10,7 +11,15 @@ export interface GeneratedStory {
   pages: StoryPage[];
 }
 
+const USE_DEMO_MODE = !process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "your-api-key-here";
+
 export async function generateStoryText(storyInput: CreateStory): Promise<GeneratedStory> {
+  // Check for insufficient quota or demo mode
+  if (USE_DEMO_MODE) {
+    console.log("Using demo mode for story generation");
+    return generateDemoStoryText(storyInput);
+  }
+
   const { setting, characters, plot, totalPages, ageGroup } = storyInput;
 
   const prompt = `Create a children's story suitable for ages ${ageGroup}. The story should have exactly ${totalPages} pages.
@@ -67,11 +76,22 @@ Return the response as JSON in this exact format:
     return result as GeneratedStory;
   } catch (error) {
     console.error("Error generating story text:", error);
+    // Fallback to demo mode if API fails
+    if (error instanceof Error && (error.message.includes('insufficient_quota') || error.message.includes('429'))) {
+      console.log("OpenAI quota exceeded, falling back to demo mode");
+      return generateDemoStoryText(storyInput);
+    }
     throw new Error("Failed to generate story text. Please try again.");
   }
 }
 
 export async function generateCoreImage(setting: string, characters: string): Promise<string> {
+  // Check for demo mode or fallback
+  if (USE_DEMO_MODE) {
+    console.log("Using demo mode for core image generation");
+    return generateDemoCoreImageUrl(setting, characters);
+  }
+
   const prompt = `Create a beautiful, child-friendly illustration showing the main characters and setting for a children's storybook. 
 
 Setting: ${setting}
@@ -101,6 +121,11 @@ Style requirements:
     return response.data[0].url;
   } catch (error) {
     console.error("Error generating core image:", error);
+    // Fallback to demo mode if API fails
+    if (error instanceof Error && (error.message.includes('insufficient_quota') || error.message.includes('429'))) {
+      console.log("OpenAI quota exceeded, falling back to demo mode");
+      return generateDemoCoreImageUrl(setting, characters);
+    }
     throw new Error("Failed to generate core image. Please try again.");
   }
 }
@@ -112,6 +137,13 @@ export async function generatePageImage(
   setting?: string,
   characters?: string
 ): Promise<string> {
+  // Check for demo mode or fallback
+  if (USE_DEMO_MODE) {
+    console.log("Using demo mode for page image generation");
+    const pageNumber = parseInt(pageText.split(' ')[0]) || 1;
+    return generateDemoPageImageUrl(pageNumber, pageText);
+  }
+
   const contextDescription = setting && characters 
     ? `Setting: ${setting}\nCharacters: ${characters}\n` 
     : "";
@@ -154,6 +186,12 @@ The illustration should directly relate to the events or emotions described in t
     return response.data[0].url;
   } catch (error) {
     console.error("Error generating page image:", error);
+    // Fallback to demo mode if API fails
+    if (error instanceof Error && (error.message.includes('insufficient_quota') || error.message.includes('429'))) {
+      console.log("OpenAI quota exceeded, falling back to demo mode");
+      const pageNumber = parseInt(pageText.split(' ')[0]) || 1;
+      return generateDemoPageImageUrl(pageNumber, pageText);
+    }
     throw new Error("Failed to generate page image. Please try again.");
   }
 }
