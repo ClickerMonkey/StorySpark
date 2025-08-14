@@ -1,9 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: any) => void;
+          renderButton: (element: HTMLElement, options: any) => void;
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
 
 interface GoogleLoginProps {
   onLogin: (user: any, token: string) => void;
@@ -13,17 +27,46 @@ export function GoogleLogin({ onLogin }: GoogleLoginProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleGoogleLogin = async () => {
+  useEffect(() => {
+    // Load Google Identity Services script
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = initializeGoogleAuth;
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
+
+  const initializeGoogleAuth = () => {
+    if (window.google) {
+      window.google.accounts.id.initialize({
+        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "your_google_client_id_here",
+        callback: handleCredentialResponse,
+      });
+    }
+  };
+
+  const handleCredentialResponse = async (response: any) => {
     setIsLoading(true);
     try {
-      // This would integrate with Google's OAuth API
-      // For now, we'll show a message about configuring Google OAuth
+      const result = await apiRequest('POST', '/api/auth/google', {
+        token: response.credential,
+      });
+      
+      const data = await result.json();
+      localStorage.setItem('auth_token', data.token);
+      onLogin(data.user, data.token);
+      
       toast({
-        title: "Google OAuth Setup Required",
-        description: "Please configure Google OAuth credentials in your environment variables (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI) to enable Google Sign-In.",
-        variant: "destructive",
+        title: "Welcome!",
+        description: "Successfully signed in with Google.",
       });
     } catch (error) {
+      console.error('Login error:', error);
       toast({
         title: "Login Failed",
         description: "Unable to sign in with Google. Please try again.",
@@ -31,6 +74,12 @@ export function GoogleLogin({ onLogin }: GoogleLoginProps) {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = () => {
+    if (window.google) {
+      window.google.accounts.id.prompt();
     }
   };
 

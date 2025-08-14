@@ -274,7 +274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           setting: story.setting,
           characters: story.characters,
           plot: story.plot,
-          ageGroup: story.ageGroup,
+          ageGroup: story.ageGroup as "3-5" | "6-8" | "9-12",
           totalPages: story.totalPages
         },
         story.expandedSetting || story.setting,
@@ -381,7 +381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           coreImageUrl,
           previousPageImageUrl,
           story.expandedSetting || story.setting,
-          story.extractedCharacters,
+          story.extractedCharacters || undefined,
           req.user.openaiApiKey,
           req.user.openaiBaseUrl
         );
@@ -437,7 +437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         story.coreImageUrl || "",
         previousPageImageUrl,
         story.expandedSetting || story.setting,
-        story.extractedCharacters,
+        story.extractedCharacters || undefined,
         req.user.openaiApiKey,
         req.user.openaiBaseUrl,
         customPrompt
