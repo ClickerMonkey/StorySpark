@@ -40,7 +40,7 @@ export function GoogleLogin({ onLogin }: GoogleLoginProps) {
     setIsLoading(true);
     
     // Create Google OAuth URL for browser redirect
-    const redirectUri = window.location.origin + '/auth/google/callback';
+    const redirectUri = window.location.origin + '/api/auth/google/callback';
     const scope = 'email profile openid';
     
     const googleOAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +

@@ -53,11 +53,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Google OAuth callback route
-  app.post("/api/auth/google/callback", async (req, res) => {
+  app.get("/api/auth/google/callback", async (req, res) => {
     try {
-      const { code } = req.body;
+      const { code, error } = req.query;
+      
+      if (error) {
+        console.error('Google OAuth error:', error);
+        return res.redirect(`/auth/google/callback?error=${encodeURIComponent(error as string)}`);
+      }
+
       if (!code) {
-        return res.status(400).json({ message: "Authorization code is required" });
+        return res.redirect('/auth/google/callback?error=no_authorization_code');
       }
 
       // Exchange the authorization code for tokens
@@ -65,9 +71,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tokenParams = new URLSearchParams({
         client_id: process.env.GOOGLE_CLIENT_ID!,
         client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-        code,
+        code: code as string,
         grant_type: 'authorization_code',
-        redirect_uri: `${req.protocol}://${req.get('host')}/auth/google/callback`,
+        redirect_uri: `${req.protocol}://${req.get('host')}/api/auth/google/callback`,
       });
 
       const tokenResponse = await fetch(tokenUrl, {
@@ -81,7 +87,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!tokenResponse.ok) {
         const errorData = await tokenResponse.json();
         console.error('Google token exchange error:', errorData);
-        return res.status(400).json({ message: "Failed to exchange authorization code" });
+        return res.redirect('/auth/google/callback?error=token_exchange_failed');
       }
 
       const tokenData = await tokenResponse.json();
@@ -91,20 +97,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.upsertUser(googleUser);
       const jwt = generateJWT(user.id);
 
-      res.json({
-        user: {
+      // Redirect to client callback with success data
+      const params = new URLSearchParams({
+        token: jwt,
+        user: JSON.stringify({
           id: user.id,
           email: user.email,
           name: user.name,
           profileImageUrl: user.profileImageUrl,
           openaiApiKey: user.openaiApiKey,
           openaiBaseUrl: user.openaiBaseUrl,
-        },
-        token: jwt
+        })
       });
+      
+      res.redirect(`/auth/google/callback?${params.toString()}`);
     } catch (error) {
       console.error("Google OAuth callback error:", error);
-      res.status(400).json({ message: "OAuth callback failed" });
+      res.redirect('/auth/google/callback?error=oauth_callback_failed');
     }
   });
 

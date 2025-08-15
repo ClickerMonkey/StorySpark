@@ -16,38 +16,25 @@ export function AuthCallback({ onLogin }: AuthCallbackProps) {
   useEffect(() => {
     const processAuthCallback = async () => {
       try {
-        // Get the authorization code from URL params
+        // Get the auth data from URL params
         const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
+        const token = urlParams.get('token');
+        const userJson = urlParams.get('user');
         const error = urlParams.get('error');
 
         if (error) {
-          throw new Error(`Google OAuth error: ${error}`);
+          throw new Error(`Authentication error: ${error}`);
         }
 
-        if (!code) {
-          throw new Error('No authorization code received from Google');
+        if (!token || !userJson) {
+          throw new Error('Authentication data not received');
         }
 
-        // Exchange the authorization code for tokens
-        const response = await fetch('/api/auth/google/callback', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ code }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Authentication failed');
-        }
-
-        const data = await response.json();
+        const user = JSON.parse(userJson);
         
         // Store the token and user data
-        localStorage.setItem('auth_token', data.token);
-        onLogin(data.user, data.token);
+        localStorage.setItem('auth_token', token);
+        onLogin(user, token);
         
         toast({
           title: "Welcome!",
