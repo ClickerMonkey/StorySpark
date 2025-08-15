@@ -8,6 +8,13 @@ import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Get client configuration
+  app.get("/api/config", (req, res) => {
+    res.json({
+      googleClientId: process.env.GOOGLE_CLIENT_ID
+    });
+  });
+
   // Development test login route
   app.post("/api/auth/test-login", async (req, res) => {
     try {

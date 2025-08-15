@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -10,13 +10,36 @@ interface GoogleLoginProps {
 
 export function GoogleLogin({ onLogin }: GoogleLoginProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState<string>('');
   const { toast } = useToast();
 
+  useEffect(() => {
+    // Fetch Google Client ID from backend
+    fetch('/api/config')
+      .then(res => res.json())
+      .then(data => {
+        setGoogleClientId(data.googleClientId);
+      })
+      .catch(error => {
+        console.error('Failed to fetch config:', error);
+        // Fallback to environment variable
+        setGoogleClientId(import.meta.env.VITE_GOOGLE_CLIENT_ID || '');
+      });
+  }, []);
+
   const handleGoogleLogin = () => {
+    if (!googleClientId) {
+      toast({
+        title: "Configuration Error",
+        description: "Google Client ID not available. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     
     // Create Google OAuth URL for browser redirect
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     const redirectUri = window.location.origin + '/auth/google/callback';
     const scope = 'email profile openid';
     
@@ -84,7 +107,7 @@ export function GoogleLogin({ onLogin }: GoogleLoginProps) {
         <CardContent className="space-y-4">
           <Button
             onClick={handleGoogleLogin}
-            disabled={isLoading}
+            disabled={isLoading || !googleClientId}
             className="w-full bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
             data-testid="button-google-login"
           >
