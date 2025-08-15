@@ -43,7 +43,7 @@ export function GoogleLogin({ onLogin }: GoogleLoginProps) {
     const redirectUri = window.location.origin + '/auth/google/callback';
     const scope = 'email profile openid';
     
-    const googleOAuthUrl = `https://accounts.google.com/oauth/v2/auth?` +
+    const googleOAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${encodeURIComponent(googleClientId)}&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +
       `response_type=code&` +
@@ -53,48 +53,6 @@ export function GoogleLogin({ onLogin }: GoogleLoginProps) {
     
     // Redirect to Google OAuth
     window.location.href = googleOAuthUrl;
-  };
-
-  const handleTestLogin = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/auth/test-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          testCredential: btoa(JSON.stringify({
-            sub: 'test-user-123',
-            email: 'test@example.com',
-            name: 'Test User',
-            picture: 'https://via.placeholder.com/150'
-          })),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Test login failed');
-      }
-
-      const data = await response.json();
-      localStorage.setItem('auth_token', data.token);
-      onLogin(data.user, data.token);
-      
-      toast({
-        title: "Welcome!",
-        description: "Successfully signed in with test account.",
-      });
-    } catch (error: any) {
-      console.error('Test login error:', error);
-      toast({
-        title: "Test Login Failed",
-        description: "Unable to create test account. Please check the console for details.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   return (
@@ -136,28 +94,9 @@ export function GoogleLogin({ onLogin }: GoogleLoginProps) {
             Continue with Google
           </Button>
 
-          {/* Development fallback button */}
-          {import.meta.env.MODE === 'development' && (
-            <Button
-              onClick={handleTestLogin}
-              disabled={isLoading}
-              className="w-full bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200"
-              data-testid="button-test-login"
-            >
-              {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Use Test Account (Development)"
-              )}
-            </Button>
-          )}
-
           <div className="text-center text-sm text-gray-500">
             <p>By signing in, you agree to use your own OpenAI API key</p>
             <p>for generating stories and images.</p>
-            {import.meta.env.MODE === 'development' && (
-              <p className="mt-2 text-xs text-blue-600">Development mode: Use test account if Google sign-in has issues</p>
-            )}
           </div>
         </CardContent>
       </Card>
