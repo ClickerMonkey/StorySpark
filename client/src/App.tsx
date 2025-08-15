@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { GoogleLogin } from "@/components/google-login";
+import { AuthCallback } from "@/pages/auth-callback";
 import { OpenAISetup } from "@/components/openai-setup";
 import Home from "@/pages/home";
 import StoryLibrary from "@/pages/story-library";
@@ -35,6 +36,9 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/library" component={StoryLibrary} />
       <Route path="/story/:id" component={StoryView} />
+      <Route path="/auth/google/callback">
+        <AuthCallback onLogin={login} />
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

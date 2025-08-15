@@ -45,6 +45,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google OAuth callback route
+  app.post("/api/auth/google/callback", async (req, res) => {
+    try {
+      const { code } = req.body;
+      if (!code) {
+        return res.status(400).json({ message: "Authorization code is required" });
+      }
+
+      // Exchange the authorization code for tokens
+      const tokenUrl = 'https://oauth2.googleapis.com/token';
+      const tokenParams = new URLSearchParams({
+        client_id: process.env.GOOGLE_CLIENT_ID!,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+        code,
+        grant_type: 'authorization_code',
+        redirect_uri: `${req.protocol}://${req.get('host')}/auth/google/callback`,
+      });
+
+      const tokenResponse = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: tokenParams,
+      });
+
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.json();
+        console.error('Google token exchange error:', errorData);
+        return res.status(400).json({ message: "Failed to exchange authorization code" });
+      }
+
+      const tokenData = await tokenResponse.json();
+      
+      // Verify the ID token
+      const googleUser = await verifyGoogleToken(tokenData.id_token);
+      const user = await storage.upsertUser(googleUser);
+      const jwt = generateJWT(user.id);
+
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          profileImageUrl: user.profileImageUrl,
+          openaiApiKey: user.openaiApiKey,
+          openaiBaseUrl: user.openaiBaseUrl,
+        },
+        token: jwt
+      });
+    } catch (error) {
+      console.error("Google OAuth callback error:", error);
+      res.status(400).json({ message: "OAuth callback failed" });
+    }
+  });
+
   // Auth routes
   app.post("/api/auth/google", async (req, res) => {
     try {
