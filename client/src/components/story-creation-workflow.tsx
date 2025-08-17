@@ -624,7 +624,29 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
             <div className="max-w-4xl mx-auto">
               {!extractedCharacters || extractedCharacters.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-gray-500">Loading characters...</p>
+                  <div className="mb-4">
+                    <p className="text-gray-500 mb-4">
+                      {extractCharactersMutation.isPending ? "Extracting characters from your story..." : "No characters extracted yet."}
+                    </p>
+                    <Button
+                      onClick={() => extractCharactersMutation.mutate()}
+                      disabled={extractCharactersMutation.isPending || !generatedStory}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-semibold"
+                      data-testid="button-extract-characters"
+                    >
+                      {extractCharactersMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                          Extracting Characters...
+                        </>
+                      ) : (
+                        <>
+                          <Users className="mr-3 h-5 w-5" />
+                          Extract Characters
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 extractedCharacters.map((character, index) => (
@@ -664,7 +686,27 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
               )}
 
               {extractedCharacters && extractedCharacters.length > 0 && (
-                <div className="flex justify-center">
+                <div className="flex justify-center space-x-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => extractCharactersMutation.mutate()}
+                    disabled={extractCharactersMutation.isPending}
+                    className="px-6 py-3 font-medium"
+                    data-testid="button-regenerate-characters"
+                  >
+                    {extractCharactersMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Regenerating...
+                      </>
+                    ) : (
+                      <>
+                        <Users className="mr-2 h-4 w-4" />
+                        Regenerate Characters
+                      </>
+                    )}
+                  </Button>
+                  
                   <Button
                     onClick={() => approveCharactersMutation.mutate()}
                     disabled={approveCharactersMutation.isPending}

@@ -17,14 +17,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-**August 17, 2025 - Mobile-Friendly Design Implementation**
-- Made entire site responsive with mobile-first approach
-- Updated navigation bars to work on small screens with icon-only buttons
-- Improved story library grid layout for mobile devices
-- Enhanced story creation workflow with responsive forms and layouts
-- Made progress indicator mobile-friendly with wrapped layout
-- Updated story reader with mobile-optimized navigation and buttons
-- All pages now properly adapt to screen sizes from mobile to desktop
+**August 17, 2025 - Enhanced Edit Story Functionality & Character Generation**
+- Fixed edit story button to properly redirect to `/edit/{storyId}` route
+- Implemented smart step detection based on story completion status
+- Added step navigation buttons (1-5) for jumping between workflow steps
+- Enhanced characters page with proper extract/regenerate functionality
+- Fixed server crash issues caused by error handler re-throwing errors
+- Added disabled states and loading indicators for character operations
+- Implemented revision system integration for seamless editing workflow
+- Made entire site responsive with mobile-first approach previously
 
 # System Architecture
 
