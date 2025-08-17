@@ -197,7 +197,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const story = await storage.createStory({
         userId: req.user.id,
-        title: "Untitled Story",
         ...storyData,
         status: "draft"
       });
@@ -353,12 +352,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      const updatedStory = await storage.updateStory(storyId, {
+      if (!req.user?.openaiApiKey) {
+        return res.status(400).json({ message: "OpenAI API key required" });
+      }
+
+      // Update story with approved characters first
+      let updatedStory = await storage.updateStory(storyId, {
         extractedCharacters: characters,
         status: "characters_extracted"
       });
 
-      res.json({ story: updatedStory });
+      // Generate story pages
+      const storyContent = await generateStoryText(
+        {
+          title: story.title || "My Story",
+          setting: story.setting,
+          characters: story.characters,
+          plot: story.plot,
+          ageGroup: story.ageGroup as "3-5" | "6-8" | "9-12",
+          totalPages: story.totalPages
+        },
+        story.expandedSetting || story.setting,
+        characters,
+        req.user.openaiApiKey,
+        req.user.openaiBaseUrl
+      );
+
+      // Update story with generated pages
+      updatedStory = await storage.updateStory(story.id, {
+        title: storyContent.title,
+        pages: storyContent.pages,
+        status: "text_approved"
+      });
+
+      res.json({ story: updatedStory, storyContent });
     } catch (error) {
       console.error("Error approving characters:", error);
       if (error instanceof z.ZodError) {
@@ -386,6 +413,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const storyContent = await generateStoryText(
         {
+          title: story.title || "My Story",
           setting: story.setting,
           characters: story.characters,
           plot: story.plot,
