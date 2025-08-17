@@ -285,7 +285,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
     },
     onSuccess: (data) => {
       setGeneratedStory(data.story);
-      setEditedPages(data.story.pages);
+      setEditedPages(data.story.pages || []);
       setCurrentStep("review");
       
       // Save characters step
@@ -294,10 +294,18 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
         storyData: { extractedCharacters },
       });
       
-      toast({
-        title: "Characters Approved!",
-        description: "Your story has been generated. Please review and edit as needed.",
-      });
+      // Check if pages were actually generated
+      if (!data.story.pages || data.story.pages.length === 0) {
+        toast({
+          title: "Characters Approved!",
+          description: "Now generate your story pages to continue.",
+        });
+      } else {
+        toast({
+          title: "Story Generated!",
+          description: `Your ${data.story.pages.length}-page story has been generated. Please review and edit as needed.`,
+        });
+      }
     },
     onError: (error) => {
       toast({
@@ -844,61 +852,75 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                       </Button>
                     </div>
                     <div className="space-y-2">
-                      {editedPages.map((page, index) => (
-                        <div
-                          key={page.pageNumber}
-                          className={`bg-gray-50 rounded-lg p-3 cursor-pointer hover:bg-gray-100 transition-colors border-l-4 ${
-                            index === currentPageIndex ? "border-indigo-600" : "border-gray-300"
-                          }`}
-                          onClick={() => setCurrentPageIndex(index)}
-                          data-testid={`page-${page.pageNumber}`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-gray-900">Page {page.pageNumber}</span>
-                            <Edit className="text-gray-400" size={16} />
+                      {editedPages && editedPages.length > 0 ? (
+                        editedPages.map((page, index) => (
+                          <div
+                            key={page.pageNumber}
+                            className={`bg-gray-50 rounded-lg p-3 cursor-pointer hover:bg-gray-100 transition-colors border-l-4 ${
+                              index === currentPageIndex ? "border-indigo-600" : "border-gray-300"
+                            }`}
+                            onClick={() => setCurrentPageIndex(index)}
+                            data-testid={`page-${page.pageNumber}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-gray-900">Page {page.pageNumber}</span>
+                              <Edit className="text-gray-400" size={16} />
+                            </div>
+                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{page.text ? page.text.substring(0, 60) + '...' : 'No content'}</p>
                           </div>
-                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{page.text.substring(0, 60)}...</p>
+                        ))
+                      ) : (
+                        <div className="text-center py-4 text-gray-500">
+                          No pages found. Try regenerating the story.
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
 
                   {/* Story Editor */}
                   <div className="lg:col-span-2">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-bold text-gray-900">Page {editedPages[currentPageIndex]?.pageNumber}</h3>
-                    </div>
+                    {editedPages && editedPages.length > 0 && editedPages[currentPageIndex] ? (
+                      <>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-xl font-bold text-gray-900">Page {editedPages[currentPageIndex].pageNumber}</h3>
+                        </div>
 
-                    <Textarea
-                      value={editedPages[currentPageIndex]?.text || ""}
-                      onChange={(e) => updatePageText(currentPageIndex, e.target.value)}
-                      className="w-full h-64 p-4 border-2 border-gray-200 focus:border-indigo-600 resize-none"
-                      data-testid="textarea-page-content"
-                    />
+                        <Textarea
+                          value={editedPages[currentPageIndex].text || ""}
+                          onChange={(e) => updatePageText(currentPageIndex, e.target.value)}
+                          className="w-full h-64 p-4 border-2 border-gray-200 focus:border-indigo-600 resize-none"
+                          data-testid="textarea-page-content"
+                        />
 
-                    <div className="flex justify-between items-center mt-4">
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => setCurrentPageIndex(Math.max(0, currentPageIndex - 1))}
-                          disabled={currentPageIndex === 0}
-                          data-testid="button-previous-page"
-                        >
-                          Previous
-                        </Button>
-                        <Button
-                          onClick={() => setCurrentPageIndex(Math.min(editedPages.length - 1, currentPageIndex + 1))}
-                          disabled={currentPageIndex === editedPages.length - 1}
-                          data-testid="button-next-page"
-                        >
-                          Next
-                        </Button>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 gap-2">
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => setCurrentPageIndex(Math.max(0, currentPageIndex - 1))}
+                              disabled={currentPageIndex === 0}
+                              data-testid="button-previous-page"
+                            >
+                              Previous
+                            </Button>
+                            <Button
+                              onClick={() => setCurrentPageIndex(Math.min(editedPages.length - 1, currentPageIndex + 1))}
+                              disabled={currentPageIndex === editedPages.length - 1}
+                              data-testid="button-next-page"
+                            >
+                              Next
+                            </Button>
+                          </div>
+                          
+                          <div className="text-sm text-gray-600">
+                            <span className="font-medium">Word count:</span> {editedPages[currentPageIndex].text ? editedPages[currentPageIndex].text.split(/\s+/).length : 0} words
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>No page selected or available</p>
                       </div>
-                      
-                      <div className="text-sm text-gray-600">
-                        <span className="font-medium">Word count:</span> {editedPages[currentPageIndex]?.text.split(/\s+/).length || 0} words
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
 
