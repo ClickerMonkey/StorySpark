@@ -768,101 +768,171 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
           <CardContent className="p-8">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-gray-900 mb-3">Review Your Story</h2>
-              <p className="text-lg text-gray-600">Read through your story and make any changes before we create the pictures!</p>
+              <p className="text-lg text-gray-600">
+                {!editedPages || editedPages.length === 0 
+                  ? "Generate your story pages to start reviewing and editing!"
+                  : "Read through your story and make any changes before we create the pictures!"
+                }
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Story Pages List */}
-              <div className="lg:col-span-1">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Story Pages</h3>
-                <div className="space-y-2">
-                  {editedPages.map((page, index) => (
-                    <div
-                      key={page.pageNumber}
-                      className={`bg-gray-50 rounded-lg p-3 cursor-pointer hover:bg-gray-100 transition-colors border-l-4 ${
-                        index === currentPageIndex ? "border-indigo-600" : "border-gray-300"
-                      }`}
-                      onClick={() => setCurrentPageIndex(index)}
-                      data-testid={`page-${page.pageNumber}`}
+            {!editedPages || editedPages.length === 0 ? (
+              /* No Pages - Show Generation Interface */
+              <div className="text-center py-8">
+                <div className="mb-6">
+                  <p className="text-gray-500 mb-4">No story pages generated yet.</p>
+                  <div className="mb-4">
+                    <label className="block text-lg font-semibold text-gray-900 mb-2">
+                      Number of Pages
+                    </label>
+                    <Select
+                      value={form.watch("totalPages").toString()}
+                      onValueChange={(value) => form.setValue("totalPages", parseInt(value))}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-gray-900">Page {page.pageNumber}</span>
-                        <Edit className="text-gray-400" size={16} />
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">{page.text.substring(0, 60)}...</p>
+                      <SelectTrigger className="w-48 mx-auto">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20].map((num) => (
+                          <SelectItem key={num} value={num.toString()}>
+                            {num} pages
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={() => approveCharactersMutation.mutate()}
+                    disabled={approveCharactersMutation.isPending}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-xl text-lg font-semibold"
+                    data-testid="button-generate-pages"
+                  >
+                    {approveCharactersMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                        Generating Story Pages...
+                      </>
+                    ) : (
+                      <>
+                        <ScrollText className="mr-3 h-5 w-5" />
+                        Generate Story Pages
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* Pages Exist - Show Review Interface */
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Story Pages List */}
+                  <div className="lg:col-span-1">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-bold text-gray-900">Story Pages</h3>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => approveCharactersMutation.mutate()}
+                        disabled={approveCharactersMutation.isPending}
+                        data-testid="button-regenerate-pages"
+                      >
+                        {approveCharactersMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Regenerate"
+                        )}
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Story Editor */}
-              <div className="lg:col-span-2">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-bold text-gray-900">Page {editedPages[currentPageIndex]?.pageNumber}</h3>
-                </div>
-
-                <Textarea
-                  value={editedPages[currentPageIndex]?.text || ""}
-                  onChange={(e) => updatePageText(currentPageIndex, e.target.value)}
-                  className="w-full h-64 p-4 border-2 border-gray-200 focus:border-indigo-600 resize-none"
-                  data-testid="textarea-page-content"
-                />
-
-                <div className="flex justify-between items-center mt-4">
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setCurrentPageIndex(Math.max(0, currentPageIndex - 1))}
-                      disabled={currentPageIndex === 0}
-                      data-testid="button-previous-page"
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      onClick={() => setCurrentPageIndex(Math.min(editedPages.length - 1, currentPageIndex + 1))}
-                      disabled={currentPageIndex === editedPages.length - 1}
-                      data-testid="button-next-page"
-                    >
-                      Next
-                    </Button>
+                    <div className="space-y-2">
+                      {editedPages.map((page, index) => (
+                        <div
+                          key={page.pageNumber}
+                          className={`bg-gray-50 rounded-lg p-3 cursor-pointer hover:bg-gray-100 transition-colors border-l-4 ${
+                            index === currentPageIndex ? "border-indigo-600" : "border-gray-300"
+                          }`}
+                          onClick={() => setCurrentPageIndex(index)}
+                          data-testid={`page-${page.pageNumber}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-gray-900">Page {page.pageNumber}</span>
+                            <Edit className="text-gray-400" size={16} />
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{page.text.substring(0, 60)}...</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  
-                  <div className="text-sm text-gray-600">
-                    <span className="font-medium">Word count:</span> {editedPages[currentPageIndex]?.text.split(/\s+/).length || 0} words
+
+                  {/* Story Editor */}
+                  <div className="lg:col-span-2">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-bold text-gray-900">Page {editedPages[currentPageIndex]?.pageNumber}</h3>
+                    </div>
+
+                    <Textarea
+                      value={editedPages[currentPageIndex]?.text || ""}
+                      onChange={(e) => updatePageText(currentPageIndex, e.target.value)}
+                      className="w-full h-64 p-4 border-2 border-gray-200 focus:border-indigo-600 resize-none"
+                      data-testid="textarea-page-content"
+                    />
+
+                    <div className="flex justify-between items-center mt-4">
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setCurrentPageIndex(Math.max(0, currentPageIndex - 1))}
+                          disabled={currentPageIndex === 0}
+                          data-testid="button-previous-page"
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          onClick={() => setCurrentPageIndex(Math.min(editedPages.length - 1, currentPageIndex + 1))}
+                          disabled={currentPageIndex === editedPages.length - 1}
+                          data-testid="button-next-page"
+                        >
+                          Next
+                        </Button>
+                      </div>
+                      
+                      <div className="text-sm text-gray-600">
+                        <span className="font-medium">Word count:</span> {editedPages[currentPageIndex]?.text.split(/\s+/).length || 0} words
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Approval Actions */}
-            <div className="flex justify-center space-x-4 mt-8 pt-6 border-t border-gray-200">
-              <Button
-                variant="outline"
-                className="px-6 py-3 font-medium"
-                data-testid="button-keep-editing"
-              >
-                <Edit className="mr-2 h-4 w-4" />
-                Keep Editing
-              </Button>
-              <Button
-                onClick={() => approveStoryMutation.mutate()}
-                disabled={approveStoryMutation.isPending}
-                className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 font-medium shadow-lg"
-                data-testid="button-approve-story"
-              >
-                {approveStoryMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Approving...
-                  </>
-                ) : (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Approve Story & Create Images
-                  </>
-                )}
-              </Button>
-            </div>
+                {/* Approval Actions */}
+                <div className="flex justify-center space-x-4 mt-8 pt-6 border-t border-gray-200">
+                  <Button
+                    variant="outline"
+                    className="px-6 py-3 font-medium"
+                    data-testid="button-keep-editing"
+                  >
+                    <Edit className="mr-2 h-4 w-4" />
+                    Keep Editing
+                  </Button>
+                  <Button
+                    onClick={() => approveStoryMutation.mutate()}
+                    disabled={approveStoryMutation.isPending}
+                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 font-medium shadow-lg"
+                    data-testid="button-approve-story"
+                  >
+                    {approveStoryMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Approving...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        Approve Story & Create Images
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
