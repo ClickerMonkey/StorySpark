@@ -49,7 +49,7 @@ export function GoogleLogin({ onLogin }: GoogleLoginProps) {
       `response_type=code&` +
       `scope=${encodeURIComponent(scope)}&` +
       `access_type=offline&` +
-      `prompt=select_account`;
+      `prompt=consent`;</old_str>
     
     // Redirect to Google OAuth
     window.location.href = googleOAuthUrl;

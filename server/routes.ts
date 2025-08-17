@@ -68,12 +68,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Exchange the authorization code for tokens
       const tokenUrl = 'https://oauth2.googleapis.com/token';
+      
+      // Use the same redirect URI that was used in the initial OAuth request
+      const protocol = req.get('x-forwarded-proto') || req.protocol;
+      const host = req.get('host');
+      const redirectUri = `${protocol}://${host}/api/auth/google/callback`;
+      
       const tokenParams = new URLSearchParams({
         client_id: process.env.GOOGLE_CLIENT_ID!,
         client_secret: process.env.GOOGLE_CLIENT_SECRET!,
         code: code as string,
         grant_type: 'authorization_code',
-        redirect_uri: `${req.protocol}://${req.get('host')}/api/auth/google/callback`,
+        redirect_uri: redirectUri,
       });
 
       const tokenResponse = await fetch(tokenUrl, {
