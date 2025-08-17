@@ -1,6 +1,18 @@
-import { type User, type InsertUser, type Story, type InsertStory, type StoryPage, type Character, stories, users } from "@shared/schema";
+import { 
+  type User, 
+  type InsertUser, 
+  type Story, 
+  type InsertStory, 
+  type StoryRevision,
+  type InsertStoryRevision,
+  type StoryPage, 
+  type Character, 
+  stories, 
+  users,
+  storyRevisions
+} from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -22,6 +34,12 @@ export interface IStorage {
   updateStoryExpandedSetting(id: string, expandedSetting: string): Promise<Story | undefined>;
   updateStoryExtractedCharacters(id: string, characters: Character[]): Promise<Story | undefined>;
   updateCharacterImage(id: string, characterName: string, imageUrl: string): Promise<Story | undefined>;
+  
+  // Revision methods
+  createRevision(revision: InsertStoryRevision): Promise<StoryRevision>;
+  getRevisions(storyId: string): Promise<StoryRevision[]>;
+  getRevision(storyId: string, revisionNumber: number): Promise<StoryRevision | undefined>;
+  loadRevisionAsCurrentStory(storyId: string, revisionNumber: number): Promise<Story | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -179,13 +197,40 @@ export class MemStorage implements IStorage {
     const story = this.stories.get(id);
     if (!story) return undefined;
 
-    const updatedCharacters = story.extractedCharacters.map(char =>
+    const updatedCharacters = story.extractedCharacters?.map(char =>
       char.name === characterName
         ? { ...char, imageUrl }
         : char
-    );
+    ) || [];
 
     return this.updateStory(id, { extractedCharacters: updatedCharacters });
+  }
+
+  // Revision methods - simplified implementations for MemStorage
+  async createRevision(revision: InsertStoryRevision): Promise<StoryRevision> {
+    const id = randomUUID();
+    const newRevision: StoryRevision = {
+      id,
+      ...revision,
+      createdAt: new Date(),
+    };
+    // In memory storage - not persisted
+    return newRevision;
+  }
+
+  async getRevisions(storyId: string): Promise<StoryRevision[]> {
+    // Return empty array for MemStorage
+    return [];
+  }
+
+  async getRevision(storyId: string, revisionNumber: number): Promise<StoryRevision | undefined> {
+    // Return undefined for MemStorage
+    return undefined;
+  }
+
+  async loadRevisionAsCurrentStory(storyId: string, revisionNumber: number): Promise<Story | undefined> {
+    // Return undefined for MemStorage
+    return undefined;
   }
 }
 
@@ -283,6 +328,57 @@ export class DatabaseStorage implements IStorage {
     );
 
     return this.updateStory(id, { extractedCharacters: updatedCharacters });
+  }
+
+  // Revision methods
+  async createRevision(revision: InsertStoryRevision): Promise<StoryRevision> {
+    const [newRevision] = await db
+      .insert(storyRevisions)
+      .values(revision)
+      .returning();
+    return newRevision;
+  }
+
+  async getRevisions(storyId: string): Promise<StoryRevision[]> {
+    return await db
+      .select()
+      .from(storyRevisions)
+      .where(eq(storyRevisions.storyId, storyId))
+      .orderBy(desc(storyRevisions.revisionNumber));
+  }
+
+  async getRevision(storyId: string, revisionNumber: number): Promise<StoryRevision | undefined> {
+    const [revision] = await db
+      .select()
+      .from(storyRevisions)
+      .where(and(
+        eq(storyRevisions.storyId, storyId),
+        eq(storyRevisions.revisionNumber, revisionNumber)
+      ));
+    return revision || undefined;
+  }
+
+  async loadRevisionAsCurrentStory(storyId: string, revisionNumber: number): Promise<Story | undefined> {
+    const revision = await this.getRevision(storyId, revisionNumber);
+    if (!revision) return undefined;
+
+    // Update the main story with the revision data
+    const updatedStory = await this.updateStory(storyId, {
+      title: revision.title,
+      setting: revision.setting,
+      expandedSetting: revision.expandedSetting,
+      characters: revision.characters,
+      extractedCharacters: revision.extractedCharacters,
+      plot: revision.plot,
+      ageGroup: revision.ageGroup,
+      totalPages: revision.totalPages,
+      pages: revision.pages,
+      coreImageUrl: revision.coreImageUrl,
+      status: revision.status,
+      currentRevision: revisionNumber,
+    });
+
+    return updatedStory;
   }
 
   async getUserStories(userId: string): Promise<Story[]> {

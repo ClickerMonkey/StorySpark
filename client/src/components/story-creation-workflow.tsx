@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
-import { Loader2, BookOpen, Users, ScrollText, Palette, Eye, Edit, Check, Plus } from "lucide-react";
+import { RevisionPanel } from "@/components/revision-panel";
+import { Loader2, BookOpen, Users, ScrollText, Palette, Eye, Edit, Check, Plus, History } from "lucide-react";
 
 type WorkflowStep = "details" | "setting" | "characters" | "review" | "images" | "complete";
 
@@ -28,6 +29,7 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
   const [imageGenerationProgress, setImageGenerationProgress] = useState<{ [key: number]: boolean }>({});
   const [expandedSetting, setExpandedSetting] = useState("");
   const [extractedCharacters, setExtractedCharacters] = useState<Character[]>([]);
+  const [showRevisionPanel, setShowRevisionPanel] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -43,6 +45,37 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
     },
   });
 
+  // Save step mutation for revision system
+  const saveStepMutation = useMutation({
+    mutationFn: async ({ step, storyData, clearFutureSteps = false }: { 
+      step: string; 
+      storyData: any; 
+      clearFutureSteps?: boolean;
+    }) => {
+      if (generatedStory) {
+        const response = await apiRequest('POST', `/api/stories/${generatedStory.id}/save-step`, { 
+          step, 
+          storyData, 
+          clearFutureSteps 
+        });
+        return response.json();
+      }
+    },
+    onSuccess: (data) => {
+      if (data && data.story) {
+        setGeneratedStory(data.story);
+        queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
+        
+        if (data.revisionCreated) {
+          toast({
+            title: "Revision Created",
+            description: `Created revision ${data.revisionNumber} and cleared future steps`,
+          });
+        }
+      }
+    },
+  });
+
   const createStoryMutation = useMutation({
     mutationFn: async (data: CreateStory) => {
       const response = await apiRequest("POST", "/api/stories", data);
@@ -51,6 +84,11 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
     onSuccess: async (story) => {
       setGeneratedStory(story);
       setCurrentStep("setting");
+      
+      // Create initial revision
+      if (story?.id) {
+        // Initial revision is created by the backend automatically
+      }
       
       // Automatically expand the setting
       try {
@@ -170,6 +208,13 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
     onSuccess: (data) => {
       setExtractedCharacters(data.characters);
       setCurrentStep("characters");
+      
+      // Save setting step
+      saveStepMutation.mutate({
+        step: "setting",
+        storyData: { expandedSetting },
+      });
+      
       toast({
         title: "Setting Approved!",
         description: "I've extracted your characters. Please review and edit them.",
@@ -196,6 +241,13 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
       setGeneratedStory(data.story);
       setEditedPages(data.story.pages);
       setCurrentStep("review");
+      
+      // Save characters step
+      saveStepMutation.mutate({
+        step: "characters",
+        storyData: { extractedCharacters },
+      });
+      
       toast({
         title: "Characters Approved!",
         description: "Your story has been generated. Please review and edit as needed.",
@@ -221,7 +273,25 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-      <ProgressIndicator steps={steps} />
+      <div className="flex items-center justify-between mb-6">
+        <ProgressIndicator steps={steps} />
+        {generatedStory && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowRevisionPanel(!showRevisionPanel)}
+            className="flex items-center gap-2"
+            data-testid="button-toggle-revisions"
+          >
+            <History className="h-4 w-4" />
+            {showRevisionPanel ? "Hide" : "Show"} Revisions
+          </Button>
+        )}
+      </div>
+      
+      <div className={`grid gap-6 ${showRevisionPanel ? "grid-cols-1 lg:grid-cols-3" : "grid-cols-1"}`}>
+        {/* Main Workflow */}
+        <div className={showRevisionPanel ? "lg:col-span-2" : "col-span-1"}>
 
       {/* Step 1: Story Details Input */}
       {currentStep === "details" && (
@@ -737,6 +807,22 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
       )}
 
       {/* Step 4: Story Complete - This will be handled by parent component */}
+        </div>
+        
+        {/* Revision Panel */}
+        {showRevisionPanel && generatedStory && (
+          <div className="lg:col-span-1">
+            <RevisionPanel
+              storyId={generatedStory.id}
+              currentRevision={generatedStory.currentRevision || 1}
+              onRevisionLoaded={() => {
+                // Refresh story data when revision is loaded
+                queryClient.invalidateQueries({ queryKey: ['/api/stories', generatedStory.id] });
+              }}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

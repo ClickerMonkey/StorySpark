@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateStoryText, generateCoreImage, generatePageImage, expandSetting, extractCharacters, generateCharacterImage } from "./services/openai";
-import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema } from "@shared/schema";
+import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema, createRevisionSchema } from "@shared/schema";
 import { verifyGoogleToken, generateJWT, requireAuth, optionalAuth, type AuthenticatedRequest } from "./auth";
 import { z } from "zod";
 
@@ -587,6 +587,195 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error bookmarking story:", error);
       res.status(500).json({ message: "Failed to bookmark story" });
+    }
+  });
+
+  // REVISION SYSTEM ROUTES
+
+  // Get all revisions for a story
+  app.get("/api/stories/:id/revisions", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const story = await storage.getStory(req.params.id);
+      if (!story) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const revisions = await storage.getRevisions(req.params.id);
+      res.json({ revisions });
+    } catch (error) {
+      console.error("Error fetching revisions:", error);
+      res.status(500).json({ message: "Failed to fetch revisions" });
+    }
+  });
+
+  // Create a new revision from current story state
+  app.post("/api/stories/:id/revisions", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { step, description, fromRevision } = createRevisionSchema.parse({
+        storyId: req.params.id,
+        ...req.body
+      });
+
+      const story = await storage.getStory(req.params.id);
+      if (!story) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get the highest revision number and increment
+      const existingRevisions = await storage.getRevisions(req.params.id);
+      const maxRevisionNumber = Math.max(0, ...existingRevisions.map(r => r.revisionNumber));
+      const newRevisionNumber = maxRevisionNumber + 1;
+
+      const stepOrder = ["details", "setting", "characters", "review", "images", "complete"];
+      const stepCompleted = step;
+
+      // Create the revision
+      const revision = await storage.createRevision({
+        storyId: req.params.id,
+        revisionNumber: newRevisionNumber,
+        title: story.title,
+        setting: story.setting,
+        expandedSetting: story.expandedSetting,
+        characters: story.characters,
+        extractedCharacters: story.extractedCharacters,
+        plot: story.plot,
+        ageGroup: story.ageGroup,
+        totalPages: story.totalPages,
+        pages: story.pages,
+        coreImageUrl: story.coreImageUrl,
+        status: story.status,
+        stepCompleted,
+        parentRevision: fromRevision,
+        description,
+      });
+
+      // Update the story's current revision
+      await storage.updateStory(req.params.id, { currentRevision: newRevisionNumber });
+
+      res.json({ revision });
+    } catch (error) {
+      console.error("Error creating revision:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid revision data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to create revision" });
+      }
+    }
+  });
+
+  // Load a revision as the current story state
+  app.post("/api/stories/:id/revisions/:revisionNumber/load", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const revisionNumber = parseInt(req.params.revisionNumber);
+      
+      const story = await storage.getStory(req.params.id);
+      if (!story) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updatedStory = await storage.loadRevisionAsCurrentStory(req.params.id, revisionNumber);
+      if (!updatedStory) {
+        return res.status(404).json({ message: "Revision not found" });
+      }
+
+      res.json({ story: updatedStory });
+    } catch (error) {
+      console.error("Error loading revision:", error);
+      res.status(500).json({ message: "Failed to load revision" });
+    }
+  });
+
+  // Save story state at a specific step and clear future steps if needed
+  app.post("/api/stories/:id/save-step", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { step, storyData, clearFutureSteps = false } = req.body;
+
+      const story = await storage.getStory(req.params.id);
+      if (!story) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // If clearFutureSteps is true and we're editing an earlier step with future data,
+      // create a new revision and clear following steps
+      let shouldCreateRevision = clearFutureSteps;
+      
+      const stepOrder = ["details", "setting", "characters", "review", "images", "complete"];
+      const currentStepIndex = stepOrder.indexOf(step);
+      
+      if (shouldCreateRevision) {
+        // Get the highest revision number and create a new one
+        const existingRevisions = await storage.getRevisions(req.params.id);
+        const maxRevisionNumber = Math.max(0, ...existingRevisions.map(r => r.revisionNumber));
+        const newRevisionNumber = maxRevisionNumber + 1;
+
+        // Save current state as a revision first
+        await storage.createRevision({
+          storyId: req.params.id,
+          revisionNumber: newRevisionNumber,
+          title: story.title,
+          setting: story.setting,
+          expandedSetting: story.expandedSetting,
+          characters: story.characters,
+          extractedCharacters: story.extractedCharacters,
+          plot: story.plot,
+          ageGroup: story.ageGroup,
+          totalPages: story.totalPages,
+          pages: story.pages,
+          coreImageUrl: story.coreImageUrl,
+          status: story.status,
+          stepCompleted: step,
+          parentRevision: story.currentRevision,
+          description: `Edited at ${step} step`,
+        });
+
+        // Clear future step data based on current step
+        const clearedData: any = { ...storyData };
+        
+        if (currentStepIndex <= stepOrder.indexOf("setting")) {
+          clearedData.expandedSetting = null;
+        }
+        if (currentStepIndex <= stepOrder.indexOf("characters")) {
+          clearedData.extractedCharacters = [];
+        }
+        if (currentStepIndex <= stepOrder.indexOf("review")) {
+          clearedData.pages = [];
+        }
+        if (currentStepIndex <= stepOrder.indexOf("images")) {
+          clearedData.coreImageUrl = null;
+          clearedData.pages = clearedData.pages?.map((p: any) => ({ ...p, imageUrl: undefined })) || [];
+        }
+
+        // Update story with cleared data and new revision number
+        const updatedStory = await storage.updateStory(req.params.id, {
+          ...clearedData,
+          currentRevision: newRevisionNumber
+        });
+
+        res.json({ story: updatedStory, revisionCreated: true, revisionNumber: newRevisionNumber });
+      } else {
+        // Just update the story normally
+        const updatedStory = await storage.updateStory(req.params.id, storyData);
+        res.json({ story: updatedStory, revisionCreated: false });
+      }
+    } catch (error) {
+      console.error("Error saving step:", error);
+      res.status(500).json({ message: "Failed to save step" });
     }
   });
 
