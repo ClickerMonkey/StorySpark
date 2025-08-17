@@ -23,7 +23,21 @@ interface StoryCreationWorkflowProps {
 }
 
 export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreationWorkflowProps) {
-  const [currentStep, setCurrentStep] = useState<WorkflowStep>(existingStory ? "review" : "details");
+  // Determine initial step based on story completion status
+  const getInitialStep = (): WorkflowStep => {
+    if (!existingStory) return "details";
+    
+    // Check what step the story is at based on data completeness
+    if (!existingStory.expandedSetting) return "setting";
+    if (!existingStory.extractedCharacters || existingStory.extractedCharacters.length === 0) return "characters";
+    if (!existingStory.pages || existingStory.pages.length === 0) return "review";
+    
+    // If story has images, go to images step, otherwise review
+    const hasImages = existingStory.pages.some(page => page.imageUrl);
+    return hasImages ? "complete" : "images";
+  };
+  
+  const [currentStep, setCurrentStep] = useState<WorkflowStep>(getInitialStep());
   const [generatedStory, setGeneratedStory] = useState<Story | null>(existingStory || null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [editedPages, setEditedPages] = useState<StoryPage[]>(existingStory?.pages || []);
@@ -273,22 +287,57 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
     { number: 6, label: "Final Story", completed: false, current: currentStep === "complete" },
   ];
 
+  // Function to navigate to a specific step
+  const navigateToStep = (step: WorkflowStep) => {
+    setCurrentStep(step);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <ProgressIndicator steps={steps} />
-        {generatedStory && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowRevisionPanel(!showRevisionPanel)}
-            className="flex items-center gap-2"
-            data-testid="button-toggle-revisions"
-          >
-            <History className="h-4 w-4" />
-            {showRevisionPanel ? "Hide" : "Show"} Revisions
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {generatedStory && (
+            <>
+              {/* Step Navigation Buttons */}
+              <div className="flex flex-wrap gap-1">
+                {["details", "setting", "characters", "review", "images"].map((step) => {
+                  const stepData = steps.find(s => 
+                    (step === "details" && s.label === "Story Details") ||
+                    (step === "setting" && s.label === "Expand Setting") ||
+                    (step === "characters" && s.label === "Define Characters") ||
+                    (step === "review" && s.label === "Review Story") ||
+                    (step === "images" && s.label === "Generate Images")
+                  );
+                  
+                  return (
+                    <Button
+                      key={step}
+                      variant={currentStep === step ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => navigateToStep(step as WorkflowStep)}
+                      className="text-xs"
+                      data-testid={`button-goto-${step}`}
+                    >
+                      {stepData?.number}
+                    </Button>
+                  );
+                })}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowRevisionPanel(!showRevisionPanel)}
+                className="flex items-center gap-2"
+                data-testid="button-toggle-revisions"
+              >
+                <History className="h-4 w-4" />
+                {showRevisionPanel ? "Hide" : "Show"} Revisions
+              </Button>
+            </>
+          )}
+        </div>
       </div>
       
       <div className={`grid gap-6 ${showRevisionPanel ? "grid-cols-1 lg:grid-cols-3" : "grid-cols-1"}`}>
