@@ -15,31 +15,31 @@ import NotFound from "@/pages/not-found";
 function Router() {
   const { isAuthenticated, isLoading, user, login, updateUser } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-pink-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <GoogleLogin onLogin={login} />;
-  }
-
-  if (!user?.openaiApiKey) {
-    return <OpenAISetup user={user} onSetupComplete={updateUser} />;
-  }
-
+  // Handle auth callback route first, before authentication checks
   return (
     <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/library" component={StoryLibrary} />
-      <Route path="/story/:id" component={StoryView} />
       <Route path="/auth/google/callback">
         <AuthCallback onLogin={login} />
       </Route>
-      <Route component={NotFound} />
+      <Route>
+        {/* All other routes require authentication */}
+        {isLoading ? (
+          <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-pink-50 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+          </div>
+        ) : !isAuthenticated ? (
+          <GoogleLogin onLogin={login} />
+        ) : !user?.openaiApiKey ? (
+          <OpenAISetup user={user} onSetupComplete={updateUser} />
+        ) : (
+          <Switch>
+            <Route path="/" component={Home} />
+            <Route path="/library" component={StoryLibrary} />
+            <Route path="/story/:id" component={StoryView} />
+            <Route component={NotFound} />
+          </Switch>
+        )}
+      </Route>
     </Switch>
   );
 }
