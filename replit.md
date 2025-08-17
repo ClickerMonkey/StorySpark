@@ -15,6 +15,17 @@ The system includes demo mode functionality for seamless operation during API qu
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+**August 17, 2025 - Mobile-Friendly Design Implementation**
+- Made entire site responsive with mobile-first approach
+- Updated navigation bars to work on small screens with icon-only buttons
+- Improved story library grid layout for mobile devices
+- Enhanced story creation workflow with responsive forms and layouts
+- Made progress indicator mobile-friendly with wrapped layout
+- Updated story reader with mobile-optimized navigation and buttons
+- All pages now properly adapt to screen sizes from mobile to desktop
+
 # System Architecture
 
 ## Frontend Architecture

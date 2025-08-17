@@ -220,24 +220,24 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
       <ProgressIndicator steps={steps} />
 
       {/* Step 1: Story Details Input */}
       {currentStep === "details" && (
         <Card className="bg-white shadow-lg">
-          <CardContent className="p-8">
-            <div className="text-center mb-8">
+          <CardContent className="p-4 sm:p-6 lg:p-8">
+            <div className="text-center mb-6 sm:mb-8">
               <div className="mb-4 p-3 bg-amber-100 border border-amber-300 rounded-lg inline-block">
-                <p className="text-amber-800 text-sm font-medium">
+                <p className="text-amber-800 text-xs sm:text-sm font-medium">
                   🎭 Demo Mode: Using sample content while OpenAI quota is resolved
                 </p>
               </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-3">Let's Create Your Amazing Story!</h2>
-              <p className="text-lg text-gray-600">Tell me about your story idea and I'll help bring it to life with words and pictures.</p>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Let's Create Your Amazing Story!</h2>
+              <p className="text-base sm:text-lg text-gray-600">Tell me about your story idea and I'll help bring it to life with words and pictures.</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
               <div className="space-y-6">
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -307,14 +307,14 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
                       )}
                     />
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="totalPages"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-lg font-semibold text-gray-900 flex items-center">
-                              <BookOpen className="text-pink-500 mr-2" size={20} />
+                            <FormLabel className="text-base sm:text-lg font-semibold text-gray-900 flex items-center">
+                              <BookOpen className="text-pink-500 mr-2" size={16} />
                               Story Length
                             </FormLabel>
                             <Select value={field.value.toString()} onValueChange={(value) => field.onChange(parseInt(value))}>
@@ -339,8 +339,8 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
                         name="ageGroup"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-lg font-semibold text-gray-900 flex items-center">
-                              <Users className="text-indigo-600 mr-2" size={20} />
+                            <FormLabel className="text-base sm:text-lg font-semibold text-gray-900 flex items-center">
+                              <Users className="text-indigo-600 mr-2" size={16} />
                               Age Group
                             </FormLabel>
                             <Select value={field.value} onValueChange={field.onChange}>
@@ -361,11 +361,11 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
                       />
                     </div>
 
-                    <div className="flex justify-center mt-8">
+                    <div className="flex justify-center mt-6 sm:mt-8">
                       <Button
                         type="submit"
                         disabled={createStoryMutation.isPending}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-xl text-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+                        className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
                         data-testid="button-generate-story"
                       >
                         {createStoryMutation.isPending ? (
@@ -386,9 +386,9 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
               </div>
 
               {/* Preview Panel */}
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                  <Eye className="text-indigo-600 mr-2" size={20} />
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 sm:p-6">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center">
+                  <Eye className="text-indigo-600 mr-2" size={16} />
                   Story Preview
                 </h3>
                 

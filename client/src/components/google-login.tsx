@@ -57,16 +57,16 @@ export function GoogleLogin({ onLogin }: GoogleLoginProps) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-md shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-gray-900">Welcome to StoryMaker AI</CardTitle>
-          <p className="text-gray-600 mt-2">Sign in to create amazing children's stories with AI</p>
+      <Card className="w-full max-w-md mx-4 shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+        <CardHeader className="text-center px-4 sm:px-6">
+          <CardTitle className="text-xl sm:text-2xl font-bold text-gray-900">Welcome to StoryMaker AI</CardTitle>
+          <p className="text-sm sm:text-base text-gray-600 mt-2">Sign in to create amazing children's stories with AI</p>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-4 sm:px-6">
           <Button
             onClick={handleGoogleLogin}
             disabled={isLoading || !googleClientId}
-            className="w-full bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+            className="w-full bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 h-12"
             data-testid="button-google-login"
           >
             {isLoading ? (

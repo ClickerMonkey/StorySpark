@@ -137,40 +137,45 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
   return (
     <Card className="bg-white shadow-lg overflow-hidden">
       {/* Story Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white p-8 text-center">
-        <h2 className="text-4xl font-bold mb-2" data-testid="story-title">{story.title}</h2>
-        <p className="text-xl opacity-90">A magical adventure story</p>
-        <div className="flex justify-center space-x-6 mt-4 text-sm">
-          <span><BookOpen className="inline mr-1" size={16} />{story.totalPages} Pages</span>
-          <span><Users className="inline mr-1" size={16} />Ages {story.ageGroup}</span>
-          <span><Clock className="inline mr-1" size={16} />5 min read</span>
+      <div className="bg-gradient-to-r from-indigo-600 to-pink-600 text-white p-4 sm:p-6 lg:p-8 text-center">
+        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2" data-testid="story-title">{story.title}</h2>
+        <p className="text-base sm:text-lg lg:text-xl opacity-90">A magical adventure story</p>
+        <div className="flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-6 mt-4 text-xs sm:text-sm">
+          <span><BookOpen className="inline mr-1" size={14} />{story.totalPages} Pages</span>
+          <span><Users className="inline mr-1" size={14} />Ages {story.ageGroup}</span>
+          <span><Clock className="inline mr-1" size={14} />5 min read</span>
         </div>
       </div>
 
       {/* Story Navigation */}
-      <div className="bg-gray-50 px-8 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+      <div className="bg-gray-50 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <Button
               variant="outline"
               onClick={previousPage}
               disabled={isFirstPage}
+              size="sm"
+              className="text-xs sm:text-sm"
               data-testid="button-previous"
             >
-              <ChevronLeft className="mr-2 h-4 w-4" />
-              Previous
+              <ChevronLeft className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Previous</span>
+              <span className="sm:hidden">←</span>
             </Button>
-            <span className="text-gray-600 font-medium">
+            <span className="text-gray-600 font-medium text-xs sm:text-sm">
               Page <span data-testid="current-page-number">{currentPageIndex + 1}</span> of <span data-testid="total-pages">{story.totalPages}</span>
             </span>
             <Button
               onClick={nextPage}
               disabled={isLastPage}
-              className="bg-indigo-600 hover:bg-indigo-700"
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-700 text-xs sm:text-sm"
               data-testid="button-next"
             >
-              Next
-              <ChevronRight className="ml-2 h-4 w-4" />
+              <span className="hidden sm:inline">Next</span>
+              <span className="sm:hidden">→</span>
+              <ChevronRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
           </div>
 

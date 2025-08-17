@@ -57,14 +57,14 @@ export function OpenAISetup({ user, onSetupComplete }: OpenAISetupProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-pink-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-gray-900">Configure OpenAI API</CardTitle>
-          <p className="text-gray-600 mt-2">
+      <Card className="w-full max-w-md mx-4">
+        <CardHeader className="text-center px-4 sm:px-6">
+          <CardTitle className="text-xl sm:text-2xl font-bold text-gray-900">Configure OpenAI API</CardTitle>
+          <p className="text-sm sm:text-base text-gray-600 mt-2">
             Enter your OpenAI API key to start creating stories with AI
           </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 sm:px-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="apiKey">OpenAI API Key *</Label>

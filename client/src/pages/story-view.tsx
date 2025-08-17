@@ -91,18 +91,18 @@ export default function StoryView() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/library">
-              <div className="flex items-center space-x-3 cursor-pointer">
-                <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-pink-600 rounded-xl flex items-center justify-center">
-                  <BookOpen className="text-white" size={20} />
+              <div className="flex items-center space-x-2 sm:space-x-3 cursor-pointer">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-600 to-pink-600 rounded-xl flex items-center justify-center">
+                  <BookOpen className="text-white" size={16} />
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900">StoryMaker AI</h1>
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900">StoryMaker AI</h1>
               </div>
             </Link>
             
             <Link href="/library">
-              <Button variant="ghost" className="text-gray-600 hover:text-gray-900" data-testid="button-back-library">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Library
+              <Button variant="ghost" className="text-gray-600 hover:text-gray-900 px-2 sm:px-4" data-testid="button-back-library">
+                <ArrowLeft className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Back to Library</span>
               </Button>
             </Link>
           </div>
@@ -110,7 +110,7 @@ export default function StoryView() {
       </nav>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         <StoryReader 
           story={story}
           onEdit={() => {

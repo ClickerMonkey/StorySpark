@@ -26,27 +26,27 @@ export default function Home() {
       <nav className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-pink-600 rounded-xl flex items-center justify-center">
-                <BookOpen className="text-white" size={20} />
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-600 to-pink-600 rounded-xl flex items-center justify-center">
+                <BookOpen className="text-white" size={16} />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">StoryMaker AI</h1>
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900">StoryMaker AI</h1>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <Link href="/library">
-                <Button variant="ghost" className="text-gray-600 hover:text-gray-900" data-testid="link-my-stories">
-                  <BookOpen className="mr-2 h-4 w-4" />
-                  My Stories
+                <Button variant="ghost" className="text-gray-600 hover:text-gray-900 px-2 sm:px-4" data-testid="link-my-stories">
+                  <BookOpen className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">My Stories</span>
                 </Button>
               </Link>
               <Button 
                 onClick={handleNewStory} 
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-2 sm:px-4"
                 data-testid="button-new-story"
               >
-                <Plus className="mr-2 h-4 w-4" />
-                New Story
+                <Plus className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">New Story</span>
               </Button>
             </div>
           </div>
@@ -60,7 +60,7 @@ export default function Home() {
         )}
         
         {completedStory && !showWorkflow && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
             <StoryReader 
               story={completedStory}
               onEdit={handleNewStory}
