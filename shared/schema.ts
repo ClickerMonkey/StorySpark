@@ -71,6 +71,7 @@ export const insertStorySchema = createInsertSchema(stories).omit({
 export const updateStorySchema = insertStorySchema.partial();
 
 export const createStorySchema = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters"),
   setting: z.string().min(10, "Setting must be at least 10 characters"),
   characters: z.string().min(10, "Characters must be at least 10 characters"),
   plot: z.string().min(20, "Plot must be at least 20 characters"),

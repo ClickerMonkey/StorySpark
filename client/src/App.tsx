@@ -10,6 +10,7 @@ import { OpenAISetup } from "@/components/openai-setup";
 import Home from "@/pages/home";
 import StoryLibrary from "@/pages/story-library";
 import StoryView from "@/pages/story-view";
+import StoryEdit from "./pages/story-edit";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -36,6 +37,7 @@ function Router() {
             <Route path="/" component={Home} />
             <Route path="/library" component={StoryLibrary} />
             <Route path="/story/:id" component={StoryView} />
+            <Route path="/edit/:id" component={StoryEdit} />
             <Route component={NotFound} />
           </Switch>
         )}

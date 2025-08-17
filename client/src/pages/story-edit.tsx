@@ -1,13 +1,13 @@
 import { useParams, useLocation, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { type Story } from "@shared/schema";
-import { StoryReader } from "@/components/story-reader";
+import { StoryCreationWorkflow } from "@/components/story-creation-workflow";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookOpen, ArrowLeft } from "lucide-react";
 
-export default function StoryView() {
+export default function StoryEdit() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
 
@@ -34,7 +34,7 @@ export default function StoryView() {
               <Link href="/library">
                 <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
                   <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Library
+                  Cancel Edit
                 </Button>
               </Link>
             </div>
@@ -48,14 +48,6 @@ export default function StoryView() {
               <Skeleton className="h-8 w-3/4 mb-4" />
               <Skeleton className="h-4 w-full mb-2" />
               <Skeleton className="h-4 w-5/6 mb-8" />
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Skeleton className="w-full h-64" />
-                <div className="space-y-4">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -70,7 +62,7 @@ export default function StoryView() {
           <CardContent className="pt-6 text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Story Not Found</h2>
             <p className="text-gray-600 mb-4">
-              The story you're looking for doesn't exist or couldn't be loaded.
+              The story you're trying to edit doesn't exist or couldn't be loaded.
             </p>
             <Link href="/library">
               <Button>
@@ -95,14 +87,14 @@ export default function StoryView() {
                 <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-600 to-pink-600 rounded-xl flex items-center justify-center">
                   <BookOpen className="text-white" size={16} />
                 </div>
-                <h1 className="text-lg sm:text-2xl font-bold text-gray-900">StoryMaker AI</h1>
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Edit Story</h1>
               </div>
             </Link>
             
-            <Link href="/library">
-              <Button variant="ghost" className="text-gray-600 hover:text-gray-900 px-2 sm:px-4" data-testid="button-back-library">
+            <Link href={`/story/${story.id}`}>
+              <Button variant="ghost" className="text-gray-600 hover:text-gray-900 px-2 sm:px-4" data-testid="button-cancel-edit">
                 <ArrowLeft className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Back to Library</span>
+                <span className="hidden sm:inline">Cancel Edit</span>
               </Button>
             </Link>
           </div>
@@ -110,16 +102,12 @@ export default function StoryView() {
       </nav>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        <StoryReader 
-          story={story}
-          onEdit={() => {
-            // Navigate to edit mode with story ID
-            setLocation(`/edit/${story.id}`);
-          }}
-          onSave={() => {
-            // Story is already saved
-            console.log("Story is already saved");
+      <div className="py-4 sm:py-8">
+        <StoryCreationWorkflow 
+          existingStory={story}
+          onComplete={(updatedStory) => {
+            // Navigate back to the story view when editing is complete
+            setLocation(`/story/${updatedStory.id}`);
           }}
         />
       </div>

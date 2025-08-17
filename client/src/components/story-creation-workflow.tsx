@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createStorySchema, type CreateStory, type Story, type StoryPage, type Character } from "@shared/schema";
+import { createStorySchema, insertStorySchema, type CreateStory, type Story, type StoryPage, type Character } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -19,17 +19,18 @@ type WorkflowStep = "details" | "setting" | "characters" | "review" | "images" |
 
 interface StoryCreationWorkflowProps {
   onComplete?: (story: Story) => void;
+  existingStory?: Story;
 }
 
-export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps) {
-  const [currentStep, setCurrentStep] = useState<WorkflowStep>("details");
-  const [generatedStory, setGeneratedStory] = useState<Story | null>(null);
+export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreationWorkflowProps) {
+  const [currentStep, setCurrentStep] = useState<WorkflowStep>(existingStory ? "review" : "details");
+  const [generatedStory, setGeneratedStory] = useState<Story | null>(existingStory || null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  const [editedPages, setEditedPages] = useState<StoryPage[]>([]);
+  const [editedPages, setEditedPages] = useState<StoryPage[]>(existingStory?.pages || []);
   const [imageGenerationProgress, setImageGenerationProgress] = useState<{ [key: number]: boolean }>({});
-  const [expandedSetting, setExpandedSetting] = useState("");
-  const [extractedCharacters, setExtractedCharacters] = useState<Character[]>([]);
-  const [showRevisionPanel, setShowRevisionPanel] = useState(false);
+  const [expandedSetting, setExpandedSetting] = useState(existingStory?.expandedSetting || "");
+  const [extractedCharacters, setExtractedCharacters] = useState<Character[]>(existingStory?.extractedCharacters || []);
+  const [showRevisionPanel, setShowRevisionPanel] = useState(!!existingStory);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -37,11 +38,12 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
   const form = useForm<CreateStory>({
     resolver: zodResolver(createStorySchema),
     defaultValues: {
-      setting: "",
-      characters: "",
-      plot: "",
-      totalPages: 8,
-      ageGroup: "6-8",
+      title: existingStory?.title || "",
+      setting: existingStory?.setting || "",
+      characters: existingStory?.characters || "",
+      plot: existingStory?.plot || "",
+      totalPages: existingStory?.totalPages || 8,
+      ageGroup: (existingStory?.ageGroup as "3-5" | "6-8" | "9-12") || "6-8",
     },
   });
 
@@ -311,6 +313,28 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
               <div className="space-y-6">
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-lg font-semibold text-gray-900 flex items-center">
+                            <BookOpen className="text-purple-600 mr-2" size={20} />
+                            Story Title
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="What should we call your amazing story?"
+                              className="border-2 border-gray-200 focus:border-indigo-600"
+                              {...field}
+                              data-testid="input-title"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <FormField
                       control={form.control}
                       name="setting"
