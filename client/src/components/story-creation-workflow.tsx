@@ -245,6 +245,36 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
     },
   });
 
+  const extractCharactersMutation = useMutation({
+    mutationFn: async () => {
+      if (!generatedStory) throw new Error("No story to extract characters from");
+      const response = await apiRequest("POST", `/api/stories/${generatedStory.id}/extract-characters`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setExtractedCharacters(data.characters || []);
+      
+      // Save characters extraction step
+      saveStepMutation.mutate({
+        step: "characters",
+        storyData: { extractedCharacters: data.characters },
+        clearFutureSteps: true,
+      });
+      
+      toast({
+        title: "Characters Extracted!",
+        description: "Your characters have been extracted and are ready for review.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to extract characters",
+        variant: "destructive",
+      });
+    },
+  });
+
   const approveCharactersMutation = useMutation({
     mutationFn: async () => {
       if (!generatedStory) throw new Error("No story to approve");
