@@ -479,7 +479,12 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
             </div>
 
             <div className="max-w-4xl mx-auto">
-              {extractedCharacters.map((character, index) => (
+              {!extractedCharacters || extractedCharacters.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Loading characters...</p>
+                </div>
+              ) : (
+                extractedCharacters.map((character, index) => (
                 <div key={index} className="mb-6 p-6 bg-gray-50 rounded-xl">
                   <div className="mb-4">
                     <label className="block text-lg font-semibold text-gray-900 mb-2">
@@ -488,7 +493,7 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
                     <Input
                       value={character.name}
                       onChange={(e) => {
-                        const updated = [...extractedCharacters];
+                        const updated = [...(extractedCharacters || [])];
                         updated[index].name = e.target.value;
                         setExtractedCharacters(updated);
                       }}
@@ -503,7 +508,7 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
                     <Textarea
                       value={character.description}
                       onChange={(e) => {
-                        const updated = [...extractedCharacters];
+                        const updated = [...(extractedCharacters || [])];
                         updated[index].description = e.target.value;
                         setExtractedCharacters(updated);
                       }}
@@ -512,28 +517,31 @@ export function StoryCreationWorkflow({ onComplete }: StoryCreationWorkflowProps
                     />
                   </div>
                 </div>
-              ))}
+                ))
+              )}
 
-              <div className="flex justify-center">
-                <Button
-                  onClick={() => approveCharactersMutation.mutate()}
-                  disabled={approveCharactersMutation.isPending}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-xl text-lg font-semibold"
-                  data-testid="button-approve-characters"
-                >
-                  {approveCharactersMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                      Generating Story...
-                    </>
-                  ) : (
-                    <>
-                      <ScrollText className="mr-3 h-5 w-5" />
-                      Generate Story Text
-                    </>
-                  )}
-                </Button>
-              </div>
+              {extractedCharacters && extractedCharacters.length > 0 && (
+                <div className="flex justify-center">
+                  <Button
+                    onClick={() => approveCharactersMutation.mutate()}
+                    disabled={approveCharactersMutation.isPending}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-xl text-lg font-semibold"
+                    data-testid="button-approve-characters"
+                  >
+                    {approveCharactersMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                        Generating Story...
+                      </>
+                    ) : (
+                      <>
+                        <ScrollText className="mr-3 h-5 w-5" />
+                        Generate Story Text
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
