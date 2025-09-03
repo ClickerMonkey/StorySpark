@@ -136,7 +136,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
   const approveStoryMutation = useMutation({
     mutationFn: async () => {
       if (!generatedStory) throw new Error("No story to approve");
-      const response = await apiRequest("POST", `/api/stories/${generatedStory.id}/approve`, {
+      const response = await apiRequest("POST", `/api/stories/${generatedStory.id}/approve-story`, {
         pages: editedPages,
       });
       return response.json();
