@@ -164,26 +164,24 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
 
   const generateAllImages = async (storyId: string) => {
     try {
-      // Generate core image first
-      const coreResponse = await apiRequest("POST", `/api/stories/${storyId}/generate-core-image`);
-      const { story: updatedStory } = await coreResponse.json();
+      // Set loading state for all pages
+      const pageProgress: Record<number, boolean> = {};
+      editedPages.forEach(page => {
+        pageProgress[page.pageNumber] = true;
+      });
+      setImageGenerationProgress(pageProgress);
+
+      // Generate all images at once using the single endpoint
+      const response = await apiRequest("POST", `/api/stories/${storyId}/generate-images`);
+      const { story: updatedStory } = await response.json();
       setGeneratedStory(updatedStory);
 
-      // Generate page images sequentially
-      for (let i = 0; i < editedPages.length; i++) {
-        const pageNumber = editedPages[i].pageNumber;
-        setImageGenerationProgress(prev => ({ ...prev, [pageNumber]: true }));
-        
-        try {
-          const pageResponse = await apiRequest("POST", `/api/stories/${storyId}/pages/${pageNumber}/generate-image`);
-          const { story: pageUpdatedStory } = await pageResponse.json();
-          setGeneratedStory(pageUpdatedStory);
-          setImageGenerationProgress(prev => ({ ...prev, [pageNumber]: false }));
-        } catch (error) {
-          console.error(`Error generating image for page ${pageNumber}:`, error);
-          setImageGenerationProgress(prev => ({ ...prev, [pageNumber]: false }));
-        }
-      }
+      // Clear loading state for all pages
+      const clearedProgress: Record<number, boolean> = {};
+      editedPages.forEach(page => {
+        clearedProgress[page.pageNumber] = false;
+      });
+      setImageGenerationProgress(clearedProgress);
 
       setCurrentStep("complete");
       toast({
@@ -191,10 +189,17 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
         description: "All images have been generated successfully.",
       });
 
-      if (onComplete && generatedStory) {
-        onComplete(generatedStory);
+      if (onComplete && updatedStory) {
+        onComplete(updatedStory);
       }
     } catch (error) {
+      // Clear loading state on error
+      const clearedProgress: Record<number, boolean> = {};
+      editedPages.forEach(page => {
+        clearedProgress[page.pageNumber] = false;
+      });
+      setImageGenerationProgress(clearedProgress);
+      
       toast({
         title: "Error",
         description: "Failed to generate images",
