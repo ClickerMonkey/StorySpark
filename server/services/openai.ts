@@ -138,11 +138,20 @@ Style requirements:
       quality: "high",
     });
 
-    if (!response.data?.[0]?.url) {
-      throw new Error("No image URL returned from OpenAI");
+    const imageData = response.data?.[0];
+    if (!imageData) {
+      throw new Error("No image data returned from OpenAI");
     }
 
-    return response.data[0].url;
+    // Handle both URL and base64 responses
+    if (imageData.url) {
+      return imageData.url;
+    } else if (imageData.b64_json) {
+      // Convert base64 to data URL for direct use
+      return `data:image/png;base64,${imageData.b64_json}`;
+    } else {
+      throw new Error("No image URL or base64 data returned from OpenAI");
+    }
   } catch (error) {
     console.error("Error generating character image:", error);
     throw new Error("Failed to generate character image. Please check your API key and try again.");
@@ -251,11 +260,20 @@ Style requirements:
       quality: "high",
     });
 
-    if (!response.data?.[0]?.url) {
-      throw new Error("No image URL returned from OpenAI");
+    const imageData = response.data?.[0];
+    if (!imageData) {
+      throw new Error("No image data returned from OpenAI");
     }
 
-    return response.data[0].url;
+    // Handle both URL and base64 responses
+    if (imageData.url) {
+      return imageData.url;
+    } else if (imageData.b64_json) {
+      // Convert base64 to data URL for direct use
+      return `data:image/png;base64,${imageData.b64_json}`;
+    } else {
+      throw new Error("No image URL or base64 data returned from OpenAI");
+    }
   } catch (error) {
     console.error("Error generating core image:", error);
     throw new Error("Failed to generate core image. Please check your API key and try again.");
@@ -314,11 +332,20 @@ The illustration should directly relate to the events or emotions described in t
       quality: "high",
     });
 
-    if (!response.data?.[0]?.url) {
-      throw new Error("No image URL returned from OpenAI");
+    const imageData = response.data?.[0];
+    if (!imageData) {
+      throw new Error("No image data returned from OpenAI");
     }
 
-    return response.data[0].url;
+    // Handle both URL and base64 responses
+    if (imageData.url) {
+      return imageData.url;
+    } else if (imageData.b64_json) {
+      // Convert base64 to data URL for direct use
+      return `data:image/png;base64,${imageData.b64_json}`;
+    } else {
+      throw new Error("No image URL or base64 data returned from OpenAI");
+    }
   } catch (error) {
     console.error("Error generating page image:", error);
     throw new Error("Failed to generate page image. Please check your API key and try again.");
