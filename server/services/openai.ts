@@ -135,7 +135,7 @@ Style requirements:
       prompt: prompt,
       n: 1,
       size: "1024x1024",
-      quality: "hd",
+      quality: "high",
     });
 
     if (!response.data?.[0]?.url) {
@@ -248,7 +248,7 @@ Style requirements:
       prompt: prompt,
       n: 1,
       size: "1024x1024",
-      quality: "hd",
+      quality: "high",
     });
 
     if (!response.data?.[0]?.url) {
@@ -311,7 +311,7 @@ The illustration should directly relate to the events or emotions described in t
       prompt: prompt,
       n: 1,
       size: "1024x1024", 
-      quality: "hd",
+      quality: "high",
     });
 
     if (!response.data?.[0]?.url) {
