@@ -225,6 +225,64 @@ Please return a JSON response in this exact format:
   }
 }
 
+export async function regenerateCoreImage(setting: string, characters: Character[], customPrompt: string, useReference: boolean, apiKey: string, baseURL?: string, existingImageUrl?: string): Promise<string> {
+  const openai = createOpenAIClient(apiKey, baseURL);
+
+  const characterDescriptions = characters.length > 0
+    ? characters.map(c => `${c.name}: ${c.description}`).join('\n')
+    : "";
+
+  const referenceText = useReference && existingImageUrl
+    ? `\n\nIMPORTANT: Use the current core image as a visual reference. Maintain the same character designs, art style, and overall composition while incorporating the changes requested below.`
+    : "";
+
+  const prompt = `${customPrompt}
+
+Setting context: ${setting}
+${characterDescriptions ? `Characters:\n${characterDescriptions}` : ""}
+
+This is the core reference image for a children's storybook that will guide all other illustrations. ${referenceText}
+
+Style requirements:
+- Child-friendly, cartoonish illustration style
+- Bright, vibrant colors
+- Clear character design suitable for children's books
+- Show the overall mood and atmosphere of the story
+- High quality digital illustration
+- No text or words in the image
+- Safe and wholesome content only
+
+${useReference ? "Focus on making the requested modifications while preserving the established visual style and character designs." : "Create a scene that captures the magical or special elements of this world and could serve as a book cover."}`;
+
+  try {
+    const response = await openai.images.generate({
+      model: "gpt-image-1",
+      prompt: prompt,
+      n: 1,
+      size: "1024x1024",
+      quality: "high",
+    });
+
+    const imageData = response.data?.[0];
+    if (!imageData) {
+      throw new Error("No image data returned from OpenAI");
+    }
+
+    // Handle both URL and base64 responses
+    if (imageData.url) {
+      return imageData.url;
+    } else if (imageData.b64_json) {
+      // Convert base64 to data URL for direct use
+      return `data:image/png;base64,${imageData.b64_json}`;
+    } else {
+      throw new Error("No image URL or base64 data returned from OpenAI");
+    }
+  } catch (error) {
+    console.error("Error regenerating core image:", error);
+    throw new Error("Failed to regenerate core image. Please check your API key and try again.");
+  }
+}
+
 export async function generateCoreImage(setting: string, characters: Character[], apiKey: string, baseURL?: string): Promise<string> {
   const openai = createOpenAIClient(apiKey, baseURL);
 

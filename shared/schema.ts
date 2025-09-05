@@ -107,6 +107,12 @@ export const regenerateImageSchema = z.object({
   currentImageUrl: z.string().optional(),
 });
 
+export const regenerateCoreImageSchema = z.object({
+  storyId: z.string(),
+  customPrompt: z.string(),
+  useCurrentImageAsReference: z.boolean().default(false),
+});
+
 export const createRevisionSchema = z.object({
   storyId: z.string(),
   fromRevision: z.number().optional(),

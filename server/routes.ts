@@ -1,8 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateStoryText, generateCoreImage, generatePageImage, expandSetting, extractCharacters, generateCharacterImage } from "./services/openai";
-import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema, createRevisionSchema } from "@shared/schema";
+import { generateStoryText, generateCoreImage, generatePageImage, expandSetting, extractCharacters, generateCharacterImage, regenerateCoreImage } from "./services/openai";
+import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema, regenerateCoreImageSchema, createRevisionSchema } from "@shared/schema";
 import { verifyGoogleToken, generateJWT, requireAuth, optionalAuth, type AuthenticatedRequest } from "./auth";
 import { z } from "zod";
 
@@ -611,6 +611,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(400).json({ message: "Invalid input data", errors: error.errors });
       } else {
         res.status(500).json({ message: error instanceof Error ? error.message : "Failed to regenerate page image" });
+      }
+    }
+  });
+
+  // Regenerate core image with custom prompt
+  app.post("/api/stories/:id/regenerate-core-image", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { storyId, customPrompt, useCurrentImageAsReference } = regenerateCoreImageSchema.parse({
+        storyId: req.params.id,
+        ...req.body
+      });
+      
+      const story = await storage.getStory(storyId);
+      if (!story) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (!req.user?.openaiApiKey) {
+        return res.status(400).json({ message: "OpenAI API key required" });
+      }
+
+      const imageUrl = await regenerateCoreImage(
+        story.expandedSetting || story.setting,
+        story.extractedCharacters || [],
+        customPrompt,
+        useCurrentImageAsReference,
+        req.user.openaiApiKey,
+        req.user.openaiBaseUrl,
+        useCurrentImageAsReference ? story.coreImageUrl : undefined
+      );
+      
+      const updatedStory = await storage.updateStory(storyId, { coreImageUrl: imageUrl });
+      res.json({ imageUrl, story: updatedStory });
+    } catch (error) {
+      console.error("Error regenerating core image:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to regenerate core image" });
       }
     }
   });

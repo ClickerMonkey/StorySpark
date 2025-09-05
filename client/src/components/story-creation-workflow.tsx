@@ -11,7 +11,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { ImageViewerDialog } from "@/components/image-viewer-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
@@ -249,24 +250,114 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
 // Core image display component
 interface CoreImageDisplayProps {
   imageUrl: string;
+  storyId?: string;
+  onImageRegenerated?: (updatedStory: Story) => void;
 }
 
-function CoreImageDisplay({ imageUrl }: CoreImageDisplayProps) {
+function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDisplayProps) {
   const [showImageDialog, setShowImageDialog] = useState(false);
+  const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [useCurrentImageAsReference, setUseCurrentImageAsReference] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const regenerateMutation = useMutation({
+    mutationFn: async (data: { customPrompt: string; useCurrentImageAsReference: boolean }) => {
+      const response = await apiRequest(`/api/stories/${storyId}/regenerate-core-image`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to regenerate core image');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setIsRegenerating(false);
+      setShowRegenerateDialog(false);
+      setCustomPrompt("");
+      setUseCurrentImageAsReference(false);
+      toast({
+        title: "Success",
+        description: "Core image regenerated successfully!",
+      });
+      // Update the story data
+      if (onImageRegenerated && data.story) {
+        onImageRegenerated(data.story);
+      }
+      // Invalidate queries to refresh story data
+      queryClient.invalidateQueries({ queryKey: ['/api/stories', storyId] });
+    },
+    onError: (error: Error) => {
+      setIsRegenerating(false);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to regenerate core image",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleRegenerate = () => {
+    if (!storyId) {
+      toast({
+        title: "Error",
+        description: "Story ID is required to regenerate image",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!customPrompt.trim()) {
+      toast({
+        title: "Error", 
+        description: "Please enter a description for the new image",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsRegenerating(true);
+    regenerateMutation.mutate({
+      customPrompt: customPrompt.trim(),
+      useCurrentImageAsReference,
+    });
+  };
 
   return (
     <>
-      <div className="bg-white rounded-lg p-4 flex items-center space-x-4">
-        <img 
-          src={imageUrl}
-          alt="Core characters and setting" 
-          className="w-20 h-20 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity" 
-          onClick={() => setShowImageDialog(true)}
-        />
-        <div>
-          <p className="font-medium text-gray-900">Character & Setting Reference</p>
-          <p className="text-sm text-gray-600">This image will guide all other page illustrations</p>
+      <div className="bg-white rounded-lg p-4">
+        <div className="flex items-center space-x-4 mb-3">
+          <img 
+            src={imageUrl}
+            alt="Core characters and setting" 
+            className="w-20 h-20 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity" 
+            onClick={() => setShowImageDialog(true)}
+            data-testid="img-core-image"
+          />
+          <div className="flex-1">
+            <p className="font-medium text-gray-900">Character & Setting Reference</p>
+            <p className="text-sm text-gray-600">This image will guide all other page illustrations</p>
+          </div>
         </div>
+        
+        {storyId && (
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowRegenerateDialog(true)}
+              className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+              data-testid="button-regenerate-core"
+            >
+              <RefreshCw className="w-4 h-4 mr-1" />
+              Regenerate
+            </Button>
+          </div>
+        )}
       </div>
       
       <ImageViewerDialog
@@ -275,6 +366,72 @@ function CoreImageDisplay({ imageUrl }: CoreImageDisplayProps) {
         imageUrl={imageUrl}
         title="Core Character & Setting Image"
       />
+
+      {/* Regenerate Core Image Dialog */}
+      <Dialog open={showRegenerateDialog} onOpenChange={setShowRegenerateDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Regenerate Core Image</DialogTitle>
+            <DialogDescription>
+              Describe how you'd like the core reference image to be modified. This will create a new version while optionally using the current image as reference.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="core-custom-prompt">Image Description</Label>
+              <Textarea
+                id="core-custom-prompt"
+                placeholder="e.g., Make the forest more magical with glowing flowers, or Change the characters to be wearing winter clothes..."
+                value={customPrompt}
+                onChange={(e) => setCustomPrompt(e.target.value)}
+                rows={3}
+                data-testid="textarea-core-prompt"
+              />
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="core-use-reference"
+                checked={useCurrentImageAsReference}
+                onCheckedChange={(checked) => setUseCurrentImageAsReference(checked as boolean)}
+                data-testid="checkbox-core-reference"
+              />
+              <Label htmlFor="core-use-reference" className="text-sm">
+                Use current image as reference (maintains style and character designs)
+              </Label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowRegenerateDialog(false)}
+              disabled={isRegenerating}
+              data-testid="button-cancel-core-regenerate"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRegenerate}
+              disabled={isRegenerating || !customPrompt.trim()}
+              data-testid="button-confirm-core-regenerate"
+            >
+              {isRegenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Regenerate Image
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -1350,6 +1507,8 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                 {generatedStory.coreImageUrl && (
                   <CoreImageDisplay 
                     imageUrl={generatedStory.coreImageUrl}
+                    storyId={generatedStory.id}
+                    onImageRegenerated={(updatedStory) => setGeneratedStory(updatedStory)}
                   />
                 )}
               </div>
