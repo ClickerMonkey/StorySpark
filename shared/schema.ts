@@ -103,7 +103,7 @@ export const approveStorySchema = z.object({
 export const regenerateImageSchema = z.object({
   storyId: z.string(),
   pageNumber: z.number(),
-  customPrompt: z.string().min(10, "Custom prompt must be at least 10 characters"),
+  customPrompt: z.string(),
 });
 
 export const createRevisionSchema = z.object({
