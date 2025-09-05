@@ -13,13 +13,195 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
 import { RevisionPanel } from "@/components/revision-panel";
-import { Loader2, BookOpen, Users, ScrollText, Palette, Eye, Edit, Check, Plus, History } from "lucide-react";
+import { Loader2, BookOpen, Users, ScrollText, Palette, Eye, Edit, Check, Plus, History, RefreshCw, Sparkles } from "lucide-react";
 
 type WorkflowStep = "details" | "setting" | "characters" | "review" | "images" | "complete";
 
 interface StoryCreationWorkflowProps {
   onComplete?: (story: Story) => void;
   existingStory?: Story;
+}
+
+interface PageImageCardProps {
+  page: StoryPage;
+  storyPage?: StoryPage;
+  isGenerating: boolean;
+  hasImage?: string;
+  storyId: string;
+  onImageRegenerated: (story: Story) => void;
+}
+
+function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onImageRegenerated }: PageImageCardProps) {
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [showCustomPrompt, setShowCustomPrompt] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState("");
+  const { toast } = useToast();
+
+  const regenerateImageMutation = useMutation({
+    mutationFn: async (prompt: string) => {
+      const response = await apiRequest("POST", `/api/stories/${storyId}/pages/${page.pageNumber}/regenerate-image`, {
+        customPrompt: prompt,
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      onImageRegenerated(data.story);
+      setIsRegenerating(false);
+      setShowCustomPrompt(false);
+      setCustomPrompt("");
+      toast({
+        title: "Image Regenerated!",
+        description: "Your page image has been updated with the new prompt.",
+      });
+    },
+    onError: (error) => {
+      setIsRegenerating(false);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to regenerate image",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleRegenerate = () => {
+    if (customPrompt.trim()) {
+      setIsRegenerating(true);
+      regenerateImageMutation.mutate(customPrompt.trim());
+    } else {
+      toast({
+        title: "Custom prompt required",
+        description: "Please enter a custom prompt to guide the image generation.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+      <div className="flex items-start gap-6">
+        {/* Image Section */}
+        <div className="flex-shrink-0">
+          <div className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+            {isGenerating || isRegenerating ? (
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto mb-2" />
+                <p className="text-xs text-gray-500">
+                  {isRegenerating ? "Regenerating..." : "Generating..."}
+                </p>
+              </div>
+            ) : hasImage ? (
+              <img 
+                src={hasImage}
+                alt={`Page ${page.pageNumber}`}
+                className="w-32 h-32 rounded-lg object-cover"
+              />
+            ) : (
+              <div className="text-center text-gray-400">
+                <Palette size={32} className="mx-auto mb-2" />
+                <p className="text-xs">Waiting...</p>
+              </div>
+            )}
+          </div>
+          
+          {/* Regenerate Button */}
+          {hasImage && !isGenerating && !isRegenerating && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCustomPrompt(!showCustomPrompt)}
+              className="w-full mt-3 flex items-center gap-2"
+              data-testid={`button-regenerate-page-${page.pageNumber}`}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Regenerate
+            </Button>
+          )}
+        </div>
+
+        {/* Content Section */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-lg font-semibold text-gray-900">Page {page.pageNumber}</h4>
+            <div className="flex items-center gap-2">
+              {hasImage && (
+                <span className="flex items-center text-sm text-emerald-600">
+                  <Check className="h-4 w-4 mr-1" />
+                  Complete
+                </span>
+              )}
+              {isGenerating && (
+                <span className="flex items-center text-sm text-indigo-600">
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  Generating
+                </span>
+              )}
+              {!hasImage && !isGenerating && (
+                <span className="text-sm text-gray-500">Queued</span>
+              )}
+            </div>
+          </div>
+
+          {/* Page Text */}
+          <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <h5 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+              <ScrollText className="h-4 w-4 mr-1" />
+              Page Text
+            </h5>
+            <p className="text-sm text-gray-800 leading-relaxed">
+              {storyPage?.text || page.text}
+            </p>
+          </div>
+
+          {/* Custom Prompt Input */}
+          {showCustomPrompt && (
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <h5 className="text-sm font-medium text-blue-900 mb-3 flex items-center">
+                <Sparkles className="h-4 w-4 mr-1" />
+                Custom Image Prompt
+              </h5>
+              <div className="space-y-3">
+                <Textarea
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  placeholder="Describe how you want this page image to look different. For example: 'Make the forest more magical with glowing fireflies and sparkles in the air'"
+                  className="resize-none"
+                  rows={3}
+                  data-testid={`input-custom-prompt-${page.pageNumber}`}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleRegenerate}
+                    disabled={regenerateImageMutation.isPending || !customPrompt.trim()}
+                    data-testid={`button-apply-prompt-${page.pageNumber}`}
+                  >
+                    {regenerateImageMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-1" />
+                    )}
+                    Apply Changes
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowCustomPrompt(false);
+                      setCustomPrompt("");
+                    }}
+                    data-testid={`button-cancel-prompt-${page.pageNumber}`}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreationWorkflowProps) {
@@ -1106,43 +1288,22 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
               </div>
 
               {/* Page Images Progress */}
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {editedPages.map((page) => {
                   const isGenerating = imageGenerationProgress[page.pageNumber];
-                  const hasImage = generatedStory.pages.find(p => p.pageNumber === page.pageNumber)?.imageUrl;
+                  const storyPage = generatedStory.pages.find(p => p.pageNumber === page.pageNumber);
+                  const hasImage = storyPage?.imageUrl;
                   
                   return (
-                    <div key={page.pageNumber} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-xl">
-                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                        {isGenerating ? (
-                          <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
-                        ) : hasImage ? (
-                          <img 
-                            src={hasImage}
-                            alt={`Page ${page.pageNumber}`}
-                            className="w-16 h-16 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="text-gray-400">
-                            <Palette size={24} />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">Page {page.pageNumber} Image</h4>
-                        <p className="text-sm text-gray-600">
-                          {isGenerating 
-                            ? "Generating image..." 
-                            : hasImage 
-                              ? "Image complete" 
-                              : "Waiting in queue..."
-                          }
-                        </p>
-                      </div>
-                      <span className="text-sm text-gray-500">
-                        {hasImage ? "Complete" : isGenerating ? "Generating..." : "Queued"}
-                      </span>
-                    </div>
+                    <PageImageCard
+                      key={page.pageNumber}
+                      page={page}
+                      storyPage={storyPage}
+                      isGenerating={isGenerating}
+                      hasImage={hasImage}
+                      storyId={generatedStory.id}
+                      onImageRegenerated={(updatedStory) => setGeneratedStory(updatedStory)}
+                    />
                   );
                 })}
               </div>
