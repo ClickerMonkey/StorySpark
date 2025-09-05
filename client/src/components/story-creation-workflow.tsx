@@ -99,13 +99,13 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
             ) : (
               <div className="text-center text-gray-400">
                 <Palette size={32} className="mx-auto mb-2" />
-                <p className="text-xs">Waiting...</p>
+                <p className="text-xs">No image yet</p>
               </div>
             )}
           </div>
           
-          {/* Regenerate Button */}
-          {hasImage && !isGenerating && !isRegenerating && (
+          {/* Regenerate Button - Always available unless actively generating */}
+          {!isGenerating && !isRegenerating && (
             <Button
               variant="outline"
               size="sm"
@@ -114,7 +114,7 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
               data-testid={`button-regenerate-page-${page.pageNumber}`}
             >
               <RefreshCw className="h-4 w-4" />
-              Regenerate
+              {hasImage ? "Regenerate" : "Generate"}
             </Button>
           )}
         </div>
@@ -137,7 +137,7 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
                 </span>
               )}
               {!hasImage && !isGenerating && (
-                <span className="text-sm text-gray-500">Queued</span>
+                <span className="text-sm text-gray-500">Ready to generate</span>
               )}
             </div>
           </div>
@@ -158,13 +158,16 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
             <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
               <h5 className="text-sm font-medium text-blue-900 mb-3 flex items-center">
                 <Sparkles className="h-4 w-4 mr-1" />
-                Custom Image Prompt
+                {hasImage ? "Custom Regeneration Prompt" : "Custom Generation Prompt"}
               </h5>
               <div className="space-y-3">
                 <Textarea
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
-                  placeholder="Describe how you want this page image to look different. For example: 'Make the forest more magical with glowing fireflies and sparkles in the air'"
+                  placeholder={hasImage 
+                    ? "Describe how you want this image to look different. For example: 'Make the forest more magical with glowing fireflies and sparkles in the air'"
+                    : "Describe how you want this page image to look. For example: 'A magical forest scene with tall trees, soft sunlight filtering through leaves, and a winding path'"
+                  }
                   className="resize-none"
                   rows={3}
                   data-testid={`input-custom-prompt-${page.pageNumber}`}
@@ -181,7 +184,7 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
                     ) : (
                       <Sparkles className="h-4 w-4 mr-1" />
                     )}
-                    Apply Changes
+                    {hasImage ? "Apply Changes" : "Generate Image"}
                   </Button>
                   <Button
                     variant="outline"
