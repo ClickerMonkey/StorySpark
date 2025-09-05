@@ -377,12 +377,16 @@ VISUAL CONSISTENCY REQUIREMENTS:
 - Keep character clothing, accessories, and distinctive features identical across pages
 - Ensure environmental elements (backgrounds, objects) match the established visual world`;
 
-  // Use custom prompt if provided, but always include consistency requirements
-  const basePrompt = customPrompt || `Create a beautiful children's book illustration for this page of text:
+  // Always start with the page text and context, then add custom modifications if provided
+  const basePrompt = `Create a beautiful children's book illustration for this page of text:
 
 ${pageText}
 
 ${contextDescription}
+
+${customPrompt ? `CUSTOM MODIFICATIONS: ${customPrompt}
+
+IMPORTANT: Apply these modifications while still illustrating the specific scene, events, and emotions described in the page text above.` : ""}
 
 Style requirements:
 - Bright, vibrant colors suitable for children
@@ -396,7 +400,12 @@ Style requirements:
 
 ${consistencyPrompt}
 
-The illustration should directly relate to the events or emotions described in the page text while maintaining PERFECT visual consistency with the established story imagery.`;
+CRITICAL REQUIREMENTS:
+1. The illustration MUST depict the specific scene, events, and emotions described in the page text
+2. PERFECT visual consistency with the core reference image (character designs, art style, color palette)
+3. If custom modifications were requested, apply them while preserving the story content and visual consistency
+4. Characters must look exactly as they appear in the core reference image
+5. The scene should clearly relate to what is happening in the page text`;
 
   try {
     const response = await openai.images.generate({
