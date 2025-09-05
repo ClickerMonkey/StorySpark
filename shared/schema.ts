@@ -75,7 +75,7 @@ export const createStorySchema = z.object({
   setting: z.string().min(10, "Setting must be at least 10 characters"),
   characters: z.string().min(10, "Characters must be at least 10 characters"),
   plot: z.string().min(20, "Plot must be at least 20 characters"),
-  totalPages: z.number().min(3).max(20),
+  totalPages: z.number().min(5, "Minimum 5 pages").max(50, "Maximum 50 pages"),
   ageGroup: z.enum(["3-5", "6-8", "9-12"]),
 });
 

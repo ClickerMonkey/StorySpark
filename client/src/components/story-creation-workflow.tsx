@@ -1020,18 +1020,27 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                               <BookOpen className="text-pink-500 mr-2" size={16} />
                               Story Length
                             </FormLabel>
-                            <Select value={field.value.toString()} onValueChange={(value) => field.onChange(parseInt(value))}>
-                              <FormControl>
-                                <SelectTrigger className="border-2 border-gray-200 focus:border-indigo-600" data-testid="select-pages">
-                                  <SelectValue />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="5">5 Pages (Short)</SelectItem>
-                                <SelectItem value="8">8 Pages (Medium)</SelectItem>
-                                <SelectItem value="12">12 Pages (Long)</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={5}
+                                max={50}
+                                placeholder="8"
+                                className="border-2 border-gray-200 focus:border-indigo-600"
+                                {...field}
+                                value={field.value || ""}
+                                onChange={(e) => {
+                                  const value = parseInt(e.target.value);
+                                  if (!isNaN(value)) {
+                                    field.onChange(value);
+                                  }
+                                }}
+                                data-testid="input-pages"
+                              />
+                            </FormControl>
+                            <p className="text-sm text-gray-500 mt-1">
+                              Choose between 5-50 pages for your story
+                            </p>
                             <FormMessage />
                           </FormItem>
                         )}
