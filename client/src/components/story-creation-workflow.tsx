@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
 import { RevisionPanel } from "@/components/revision-panel";
@@ -35,13 +36,21 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showCustomPrompt, setShowCustomPrompt] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
+  const [useCurrentImageAsReference, setUseCurrentImageAsReference] = useState(false);
   const { toast } = useToast();
 
   const regenerateImageMutation = useMutation({
-    mutationFn: async (prompt: string) => {
-      const response = await apiRequest("POST", `/api/stories/${storyId}/pages/${page.pageNumber}/regenerate-image`, {
+    mutationFn: async ({ prompt, useReference }: { prompt: string; useReference: boolean }) => {
+      const requestBody: any = {
         customPrompt: prompt,
-      });
+      };
+      
+      // Add current image reference if checkbox is checked and image exists
+      if (useReference && hasImage) {
+        requestBody.currentImageUrl = hasImage;
+      }
+      
+      const response = await apiRequest("POST", `/api/stories/${storyId}/pages/${page.pageNumber}/regenerate-image`, requestBody);
       return response.json();
     },
     onSuccess: (data) => {
@@ -49,6 +58,7 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
       setIsRegenerating(false);
       setShowCustomPrompt(false);
       setCustomPrompt("");
+      setUseCurrentImageAsReference(false);
       toast({
         title: "Image Regenerated!",
         description: "Your page image has been updated with the new prompt.",
@@ -67,7 +77,10 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
   const handleRegenerate = () => {
     setIsRegenerating(true);
     // Use custom prompt if provided, otherwise send empty string for default behavior
-    regenerateImageMutation.mutate(customPrompt.trim());
+    regenerateImageMutation.mutate({ 
+      prompt: customPrompt.trim(), 
+      useReference: useCurrentImageAsReference 
+    });
   };
 
   return (
@@ -165,6 +178,25 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
                   rows={3}
                   data-testid={`input-custom-prompt-${page.pageNumber}`}
                 />
+                
+                {/* Use Current Image as Reference Checkbox - Only show for regeneration */}
+                {hasImage && (
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`use-reference-${page.pageNumber}`}
+                      checked={useCurrentImageAsReference}
+                      onCheckedChange={(checked) => setUseCurrentImageAsReference(!!checked)}
+                      data-testid={`checkbox-use-reference-${page.pageNumber}`}
+                    />
+                    <label
+                      htmlFor={`use-reference-${page.pageNumber}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Use current image as reference
+                    </label>
+                  </div>
+                )}
+                
                 <div className="flex gap-2">
                   <Button
                     size="sm"
@@ -185,6 +217,7 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
                     onClick={() => {
                       setShowCustomPrompt(false);
                       setCustomPrompt("");
+                      setUseCurrentImageAsReference(false);
                     }}
                     data-testid={`button-cancel-prompt-${page.pageNumber}`}
                   >

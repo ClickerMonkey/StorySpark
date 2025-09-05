@@ -548,7 +548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Regenerate page image with custom prompt
   app.post("/api/stories/:id/pages/:pageNumber/regenerate-image", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { storyId, pageNumber, customPrompt } = regenerateImageSchema.parse({
+      const { storyId, pageNumber, customPrompt, currentImageUrl } = regenerateImageSchema.parse({
         storyId: req.params.id,
         pageNumber: parseInt(req.params.pageNumber),
         ...req.body
@@ -575,6 +575,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const previousPage = story.pages.find(p => p.pageNumber === pageNumber - 1);
       const previousPageImageUrl = previousPage?.imageUrl;
 
+      // Modify custom prompt if using current image as reference
+      let finalCustomPrompt = customPrompt;
+      if (currentImageUrl) {
+        const referenceText = "\n\nIMPORTANT: Use the current page image as a visual reference when generating the new image. The user has requested that you keep similar composition, style, and elements while incorporating any specific changes mentioned above.";
+        finalCustomPrompt = customPrompt ? customPrompt + referenceText : "Please regenerate this image using the current image as a reference, keeping similar style and composition." + referenceText;
+      }
+
       const imageUrl = await generatePageImage(
         page.text,
         story.coreImageUrl || "",
@@ -583,7 +590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         story.extractedCharacters || undefined,
         req.user.openaiApiKey,
         req.user.openaiBaseUrl,
-        customPrompt
+        finalCustomPrompt
       );
       
       const updatedStory = await storage.updateStoryPageImage(storyId, pageNumber, imageUrl);
