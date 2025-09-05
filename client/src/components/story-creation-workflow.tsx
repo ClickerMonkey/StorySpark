@@ -65,16 +65,9 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
   });
 
   const handleRegenerate = () => {
-    if (customPrompt.trim()) {
-      setIsRegenerating(true);
-      regenerateImageMutation.mutate(customPrompt.trim());
-    } else {
-      toast({
-        title: "Custom prompt required",
-        description: "Please enter a custom prompt to guide the image generation.",
-        variant: "destructive",
-      });
-    }
+    setIsRegenerating(true);
+    // Use custom prompt if provided, otherwise send empty string for default behavior
+    regenerateImageMutation.mutate(customPrompt.trim());
   };
 
   return (
@@ -165,8 +158,8 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
                   placeholder={hasImage 
-                    ? "Describe how you want this image to look different. For example: 'Make the forest more magical with glowing fireflies and sparkles in the air'"
-                    : "Describe how you want this page image to look. For example: 'A magical forest scene with tall trees, soft sunlight filtering through leaves, and a winding path'"
+                    ? "Optional: Describe how you want this image to look different. Leave empty to use default AI generation. For example: 'Make the forest more magical with glowing fireflies and sparkles in the air'"
+                    : "Optional: Describe specific details you want in this image. Leave empty to use default AI generation. For example: 'A magical forest scene with tall trees, soft sunlight filtering through leaves, and a winding path'"
                   }
                   className="resize-none"
                   rows={3}
@@ -176,7 +169,7 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
                   <Button
                     size="sm"
                     onClick={handleRegenerate}
-                    disabled={regenerateImageMutation.isPending || !customPrompt.trim()}
+                    disabled={regenerateImageMutation.isPending}
                     data-testid={`button-apply-prompt-${page.pageNumber}`}
                   >
                     {regenerateImageMutation.isPending ? (
