@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { ImageModal } from "@/components/image-modal";
+import { ImageViewerDialog } from "@/components/image-viewer-dialog";
 import { ChevronLeft, ChevronRight, Volume2, Bookmark, Share, Download, Edit, Save, BookOpen, Users, Clock, RefreshCw, Loader2 } from "lucide-react";
 
 interface StoryReaderProps {
@@ -21,7 +21,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [customPrompt, setCustomPrompt] = useState("");
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
-  const [zoomedImage, setZoomedImage] = useState<{ url: string; alt: string } | null>(null);
+  const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -282,7 +282,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
               {currentPage?.imageUrl ? (
                 <div
                   className="cursor-pointer transform hover:scale-105 transition-transform"
-                  onClick={() => setZoomedImage({ url: currentPage.imageUrl!, alt: `Story illustration for page ${currentPage.pageNumber}` })}
+                  onClick={() => setZoomedImage({ url: currentPage.imageUrl!, title: `Page ${currentPage.pageNumber} Illustration` })}
                   data-testid="page-image-container"
                 >
                   <img 
@@ -316,11 +316,11 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
 
       {/* Image Modal */}
       {zoomedImage && (
-        <ImageModal
+        <ImageViewerDialog
           isOpen={true}
           onClose={() => setZoomedImage(null)}
           imageUrl={zoomedImage.url}
-          alt={zoomedImage.alt}
+          title={zoomedImage.title}
         />
       )}
 

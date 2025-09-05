@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,10 +11,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ImageViewerDialog } from "@/components/image-viewer-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
 import { RevisionPanel } from "@/components/revision-panel";
-import { Loader2, BookOpen, Users, ScrollText, Palette, Eye, Edit, Check, Plus, History, RefreshCw, Sparkles } from "lucide-react";
+import { Loader2, BookOpen, Users, ScrollText, Palette, Eye, Edit, Check, Plus, History, RefreshCw, Sparkles, ZoomIn, ZoomOut, RotateCcw, X } from "lucide-react";
 
 type WorkflowStep = "details" | "setting" | "characters" | "review" | "images" | "complete";
 
@@ -37,6 +39,7 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
   const [showCustomPrompt, setShowCustomPrompt] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
   const [useCurrentImageAsReference, setUseCurrentImageAsReference] = useState(false);
+  const [showImageDialog, setShowImageDialog] = useState(false);
   const { toast } = useToast();
 
   const regenerateImageMutation = useMutation({
@@ -100,7 +103,8 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
               <img 
                 src={hasImage}
                 alt={`Page ${page.pageNumber}`}
-                className="w-32 h-32 rounded-lg object-cover"
+                className="w-32 h-32 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => setShowImageDialog(true)}
               />
             ) : (
               <div className="text-center text-gray-400">
@@ -229,7 +233,49 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
           )}
         </div>
       </div>
+      
+      {/* Full-screen Image Dialog */}
+      <ImageViewerDialog
+        isOpen={showImageDialog}
+        onClose={() => setShowImageDialog(false)}
+        imageUrl={hasImage || ""}
+        title={`Page ${page.pageNumber} Image`}
+      />
     </div>
+  );
+}
+
+
+// Core image display component
+interface CoreImageDisplayProps {
+  imageUrl: string;
+}
+
+function CoreImageDisplay({ imageUrl }: CoreImageDisplayProps) {
+  const [showImageDialog, setShowImageDialog] = useState(false);
+
+  return (
+    <>
+      <div className="bg-white rounded-lg p-4 flex items-center space-x-4">
+        <img 
+          src={imageUrl}
+          alt="Core characters and setting" 
+          className="w-20 h-20 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity" 
+          onClick={() => setShowImageDialog(true)}
+        />
+        <div>
+          <p className="font-medium text-gray-900">Character & Setting Reference</p>
+          <p className="text-sm text-gray-600">This image will guide all other page illustrations</p>
+        </div>
+      </div>
+      
+      <ImageViewerDialog
+        isOpen={showImageDialog}
+        onClose={() => setShowImageDialog(false)}
+        imageUrl={imageUrl}
+        title="Core Character & Setting Image"
+      />
+    </>
   );
 }
 
@@ -1302,17 +1348,9 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                 </div>
                 
                 {generatedStory.coreImageUrl && (
-                  <div className="bg-white rounded-lg p-4 flex items-center space-x-4">
-                    <img 
-                      src={generatedStory.coreImageUrl}
-                      alt="Core characters and setting" 
-                      className="w-20 h-20 rounded-lg object-cover" 
-                    />
-                    <div>
-                      <p className="font-medium text-gray-900">Character & Setting Reference</p>
-                      <p className="text-sm text-gray-600">This image will guide all other page illustrations</p>
-                    </div>
-                  </div>
+                  <CoreImageDisplay 
+                    imageUrl={generatedStory.coreImageUrl}
+                  />
                 )}
               </div>
 

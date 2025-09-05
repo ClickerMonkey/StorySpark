@@ -1,13 +1,16 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { type Story } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ImageViewerDialog } from "@/components/image-viewer-dialog";
 import { BookOpen, Plus, Calendar, Users, MoreHorizontal } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 export default function StoryLibrary() {
   const [, setLocation] = useLocation();
+  const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string } | null>(null);
 
   const { data: stories, isLoading, error } = useQuery<Story[]>({
     queryKey: ["/api/stories"],
@@ -135,7 +138,11 @@ export default function StoryLibrary() {
                   <img 
                     src={story.coreImageUrl}
                     alt={`${story.title} cover`}
-                    className="w-full h-full object-cover" 
+                    className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setZoomedImage({ url: story.coreImageUrl!, title: `${story.title} Cover Image` });
+                    }}
                   />
                 ) : (
                   <div className="text-gray-400">
@@ -213,6 +220,16 @@ export default function StoryLibrary() {
           </div>
         )}
       </div>
+
+      {/* Image Viewer Dialog */}
+      {zoomedImage && (
+        <ImageViewerDialog
+          isOpen={true}
+          onClose={() => setZoomedImage(null)}
+          imageUrl={zoomedImage.url}
+          title={zoomedImage.title}
+        />
+      )}
     </div>
   );
 }
