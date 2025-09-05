@@ -141,16 +141,24 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
       });
       return response.json();
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
+      setGeneratedStory(data.story);
       setCurrentStep("images");
+      
+      // Save review step completion
+      saveStepMutation.mutate({
+        step: "review",
+        storyData: { pages: editedPages },
+      });
+      
       toast({
         title: "Story Approved!",
         description: "Starting image generation...",
       });
       
       // Start image generation process
-      if (generatedStory) {
-        await generateAllImages(generatedStory.id);
+      if (data.story) {
+        await generateAllImages(data.story.id);
       }
     },
     onError: (error) => {
@@ -164,25 +172,45 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
 
   const generateAllImages = async (storyId: string) => {
     try {
+      console.log("Starting image generation for story:", storyId);
+      
+      // Get the current story to ensure we have the latest data
+      const storyResponse = await apiRequest("GET", `/api/stories/${storyId}`);
+      const currentStory = await storyResponse.json();
+      console.log("Current story data:", currentStory);
+      
+      if (!currentStory.pages || currentStory.pages.length === 0) {
+        throw new Error("No story pages found - cannot generate images");
+      }
+
       // Set loading state for all pages
       const pageProgress: Record<number, boolean> = {};
-      editedPages.forEach(page => {
+      currentStory.pages.forEach((page: StoryPage) => {
         pageProgress[page.pageNumber] = true;
       });
       setImageGenerationProgress(pageProgress);
 
+      console.log("Calling generate-images endpoint...");
       // Generate all images at once using the single endpoint
       const response = await apiRequest("POST", `/api/stories/${storyId}/generate-images`);
       const { story: updatedStory } = await response.json();
+      console.log("Image generation completed:", updatedStory);
+      
       setGeneratedStory(updatedStory);
 
       // Clear loading state for all pages
       const clearedProgress: Record<number, boolean> = {};
-      editedPages.forEach(page => {
+      currentStory.pages.forEach((page: StoryPage) => {
         clearedProgress[page.pageNumber] = false;
       });
       setImageGenerationProgress(clearedProgress);
 
+      // Save images step completion
+      saveStepMutation.mutate({
+        step: "images",
+        storyData: { images: true },
+      });
+      
       setCurrentStep("complete");
       toast({
         title: "Story Complete!",
@@ -193,8 +221,11 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
         onComplete(updatedStory);
       }
     } catch (error) {
+      console.error("Image generation error:", error);
+      
       // Clear loading state on error
       const clearedProgress: Record<number, boolean> = {};
+      // Use editedPages as fallback if we can't get current story
       editedPages.forEach(page => {
         clearedProgress[page.pageNumber] = false;
       });
@@ -202,7 +233,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
       
       toast({
         title: "Error",
-        description: "Failed to generate images",
+        description: error instanceof Error ? error.message : "Failed to generate images",
         variant: "destructive",
       });
     }
@@ -335,50 +366,122 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
     setCurrentStep(step);
   };
 
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [tempTitle, setTempTitle] = useState("");
+
+  const updateTitleMutation = useMutation({
+    mutationFn: async (newTitle: string) => {
+      if (!generatedStory) throw new Error("No story to update");
+      const response = await apiRequest("PATCH", `/api/stories/${generatedStory.id}`, {
+        title: newTitle,
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setGeneratedStory(data.story);
+      setIsEditingTitle(false);
+      toast({
+        title: "Title Updated!",
+        description: "Your story title has been saved.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update title",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleTitleEdit = () => {
+    setTempTitle(generatedStory?.title || "");
+    setIsEditingTitle(true);
+  };
+
+  const handleTitleSave = () => {
+    if (tempTitle.trim() && tempTitle !== generatedStory?.title) {
+      updateTitleMutation.mutate(tempTitle.trim());
+    } else {
+      setIsEditingTitle(false);
+    }
+  };
+
+  const handleTitleCancel = () => {
+    setIsEditingTitle(false);
+    setTempTitle("");
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+      {/* Story Title Section */}
+      {generatedStory && (
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            {!isEditingTitle ? (
+              <>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900" data-testid="text-story-title">
+                  {generatedStory.title}
+                </h1>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTitleEdit}
+                  className="ml-2"
+                  data-testid="button-edit-title"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 flex-1">
+                <Input
+                  value={tempTitle}
+                  onChange={(e) => setTempTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleTitleSave();
+                    if (e.key === "Escape") handleTitleCancel();
+                  }}
+                  className="text-2xl font-bold border-2"
+                  autoFocus
+                  data-testid="input-edit-title"
+                />
+                <Button
+                  size="sm"
+                  onClick={handleTitleSave}
+                  disabled={updateTitleMutation.isPending}
+                  data-testid="button-save-title"
+                >
+                  {updateTitleMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTitleCancel}
+                  data-testid="button-cancel-title"
+                >
+                  ✕
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-        <ProgressIndicator steps={steps} />
+        <ProgressIndicator steps={steps} onStepClick={(step: string) => navigateToStep(step as WorkflowStep)} />
         <div className="flex flex-wrap gap-2">
           {generatedStory && (
-            <>
-              {/* Step Navigation Buttons */}
-              <div className="flex flex-wrap gap-1">
-                {["details", "setting", "characters", "review", "images"].map((step) => {
-                  const stepData = steps.find(s => 
-                    (step === "details" && s.label === "Story Details") ||
-                    (step === "setting" && s.label === "Expand Setting") ||
-                    (step === "characters" && s.label === "Define Characters") ||
-                    (step === "review" && s.label === "Review Story") ||
-                    (step === "images" && s.label === "Generate Images")
-                  );
-                  
-                  return (
-                    <Button
-                      key={step}
-                      variant={currentStep === step ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => navigateToStep(step as WorkflowStep)}
-                      className="text-xs"
-                      data-testid={`button-goto-${step}`}
-                    >
-                      {stepData?.number}
-                    </Button>
-                  );
-                })}
-              </div>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowRevisionPanel(!showRevisionPanel)}
-                className="flex items-center gap-2"
-                data-testid="button-toggle-revisions"
-              >
-                <History className="h-4 w-4" />
-                {showRevisionPanel ? "Hide" : "Show"} Revisions
-              </Button>
-            </>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowRevisionPanel(!showRevisionPanel)}
+              className="flex items-center gap-2"
+              data-testid="button-toggle-revisions"
+            >
+              <History className="h-4 w-4" />
+              {showRevisionPanel ? "Hide" : "Show"} Revisions
+            </Button>
           )}
         </div>
       </div>

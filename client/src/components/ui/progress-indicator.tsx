@@ -10,16 +10,32 @@ interface ProgressStep {
 interface ProgressIndicatorProps {
   steps: ProgressStep[];
   className?: string;
+  onStepClick?: (step: string) => void;
 }
 
-export function ProgressIndicator({ steps, className }: ProgressIndicatorProps) {
+export function ProgressIndicator({ steps, className, onStepClick }: ProgressIndicatorProps) {
+  
+  const getStepKey = (stepNumber: number): string => {
+    switch (stepNumber) {
+      case 1: return "details";
+      case 2: return "setting";
+      case 3: return "characters";
+      case 4: return "review";
+      case 5: return "images";
+      default: return "details";
+    }
+  };
   return (
     <div className={cn("mb-4", className)}>
       {/* Mobile view - Vertical layout */}
       <div className="md:hidden">
         <div className="flex flex-wrap gap-2 justify-center">
           {steps.map((step) => (
-            <div key={step.number} className="flex items-center">
+            <div 
+              key={step.number} 
+              className="flex items-center cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => onStepClick?.(getStepKey(step.number))}
+            >
               <div
                 className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center font-semibold text-xs",
@@ -50,7 +66,10 @@ export function ProgressIndicator({ steps, className }: ProgressIndicatorProps) 
       <div className="hidden md:flex items-center justify-center space-x-4">
         {steps.map((step, index) => (
           <div key={step.number} className="flex items-center">
-            <div className="flex items-center">
+            <div 
+              className="flex items-center cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => onStepClick?.(getStepKey(step.number))}
+            >
               <div
                 className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm",

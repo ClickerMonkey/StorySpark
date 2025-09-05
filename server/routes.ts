@@ -807,6 +807,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update story (for title editing, etc.)
+  app.patch("/api/stories/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const story = await storage.getStory(req.params.id);
+      if (!story) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updatedStory = await storage.updateStory(req.params.id, req.body);
+      res.json({ story: updatedStory });
+    } catch (error) {
+      console.error("Error updating story:", error);
+      res.status(500).json({ message: "Failed to update story" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
