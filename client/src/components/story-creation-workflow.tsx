@@ -1542,7 +1542,118 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
         </Card>
       )}
 
-      {/* Step 4: Story Complete - This will be handled by parent component */}
+      {/* Step 6: Story Complete */}
+      {currentStep === "complete" && generatedStory && (
+        <Card className="bg-white shadow-lg">
+          <CardContent className="p-8">
+            <div className="text-center mb-8">
+              <div className="mb-4 p-4 bg-green-100 border border-green-300 rounded-lg inline-flex items-center">
+                <Check className="text-green-600 mr-2" size={24} />
+                <p className="text-green-800 font-semibold">
+                  🎉 Your story is complete!
+                </p>
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                {generatedStory.title}
+              </h2>
+              <p className="text-lg text-gray-600">
+                Your {generatedStory.pages.length}-page story is ready with beautiful illustrations!
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Story Preview */}
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <BookOpen className="text-indigo-600 mr-2" />
+                  Story Preview
+                </h3>
+                <div className="max-h-96 overflow-y-auto space-y-4 p-4 bg-gray-50 rounded-lg">
+                  {generatedStory.pages.map((page) => (
+                    <div key={page.pageNumber} className="bg-white p-4 rounded-lg shadow-sm">
+                      <div className="flex items-center mb-2">
+                        <span className="text-sm font-medium text-indigo-600">
+                          Page {page.pageNumber}
+                        </span>
+                        {page.imageUrl && (
+                          <span className="ml-2 text-xs text-green-600 flex items-center">
+                            <Check className="w-3 h-3 mr-1" />
+                            Image
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-gray-700 text-sm leading-relaxed">
+                        {page.text}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Core Image Display */}
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <Palette className="text-indigo-600 mr-2" />
+                  Story Artwork
+                </h3>
+                {generatedStory.coreImageUrl && (
+                  <CoreImageDisplay 
+                    imageUrl={generatedStory.coreImageUrl}
+                    storyId={generatedStory.id}
+                    onImageRegenerated={(updatedStory) => setGeneratedStory(updatedStory)}
+                  />
+                )}
+                
+                {/* Character Gallery */}
+                {generatedStory.extractedCharacters && generatedStory.extractedCharacters.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Users className="text-indigo-600 mr-2" size={20} />
+                      Characters
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      {generatedStory.extractedCharacters.map((character, index) => (
+                        <div key={index} className="bg-white p-3 rounded-lg border">
+                          <h5 className="font-medium text-gray-900">{character.name}</h5>
+                          <p className="text-sm text-gray-600 mt-1">{character.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-4 justify-center mt-8 pt-6 border-t border-gray-200">
+              <Button
+                onClick={() => onComplete?.(generatedStory)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2"
+                data-testid="button-read-story"
+              >
+                <BookOpen className="w-4 h-4 mr-2" />
+                Read Full Story
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentStep("images")}
+                data-testid="button-edit-images"
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Images
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentStep("review")}
+                data-testid="button-edit-text"
+              >
+                <ScrollText className="w-4 h-4 mr-2" />
+                Edit Story Text
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
         </div>
         
         {/* Revision Panel */}
