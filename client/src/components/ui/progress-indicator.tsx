@@ -22,6 +22,7 @@ export function ProgressIndicator({ steps, className, onStepClick }: ProgressInd
       case 3: return "characters";
       case 4: return "review";
       case 5: return "images";
+      case 6: return "complete";
       default: return "details";
     }
   };
