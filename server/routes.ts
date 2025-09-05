@@ -575,11 +575,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const previousPage = story.pages.find(p => p.pageNumber === pageNumber - 1);
       const previousPageImageUrl = previousPage?.imageUrl;
 
-      // Modify custom prompt if using current image as reference
+      // Enhanced prompt for regeneration with strong consistency requirements
       let finalCustomPrompt = customPrompt;
       if (currentImageUrl) {
-        const referenceText = "\n\nIMPORTANT: Use the current page image as a visual reference when generating the new image. The user has requested that you keep similar composition, style, and elements while incorporating any specific changes mentioned above.";
-        finalCustomPrompt = customPrompt ? customPrompt + referenceText : "Please regenerate this image using the current image as a reference, keeping similar style and composition." + referenceText;
+        const referenceText = `\n\nCRITICAL REGENERATION INSTRUCTIONS:
+- You are regenerating an existing page image that must maintain PERFECT visual consistency with both the core story image AND the current page image
+- The core story image establishes the character designs, art style, and visual world that must be preserved
+- The current page image shows the exact composition and elements that should be kept while making requested modifications
+- Do NOT change the fundamental character designs, art style, or color palette established in the core image
+- Do NOT drastically alter the composition or main elements unless specifically requested
+- Focus on making the specific changes mentioned in the custom prompt while preserving all established visual consistency
+- This is a refinement/modification of an existing image, not a completely new creation`;
+        
+        finalCustomPrompt = customPrompt 
+          ? customPrompt + referenceText 
+          : "Please regenerate this image keeping the same composition, style, and character designs while making minor improvements or adjustments." + referenceText;
       }
 
       const imageUrl = await generatePageImage(

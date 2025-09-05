@@ -300,28 +300,45 @@ export async function generatePageImage(
     ? `Setting: ${setting}\n${characterDescriptions}` 
     : characterDescriptions;
 
-  const previousPageContext = previousPageImageUrl 
-    ? "Maintain visual consistency with the previous page illustration." 
+  const coreImageContext = coreImageUrl 
+    ? "CRITICAL: This story has a core reference image that defines the visual style, character designs, and overall artistic direction. You must maintain strict visual consistency with this core image in terms of character appearance, art style, color palette, and mood." 
     : "";
 
-  // Use custom prompt if provided, otherwise use default
-  const prompt = customPrompt || `Create a beautiful children's book illustration for this page of text:
+  const previousPageContext = previousPageImageUrl 
+    ? "IMPORTANT: Maintain visual continuity with the previous page illustration to ensure smooth story flow." 
+    : "";
+
+  // Build comprehensive consistency prompt
+  const consistencyPrompt = `${coreImageContext} ${previousPageContext}
+
+VISUAL CONSISTENCY REQUIREMENTS:
+- Use the EXACT same character designs, facial features, and proportions as shown in the core reference image
+- Match the artistic style, line quality, and rendering technique from the core image
+- Use a consistent color palette and lighting approach throughout
+- Maintain the same level of detail and illustration quality
+- Keep character clothing, accessories, and distinctive features identical across pages
+- Ensure environmental elements (backgrounds, objects) match the established visual world`;
+
+  // Use custom prompt if provided, but always include consistency requirements
+  const basePrompt = customPrompt || `Create a beautiful children's book illustration for this page of text:
 
 ${pageText}
 
 ${contextDescription}
 
 Style requirements:
-- Maintain consistent character designs and art style with the core reference image
 - Bright, vibrant colors suitable for children
 - Cartoonish, friendly illustration style
 - Show the specific scene or action described in the text
 - High quality digital illustration
 - No text or words in the image
-- Safe and wholesome content only
-- ${previousPageContext}
+- Safe and wholesome content only`;
 
-The illustration should directly relate to the events or emotions described in the page text while maintaining visual consistency throughout the story.`;
+  const prompt = `${basePrompt}
+
+${consistencyPrompt}
+
+The illustration should directly relate to the events or emotions described in the page text while maintaining PERFECT visual consistency with the established story imagery.`;
 
   try {
     const response = await openai.images.generate({
