@@ -330,33 +330,64 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
   return (
     <>
       <div className="bg-white rounded-lg p-4">
-        <div className="flex items-center space-x-4 mb-3">
-          <img 
-            src={imageUrl}
-            alt="Core characters and setting" 
-            className="w-20 h-20 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity" 
-            onClick={() => setShowImageDialog(true)}
-            data-testid="img-core-image"
-          />
-          <div className="flex-1">
-            <p className="font-medium text-gray-900">Character & Setting Reference</p>
-            <p className="text-sm text-gray-600">This image will guide all other page illustrations</p>
-          </div>
-        </div>
-        
-        {storyId && (
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowRegenerateDialog(true)}
-              className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-              data-testid="button-regenerate-core"
-            >
-              <RefreshCw className="w-4 h-4 mr-1" />
-              Regenerate
-            </Button>
-          </div>
+        {imageUrl ? (
+          <>
+            <div className="flex items-center space-x-4 mb-3">
+              <img 
+                src={imageUrl}
+                alt="Core characters and setting" 
+                className="w-20 h-20 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity" 
+                onClick={() => setShowImageDialog(true)}
+                data-testid="img-core-image"
+              />
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">Character & Setting Reference</p>
+                <p className="text-sm text-gray-600">This image will guide all other page illustrations</p>
+              </div>
+            </div>
+            
+            {storyId && (
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowRegenerateDialog(true)}
+                  className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                  data-testid="button-regenerate-core"
+                >
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  Regenerate
+                </Button>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="flex items-center space-x-4 mb-3">
+              <div className="w-20 h-20 rounded-lg bg-gray-200 flex items-center justify-center border-2 border-dashed border-gray-300">
+                <Palette className="w-8 h-8 text-gray-400" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">No Core Image</p>
+                <p className="text-sm text-gray-600">Generate a reference image to guide page illustrations</p>
+              </div>
+            </div>
+            
+            {storyId && (
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowRegenerateDialog(true)}
+                  className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                  data-testid="button-generate-core"
+                >
+                  <Sparkles className="w-4 h-4 mr-1" />
+                  Generate Core Image
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
       
@@ -367,13 +398,16 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
         title="Core Character & Setting Image"
       />
 
-      {/* Regenerate Core Image Dialog */}
+      {/* Generate/Regenerate Core Image Dialog */}
       <Dialog open={showRegenerateDialog} onOpenChange={setShowRegenerateDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Regenerate Core Image</DialogTitle>
+            <DialogTitle>{imageUrl ? "Regenerate Core Image" : "Generate Core Image"}</DialogTitle>
             <DialogDescription>
-              Describe how you'd like the core reference image to be modified. This will create a new version while optionally using the current image as reference.
+              {imageUrl 
+                ? "Describe how you'd like the core reference image to be modified. This will create a new version while optionally using the current image as reference."
+                : "Describe the core reference image for your story. This will help create consistent illustrations for all story pages."
+              }
             </DialogDescription>
           </DialogHeader>
           
@@ -382,7 +416,10 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
               <Label htmlFor="core-custom-prompt">Image Description</Label>
               <Textarea
                 id="core-custom-prompt"
-                placeholder="e.g., Make the forest more magical with glowing flowers, or Change the characters to be wearing winter clothes..."
+                placeholder={imageUrl 
+                  ? "e.g., Make the forest more magical with glowing flowers, or Change the characters to be wearing winter clothes..."
+                  : "e.g., A magical forest with talking animals, A brave princess in a castle, Children exploring a mysterious cave..."
+                }
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
                 rows={3}
@@ -390,17 +427,19 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
               />
             </div>
             
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="core-use-reference"
-                checked={useCurrentImageAsReference}
-                onCheckedChange={(checked) => setUseCurrentImageAsReference(checked as boolean)}
-                data-testid="checkbox-core-reference"
-              />
-              <Label htmlFor="core-use-reference" className="text-sm">
-                Use current image as reference (maintains style and character designs)
-              </Label>
-            </div>
+            {imageUrl && (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="core-use-reference"
+                  checked={useCurrentImageAsReference}
+                  onCheckedChange={(checked) => setUseCurrentImageAsReference(checked as boolean)}
+                  data-testid="checkbox-core-reference"
+                />
+                <Label htmlFor="core-use-reference" className="text-sm">
+                  Use current image as reference (maintains style and character designs)
+                </Label>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -425,7 +464,7 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 mr-2" />
-                  Regenerate Image
+                  {imageUrl ? "Regenerate Image" : "Generate Image"}
                 </>
               )}
             </Button>
@@ -1596,13 +1635,11 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                   <Palette className="text-indigo-600 mr-2" />
                   Story Artwork
                 </h3>
-                {generatedStory.coreImageUrl && (
-                  <CoreImageDisplay 
-                    imageUrl={generatedStory.coreImageUrl}
-                    storyId={generatedStory.id}
-                    onImageRegenerated={(updatedStory) => setGeneratedStory(updatedStory)}
-                  />
-                )}
+                <CoreImageDisplay 
+                  imageUrl={generatedStory.coreImageUrl || ""}
+                  storyId={generatedStory.id}
+                  onImageRegenerated={(updatedStory) => setGeneratedStory(updatedStory)}
+                />
                 
                 {/* Character Gallery */}
                 {generatedStory.extractedCharacters && generatedStory.extractedCharacters.length > 0 && (
