@@ -81,38 +81,36 @@ export function PDFExport({ story, className }: PDFExportProps) {
       const titleX = halfWidth + (halfWidth - titleWidth) / 2;
       pdf.text(story.title, titleX, titleY);
 
-      // Add story pages as spreads
-      for (let i = 0; i < story.pages.length; i += 2) {
+      // Add story pages - one page per PDF page for better compatibility
+      for (let i = 0; i < story.pages.length; i++) {
         pdf.addPage();
         
-        const leftPage = story.pages[i];
-        const rightPage = story.pages[i + 1];
+        const currentPage = story.pages[i];
 
-        // Left side - text page
-        if (leftPage) {
-          pdf.setFontSize(16);
-          pdf.setTextColor(0, 0, 0);
-          pdf.setFont(undefined, 'normal');
-          
-          // Add page number
-          pdf.setFontSize(12);
-          pdf.text(`${leftPage.pageNumber}`, 20, 20);
-          
-          // Add text with word wrapping
-          pdf.setFontSize(14);
-          const textLines = pdf.splitTextToSize(leftPage.text, halfWidth - 40);
-          pdf.text(textLines, 20, 40);
-        }
+        // Left side - always show text
+        pdf.setFontSize(16);
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFont(undefined, 'normal');
+        
+        // Add page number
+        pdf.setFontSize(12);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(`${currentPage.pageNumber}`, 20, 20);
+        
+        // Add text with word wrapping
+        pdf.setFontSize(14);
+        const textLines = pdf.splitTextToSize(currentPage.text, halfWidth - 40);
+        pdf.text(textLines, 20, 40);
 
-        // Right side - image page
-        if (rightPage?.imageUrl) {
+        // Right side - show image if available
+        if (currentPage.imageUrl) {
           try {
             const img = new Image();
             img.crossOrigin = 'anonymous';
             await new Promise((resolve, reject) => {
               img.onload = resolve;
               img.onerror = reject;
-              img.src = rightPage.imageUrl!;
+              img.src = currentPage.imageUrl!;
             });
 
             const canvas = document.createElement('canvas');
@@ -123,35 +121,28 @@ export function PDFExport({ story, className }: PDFExportProps) {
 
             const imageData = canvas.toDataURL('image/jpeg', 0.95);
             const imgHeight = halfWidth * (img.height / img.width);
-            const yOffset = (pageHeight - imgHeight) / 2;
+            const yOffset = Math.max(20, (pageHeight - imgHeight) / 2);
             
-            pdf.addImage(imageData, 'JPEG', halfWidth, yOffset, halfWidth, imgHeight);
+            pdf.addImage(imageData, 'JPEG', halfWidth, yOffset, halfWidth, Math.min(imgHeight, pageHeight - 40));
             
-            // Add page number with better contrast
+            // Add page number on image side with better contrast
             pdf.setFontSize(12);
             pdf.setFillColor(255, 255, 255);  // White background
             pdf.rect(halfWidth + 10, 5, 25, 20, 'F');
             pdf.setTextColor(0, 0, 0);  // Black text on white background
-            pdf.text(`${rightPage.pageNumber}`, halfWidth + 15, 18);
+            pdf.text(`${currentPage.pageNumber}`, halfWidth + 15, 18);
           } catch (error) {
-            console.warn(`Failed to load image for page ${rightPage.pageNumber}:`, error);
-            // Add placeholder text
+            console.warn(`Failed to load image for page ${currentPage.pageNumber}:`, error);
+            // Add placeholder text on right side
             pdf.setFontSize(14);
             pdf.setTextColor(128, 128, 128);
             pdf.text('Image not available', halfWidth + 20, pageHeight / 2);
           }
-        }
-      }
-
-      // Handle odd number of pages
-      if (story.pages.length % 2 !== 0) {
-        const lastPage = story.pages[story.pages.length - 1];
-        if (lastPage && !lastPage.imageUrl) {
-          // If last page has no image, put text on the right side instead
+        } else {
+          // No image - just show a note on the right side
           pdf.setFontSize(14);
-          pdf.setTextColor(0, 0, 0);
-          const textLines = pdf.splitTextToSize(lastPage.text, halfWidth - 40);
-          pdf.text(textLines, halfWidth + 20, 40);
+          pdf.setTextColor(200, 200, 200);
+          pdf.text('(Page image will be generated)', halfWidth + 20, pageHeight / 2);
         }
       }
 
