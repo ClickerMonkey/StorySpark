@@ -87,20 +87,32 @@ export function PDFExport({ story, className }: PDFExportProps) {
         
         const currentPage = story.pages[i];
 
-        // Left side - always show text
-        pdf.setFontSize(16);
+        // Left side - always show text, centered and larger
+        pdf.setFontSize(18);
         pdf.setTextColor(0, 0, 0);
         pdf.setFont(undefined, 'normal');
         
-        // Add page number
+        // Add page number in top corner
         pdf.setFontSize(12);
-        pdf.setTextColor(0, 0, 0);
-        pdf.text(`${currentPage.pageNumber}`, 20, 20);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(`${currentPage.pageNumber}`, 15, 15);
         
-        // Add text with word wrapping
-        pdf.setFontSize(14);
-        const textLines = pdf.splitTextToSize(currentPage.text, halfWidth - 40);
-        pdf.text(textLines, 20, 40);
+        // Add text with word wrapping, larger and centered
+        pdf.setFontSize(16);
+        pdf.setTextColor(0, 0, 0);
+        const textLines = pdf.splitTextToSize(currentPage.text, halfWidth - 30);
+        
+        // Calculate vertical centering
+        const lineHeight = 7;
+        const totalTextHeight = textLines.length * lineHeight;
+        const startY = (pageHeight - totalTextHeight) / 2;
+        
+        // Center text horizontally and vertically
+        textLines.forEach((line: string, index: number) => {
+          const lineWidth = pdf.getTextWidth(line);
+          const centerX = (halfWidth - lineWidth) / 2;
+          pdf.text(line, centerX, startY + (index * lineHeight));
+        });
 
         // Right side - show image if available
         if (currentPage.imageUrl) {
