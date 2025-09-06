@@ -87,28 +87,27 @@ export function PDFExport({ story, className }: PDFExportProps) {
         
         const currentPage = story.pages[i];
 
-        // Left side - always show text, centered and larger
-        pdf.setFontSize(18);
-        pdf.setTextColor(0, 0, 0);
+        // Left side - always show text, centered and larger with proper contrast
         pdf.setFont(undefined, 'normal');
         
-        // Add page number in top corner
+        // Add page number in top corner with proper contrast
         pdf.setFontSize(12);
-        pdf.setTextColor(100, 100, 100);
+        pdf.setTextColor(0, 0, 0);  // Solid black
         pdf.text(`${currentPage.pageNumber}`, 15, 15);
         
-        // Add text with word wrapping, larger and centered
+        // Add text with word wrapping, larger and centered with solid black color
         pdf.setFontSize(16);
-        pdf.setTextColor(0, 0, 0);
+        pdf.setTextColor(0, 0, 0);  // Ensure solid black text
         const textLines = pdf.splitTextToSize(currentPage.text, halfWidth - 30);
         
         // Calculate vertical centering
-        const lineHeight = 7;
+        const lineHeight = 8;
         const totalTextHeight = textLines.length * lineHeight;
         const startY = (pageHeight - totalTextHeight) / 2;
         
-        // Center text horizontally and vertically
+        // Center text horizontally and vertically with explicit black color
         textLines.forEach((line: string, index: number) => {
+          pdf.setTextColor(0, 0, 0);  // Reset to black for each line
           const lineWidth = pdf.getTextWidth(line);
           const centerX = (halfWidth - lineWidth) / 2;
           pdf.text(line, centerX, startY + (index * lineHeight));
