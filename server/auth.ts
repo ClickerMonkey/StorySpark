@@ -17,6 +17,9 @@ export interface AuthenticatedRequest extends Request {
     profileImageUrl?: string;
     openaiApiKey?: string;
     openaiBaseUrl?: string;
+    replicateApiKey?: string;
+    preferredImageProvider?: string;
+    preferredReplicateModel?: string;
   };
 }
 
@@ -78,6 +81,9 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
       profileImageUrl: user.profileImageUrl || undefined,
       openaiApiKey: user.openaiApiKey || undefined,
       openaiBaseUrl: user.openaiBaseUrl || undefined,
+      replicateApiKey: user.replicateApiKey || undefined,
+      preferredImageProvider: user.preferredImageProvider || undefined,
+      preferredReplicateModel: user.preferredReplicateModel || undefined,
     };
     next();
   } catch (error) {
@@ -101,6 +107,9 @@ export async function optionalAuth(req: AuthenticatedRequest, res: Response, nex
           profileImageUrl: user.profileImageUrl || undefined,
           openaiApiKey: user.openaiApiKey || undefined,
           openaiBaseUrl: user.openaiBaseUrl || undefined,
+          replicateApiKey: user.replicateApiKey || undefined,
+          preferredImageProvider: user.preferredImageProvider || undefined,
+          preferredReplicateModel: user.preferredReplicateModel || undefined,
         };
       }
     }

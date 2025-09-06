@@ -594,6 +594,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Generate page images
       const updatedPages = [...story.pages];
+      // Build full story context by combining all page texts
+      const storyContext = story.pages.map(p => `Page ${p.pageNumber}: ${p.text}`).join('\n\n');
+      
       for (let i = 0; i < story.pages.length; i++) {
         const page = story.pages[i];
         const previousPageImageUrl = i > 0 ? updatedPages[i - 1].imageUrl : undefined;
@@ -605,7 +608,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           story.expandedSetting || story.setting,
           story.extractedCharacters || undefined,
           req.user.openaiApiKey,
-          req.user.openaiBaseUrl
+          req.user.openaiBaseUrl,
+          undefined, // customPrompt
+          storyContext, // full story context
+          story.storyGuidance || undefined, // story-wide guidance
+          page.imageGuidance || undefined // page-specific image guidance
         );
         
         updatedPages[i] = { ...page, imageUrl };
@@ -671,6 +678,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           : "Please regenerate this image keeping the same composition, style, and character designs while making minor improvements or adjustments." + referenceText;
       }
 
+      // Build full story context for regeneration
+      const storyContext = story.pages.map(p => `Page ${p.pageNumber}: ${p.text}`).join('\n\n');
+
       const imageUrl = await generatePageImage(
         page.text,
         story.coreImageUrl || "",
@@ -679,7 +689,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         story.extractedCharacters || undefined,
         req.user.openaiApiKey,
         req.user.openaiBaseUrl,
-        finalCustomPrompt
+        finalCustomPrompt,
+        storyContext, // full story context
+        story.storyGuidance || undefined, // story-wide guidance
+        page.imageGuidance || undefined // page-specific image guidance
       );
       
       const updatedStory = await storage.updateStoryPageImage(storyId, pageNumber, imageUrl, finalCustomPrompt);
@@ -746,7 +759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         useCurrentImageAsReference,
         req.user.openaiApiKey,
         req.user.openaiBaseUrl,
-        useCurrentImageAsReference ? story.coreImageUrl : undefined
+        useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined
       );
       
       const updatedStory = await storage.updateStory(storyId, { coreImageUrl: imageUrl });

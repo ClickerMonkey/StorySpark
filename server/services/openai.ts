@@ -346,7 +346,10 @@ export async function generatePageImage(
   characters: Character[] | undefined,
   apiKey: string,
   baseURL?: string,
-  customPrompt?: string
+  customPrompt?: string,
+  storyContext?: string,
+  storyGuidance?: string,
+  pageImageGuidance?: string
 ): Promise<string> {
   const openai = createOpenAIClient(apiKey, baseURL);
 
@@ -377,6 +380,22 @@ VISUAL CONSISTENCY REQUIREMENTS:
 - Keep character clothing, accessories, and distinctive features identical across pages
 - Ensure environmental elements (backgrounds, objects) match the established visual world`;
 
+  // Add story context and guidance to prompt
+  const storyContextSection = storyContext 
+    ? `FULL STORY CONTEXT: ${storyContext}
+
+` : "";
+
+  const storyGuidanceSection = storyGuidance 
+    ? `STORY GUIDANCE: ${storyGuidance}
+
+` : "";
+
+  const pageImageGuidanceSection = pageImageGuidance 
+    ? `PAGE IMAGE GUIDANCE: ${pageImageGuidance}
+
+` : "";
+
   // Always start with the page text and context, then add custom modifications if provided
   const basePrompt = `Create a beautiful children's book illustration for this page of text:
 
@@ -384,7 +403,7 @@ ${pageText}
 
 ${contextDescription}
 
-${customPrompt ? `CUSTOM MODIFICATIONS: ${customPrompt}
+${storyContextSection}${storyGuidanceSection}${pageImageGuidanceSection}${customPrompt ? `CUSTOM MODIFICATIONS: ${customPrompt}
 
 IMPORTANT: Apply these modifications while still illustrating the specific scene, events, and emotions described in the page text above.` : ""}
 
