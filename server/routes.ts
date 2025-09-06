@@ -2,7 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateStoryText, generateCoreImage, generatePageImage, expandSetting, extractCharacters, generateCharacterImage, regenerateCoreImage } from "./services/openai";
-import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema, regenerateCoreImageSchema, createRevisionSchema } from "@shared/schema";
+import { ReplicateService } from "./services/replicate";
+import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema, regenerateCoreImageSchema, createRevisionSchema, updateUserProfileSchema } from "@shared/schema";
 import { verifyGoogleToken, generateJWT, requireAuth, optionalAuth, type AuthenticatedRequest } from "./auth";
 import { z } from "zod";
 
@@ -183,6 +184,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Setup OpenAI error:", error);
       res.status(500).json({ message: "Failed to update OpenAI settings" });
+    }
+  });
+
+  // Update user profile (Replicate API key, preferences)
+  app.patch("/api/user/profile", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const validatedData = updateUserProfileSchema.parse(req.body);
+      const updatedUser = await storage.updateUserProfile(req.user!.id, validatedData);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          name: updatedUser.name,
+          profileImageUrl: updatedUser.profileImageUrl,
+          openaiApiKey: updatedUser.openaiApiKey,
+          openaiBaseUrl: updatedUser.openaiBaseUrl,
+          replicateApiKey: updatedUser.replicateApiKey,
+          preferredImageProvider: updatedUser.preferredImageProvider,
+          preferredReplicateModel: updatedUser.preferredReplicateModel,
+        }
+      });
+    } catch (error) {
+      console.error("Update profile error:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid input data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to update profile" });
+      }
+    }
+  });
+
+  // Search Replicate models
+  app.get("/api/replicate/models", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { q: query, limit = "20" } = req.query;
+      
+      if (!req.user?.replicateApiKey) {
+        return res.status(400).json({ message: "Replicate API key required" });
+      }
+
+      const replicateService = new ReplicateService(req.user.replicateApiKey);
+      
+      if (query && typeof query === 'string') {
+        const models = await replicateService.searchModels(query, parseInt(limit as string));
+        res.json({ models });
+      } else {
+        const models = await replicateService.getPopularImageModels();
+        res.json({ models });
+      }
+    } catch (error) {
+      console.error("Search models error:", error);
+      res.status(500).json({ message: "Failed to search models" });
     }
   });
 

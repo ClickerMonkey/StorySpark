@@ -112,6 +112,21 @@ export class MemStorage implements IStorage {
     return updatedUser;
   }
 
+  async updateUserProfile(userId: string, profileData: { replicateApiKey?: string; preferredImageProvider?: string; preferredReplicateModel?: string }): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+    
+    const updatedUser = { 
+      ...user, 
+      replicateApiKey: profileData.replicateApiKey ?? user.replicateApiKey,
+      preferredImageProvider: profileData.preferredImageProvider ?? user.preferredImageProvider,
+      preferredReplicateModel: profileData.preferredReplicateModel ?? user.preferredReplicateModel,
+      updatedAt: new Date()
+    };
+    this.users.set(userId, updatedUser);
+    return updatedUser;
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
     const user: User = { ...insertUser, id };
@@ -491,6 +506,20 @@ export class DatabaseStorage implements IStorage {
       .set({
         openaiApiKey,
         openaiBaseUrl: openaiBaseUrl || "https://api.openai.com/v1",
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return updatedUser || undefined;
+  }
+
+  async updateUserProfile(userId: string, profileData: { replicateApiKey?: string; preferredImageProvider?: string; preferredReplicateModel?: string }): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        replicateApiKey: profileData.replicateApiKey,
+        preferredImageProvider: profileData.preferredImageProvider,
+        preferredReplicateModel: profileData.preferredReplicateModel,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId))

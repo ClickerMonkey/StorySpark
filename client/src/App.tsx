@@ -11,6 +11,7 @@ import Home from "@/pages/home";
 import StoryLibrary from "@/pages/story-library";
 import StoryView from "@/pages/story-view";
 import StoryEdit from "./pages/story-edit";
+import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -38,6 +39,7 @@ function Router() {
             <Route path="/library" component={StoryLibrary} />
             <Route path="/story/:id" component={StoryView} />
             <Route path="/edit/:id" component={StoryEdit} />
+            <Route path="/profile" component={Profile} />
             <Route component={NotFound} />
           </Switch>
         )}
