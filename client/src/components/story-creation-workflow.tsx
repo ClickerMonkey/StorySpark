@@ -702,6 +702,12 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
     setEditedPages(updatedPages);
   };
 
+  const updatePageImageGuidance = (pageIndex: number, imageGuidance: string) => {
+    const updatedPages = [...editedPages];
+    updatedPages[pageIndex] = { ...updatedPages[pageIndex], imageGuidance };
+    setEditedPages(updatedPages);
+  };
+
   const approveSettingMutation = useMutation({
     mutationFn: async () => {
       if (!generatedStory) throw new Error("No story to approve");
@@ -1481,6 +1487,23 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                           className="w-full h-64 p-4 border-2 border-gray-200 focus:border-indigo-600 resize-none"
                           data-testid="textarea-page-content"
                         />
+
+                        <div className="mt-4">
+                          <Label className="text-sm font-medium text-gray-700 flex items-center mb-2">
+                            <Palette className="text-purple-500 mr-2" size={16} />
+                            Image Guidance for This Page (Optional)
+                          </Label>
+                          <Textarea
+                            value={editedPages[currentPageIndex].imageGuidance || ""}
+                            onChange={(e) => updatePageImageGuidance(currentPageIndex, e.target.value)}
+                            placeholder="Add specific guidance for this page's image (e.g., cozy indoor scene, action-packed adventure, close-up of characters...)"
+                            className="w-full h-20 p-3 border-2 border-gray-200 focus:border-indigo-600 resize-none text-sm"
+                            data-testid="textarea-page-image-guidance"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            This guidance will be used when generating the image for this specific page
+                          </p>
+                        </div>
 
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 gap-2">
                           <div className="flex flex-wrap gap-2">
