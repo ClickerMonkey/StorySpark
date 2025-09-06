@@ -1289,7 +1289,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
               )}
 
               {extractedCharacters && extractedCharacters.length > 0 && (
-                <div className="flex justify-center space-x-4">
+                <div className="flex flex-wrap gap-4 justify-center">
                   <Button
                     variant="outline"
                     onClick={() => extractCharactersMutation.mutate()}
@@ -1458,7 +1458,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                         />
 
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 gap-2">
-                          <div className="flex space-x-2">
+                          <div className="flex flex-wrap gap-2">
                             <Button
                               variant="outline"
                               onClick={() => setCurrentPageIndex(Math.max(0, currentPageIndex - 1))}
@@ -1490,7 +1490,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                 </div>
 
                 {/* Approval Actions */}
-                <div className="flex justify-center space-x-4 mt-8 pt-6 border-t border-gray-200">
+                <div className="flex flex-wrap gap-4 justify-center mt-8 pt-6 border-t border-gray-200">
                   <Button
                     variant="outline"
                     className="px-6 py-3 font-medium"

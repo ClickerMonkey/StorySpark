@@ -150,7 +150,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
       {/* Story Navigation */}
       <div className="bg-gray-50 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 border-b border-gray-200">
         <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-          <div className="flex items-center space-x-2 sm:space-x-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <Button
               variant="outline"
               onClick={previousPage}
@@ -179,7 +179,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
             </Button>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="ghost" size="sm" data-testid="button-read-aloud">
               <Volume2 className="h-4 w-4" />
             </Button>
@@ -210,7 +210,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
                         Current page: "{currentPage.text.slice(0, 100)}..."
                       </p>
                     </div>
-                    <div className="flex justify-end space-x-2">
+                    <div className="flex flex-wrap gap-2 justify-end">
                       <Button
                         variant="outline"
                         onClick={() => {

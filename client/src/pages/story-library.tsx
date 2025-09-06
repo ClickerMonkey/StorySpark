@@ -95,7 +95,7 @@ export default function StoryLibrary() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/">
-              <div className="flex items-center space-x-2 sm:space-x-3 cursor-pointer">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 cursor-pointer">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-600 to-pink-600 rounded-xl flex items-center justify-center">
                   <BookOpen className="text-white" size={16} />
                 </div>
@@ -163,7 +163,7 @@ export default function StoryLibrary() {
                   <span className="flex items-center justify-end"><Calendar className="inline mr-1" size={12} /><span className="truncate">{formatDate(new Date(story.createdAt))}</span></span>
                 </div>
 
-                <div className="flex space-x-2">
+                <div className="flex flex-wrap gap-2">
                   <Button 
                     className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium"
                     onClick={() => {
