@@ -126,11 +126,19 @@ export type Character = {
   imageUrl?: string;
 };
 
+export type ImageVersion = {
+  url: string;
+  prompt?: string;
+  createdAt: string;
+  isActive: boolean;
+};
+
 export type StoryPage = {
   pageNumber: number;
   text: string;
   imageUrl?: string;
   imagePrompt?: string;
+  imageHistory?: ImageVersion[];
 };
 
 export type User = typeof users.$inferSelect;

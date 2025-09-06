@@ -188,8 +188,8 @@ export default function StoryLibrary() {
           ))}
 
           {/* Add New Story Card */}
-          <Link href="/">
-            <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-dashed border-purple-300 hover:border-purple-400 transition-colors cursor-pointer h-full min-h-[320px]">
+          <Link href="/?new=true">
+            <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-dashed border-purple-300 hover:border-purple-400 transition-colors cursor-pointer h-full min-h-[320px]" data-testid="card-create-new">
               <CardContent className="p-4 sm:p-6 h-full flex flex-col items-center justify-center text-center">
                 <div className="w-12 h-12 sm:w-16 sm:h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center mb-3 sm:mb-4">
                   <Plus size={24} className="sm:w-8 sm:h-8" />

@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { type Story } from "@shared/schema";
 import { StoryCreationWorkflow } from "@/components/story-creation-workflow";
 import { StoryReader } from "@/components/story-reader";
@@ -9,6 +11,19 @@ import { Link } from "wouter";
 export default function Home() {
   const [completedStory, setCompletedStory] = useState<Story | null>(null);
   const [showWorkflow, setShowWorkflow] = useState(true);
+  const [, setLocation] = useLocation();
+
+  // Check if user has existing stories
+  const { data: stories, isLoading } = useQuery<Story[]>({
+    queryKey: ["/api/stories"],
+  });
+
+  // Redirect to library if user has existing stories (unless they're explicitly creating a new one)
+  useEffect(() => {
+    if (!isLoading && stories && stories.length > 0 && !window.location.search.includes('new=true')) {
+      setLocation('/library');
+    }
+  }, [stories, isLoading, setLocation]);
 
   const handleStoryComplete = (story: Story) => {
     setCompletedStory(story);
