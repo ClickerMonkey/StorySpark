@@ -5,12 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImageViewerDialog } from "@/components/image-viewer-dialog";
-import { BookOpen, Plus, Calendar, Users, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { BookOpen, Plus, Calendar, Users, MoreHorizontal, Settings, LogOut } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function StoryLibrary() {
   const [, setLocation] = useLocation();
   const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string } | null>(null);
+  const { user } = useAuth();
 
   const { data: stories, isLoading, error } = useQuery<Story[]>({
     queryKey: ["/api/stories"],
@@ -103,13 +112,44 @@ export default function StoryLibrary() {
               </div>
             </Link>
             
-            <div className="flex items-center">
+            <div className="flex items-center space-x-4">
               <Link href="/">
                 <Button className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-2 sm:px-4" data-testid="button-create-new">
                   <Plus className="h-4 w-4 sm:mr-2" />
                   <span className="hidden sm:inline">Create New Story</span>
                 </Button>
               </Link>
+              
+              {user && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-8 w-8 rounded-full" data-testid="button-user-menu">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.profileImageUrl || ""} alt={user.name || ""} />
+                        <AvatarFallback>{user.name?.charAt(0) || "U"}</AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <div className="flex items-center justify-start gap-2 p-2">
+                      <div className="flex flex-col space-y-1 leading-none">
+                        {user.name && <p className="font-medium">{user.name}</p>}
+                        {user.email && <p className="w-[200px] truncate text-sm text-muted-foreground">{user.email}</p>}
+                      </div>
+                    </div>
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile" className="w-full cursor-pointer" data-testid="link-profile">
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Profile & Settings</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => window.location.href = "/api/auth/logout"} data-testid="button-logout">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </div>
         </div>

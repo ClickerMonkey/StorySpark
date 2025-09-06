@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { User, BookOpen, Settings, Key, Zap, Save, Eye, EyeOff } from "lucide-react";
+import { User, BookOpen, Settings, Key, Zap, Save, Eye, EyeOff, Search } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Profile() {
@@ -28,6 +29,44 @@ export default function Profile() {
     preferredImageProvider: user?.preferredImageProvider || "openai",
     preferredReplicateModel: user?.preferredReplicateModel || "",
   });
+
+  const [modelSearch, setModelSearch] = useState("");
+
+  // Query for searching Replicate models
+  const { data: replicateModels, isLoading: modelsLoading, refetch: searchModels } = useQuery({
+    queryKey: ["/api/replicate/models", modelSearch],
+    enabled: false, // Only run when explicitly triggered
+  });
+
+  // Update form data when user data changes
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        openaiApiKey: user.openaiApiKey || "",
+        openaiBaseUrl: user.openaiBaseUrl || "https://api.openai.com/v1",
+        replicateApiKey: user.replicateApiKey || "",
+        preferredImageProvider: user.preferredImageProvider || "openai",
+        preferredReplicateModel: user.preferredReplicateModel || "",
+      });
+    }
+  }, [user]);
+
+  const handleModelSearch = () => {
+    if (formData.replicateApiKey && modelSearch.trim()) {
+      searchModels();
+    } else if (!formData.replicateApiKey) {
+      toast({
+        title: "Replicate API Key Required",
+        description: "Please enter your Replicate API key first to search models.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const selectModel = (modelName: string) => {
+    setFormData(prev => ({...prev, preferredReplicateModel: modelName}));
+    setModelSearch("");
+  };
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -217,17 +256,90 @@ export default function Profile() {
               </div>
 
               {formData.preferredImageProvider === "replicate" && (
-                <div>
-                  <Label htmlFor="preferred-model">Preferred Replicate Model</Label>
-                  <Input
-                    id="preferred-model"
-                    value={formData.preferredReplicateModel}
-                    onChange={(e) => setFormData(prev => ({...prev, preferredReplicateModel: e.target.value}))}
-                    placeholder="e.g., stability-ai/stable-diffusion"
-                  />
-                  <p className="text-sm text-gray-500 mt-1">
-                    Leave empty to choose during story creation
-                  </p>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="preferred-model">Preferred Replicate Model</Label>
+                    <Input
+                      id="preferred-model"
+                      value={formData.preferredReplicateModel}
+                      onChange={(e) => setFormData(prev => ({...prev, preferredReplicateModel: e.target.value}))}
+                      placeholder="e.g., stability-ai/stable-diffusion"
+                    />
+                    <p className="text-sm text-gray-500 mt-1">
+                      Leave empty to choose during story creation
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="model-search">Search Models</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="model-search"
+                        value={modelSearch}
+                        onChange={(e) => setModelSearch(e.target.value)}
+                        placeholder="Search for image generation models..."
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleModelSearch();
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleModelSearch}
+                        disabled={modelsLoading || !formData.replicateApiKey || !modelSearch.trim()}
+                        data-testid="button-search-models"
+                      >
+                        {modelsLoading ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                        ) : (
+                          <Search className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {replicateModels?.models && replicateModels.models.length > 0 && (
+                    <div>
+                      <Label>Search Results</Label>
+                      <div className="grid gap-2 mt-2 max-h-60 overflow-y-auto">
+                        {replicateModels.models.map((model: any) => (
+                          <div
+                            key={model.name}
+                            className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                            onClick={() => selectModel(model.name)}
+                            data-testid={`model-option-${model.name}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium">{model.name}</p>
+                                <p className="text-sm text-gray-500 truncate">{model.description}</p>
+                              </div>
+                              <div className="flex gap-1 flex-wrap">
+                                {model.supportsImageInput && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Image Input
+                                  </Badge>
+                                )}
+                                <Badge variant="outline" className="text-xs">
+                                  {model.latestVersion?.created_at ? 
+                                    new Date(model.latestVersion.created_at).getFullYear() : 
+                                    'Latest'
+                                  }
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {replicateModels?.models && replicateModels.models.length === 0 && (
+                    <p className="text-sm text-gray-500">No models found. Try a different search term.</p>
+                  )}
                 </div>
               )}
             </CardContent>
