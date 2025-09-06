@@ -9,7 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageViewerDialog } from "@/components/image-viewer-dialog";
-import { ChevronLeft, ChevronRight, Volume2, Bookmark, Share, Download, Edit, Save, BookOpen, Users, Clock, RefreshCw, Loader2 } from "lucide-react";
+import { ImageHistoryDialog } from "@/components/image-history-dialog";
+import { PDFExport } from "@/components/pdf-export";
+import { ChevronLeft, ChevronRight, Volume2, Bookmark, Share, Download, Edit, Save, BookOpen, Users, Clock, RefreshCw, Loader2, FileText, History } from "lucide-react";
 
 interface StoryReaderProps {
   story: Story;
@@ -21,6 +23,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [customPrompt, setCustomPrompt] = useState("");
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -184,12 +187,13 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
               <Volume2 className="h-4 w-4" />
             </Button>
             {currentPage?.imageUrl && (
-              <Dialog open={isRegenerateDialogOpen} onOpenChange={setIsRegenerateDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="sm" data-testid="button-regenerate-image">
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
+              <>
+                <Dialog open={isRegenerateDialogOpen} onOpenChange={setIsRegenerateDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" size="sm" data-testid="button-regenerate-image">
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent className="sm:max-w-[525px]">
                   <DialogHeader>
                     <DialogTitle>Regenerate Page Image</DialogTitle>
@@ -241,7 +245,20 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
                     </div>
                   </div>
                 </DialogContent>
-              </Dialog>
+                </Dialog>
+                
+                {/* Image History Button */}
+                {currentPage.imageHistory && currentPage.imageHistory.length > 1 && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setIsHistoryDialogOpen(true)}
+                    data-testid="button-image-history"
+                  >
+                    <History className="h-4 w-4" />
+                  </Button>
+                )}
+              </>
             )}
             <Button 
               variant="ghost" 
@@ -269,6 +286,10 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
             >
               <Download className="h-4 w-4" />
             </Button>
+            <PDFExport 
+              story={story} 
+              className="p-2 h-9 w-9 bg-transparent hover:bg-accent" 
+            />
           </div>
         </div>
       </div>
@@ -323,6 +344,15 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
           title={zoomedImage.title}
         />
       )}
+
+      {/* Image History Dialog */}
+      <ImageHistoryDialog
+        open={isHistoryDialogOpen}
+        onOpenChange={setIsHistoryDialogOpen}
+        story={story}
+        pageNumber={currentPage?.pageNumber || 1}
+        imageHistory={currentPage?.imageHistory}
+      />
 
       {/* Story Footer */}
       <div className="bg-gray-50 px-8 py-6 border-t border-gray-200">

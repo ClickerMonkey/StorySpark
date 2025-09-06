@@ -172,15 +172,44 @@ export class MemStorage implements IStorage {
     return this.updateStory(id, { coreImageUrl });
   }
 
-  async updateStoryPageImage(id: string, pageNumber: number, imageUrl: string): Promise<Story | undefined> {
+  async updateStoryPageImage(id: string, pageNumber: number, imageUrl: string, prompt?: string): Promise<Story | undefined> {
     const story = this.stories.get(id);
     if (!story) return undefined;
 
-    const updatedPages = story.pages.map(page =>
-      page.pageNumber === pageNumber
-        ? { ...page, imageUrl }
-        : page
-    );
+    const updatedPages = story.pages.map(page => {
+      if (page.pageNumber === pageNumber) {
+        const currentHistory = page.imageHistory || [];
+        
+        // Mark previous images as inactive
+        const inactiveHistory = currentHistory.map(h => ({ ...h, isActive: false }));
+        
+        // Add current image to history if it exists
+        if (page.imageUrl) {
+          inactiveHistory.push({
+            url: page.imageUrl,
+            prompt: page.imagePrompt || undefined,
+            createdAt: new Date().toISOString(),
+            isActive: false
+          });
+        }
+        
+        // Add new image as active
+        const newHistory = [...inactiveHistory, {
+          url: imageUrl,
+          prompt: prompt,
+          createdAt: new Date().toISOString(),
+          isActive: true
+        }];
+        
+        return { 
+          ...page, 
+          imageUrl, 
+          imagePrompt: prompt,
+          imageHistory: newHistory
+        };
+      }
+      return page;
+    });
 
     return this.updateStory(id, { pages: updatedPages });
   }
@@ -296,15 +325,44 @@ export class DatabaseStorage implements IStorage {
     return this.updateStory(id, { coreImageUrl });
   }
 
-  async updateStoryPageImage(id: string, pageNumber: number, imageUrl: string): Promise<Story | undefined> {
+  async updateStoryPageImage(id: string, pageNumber: number, imageUrl: string, prompt?: string): Promise<Story | undefined> {
     const story = await this.getStory(id);
     if (!story) return undefined;
 
-    const updatedPages = story.pages.map(page =>
-      page.pageNumber === pageNumber
-        ? { ...page, imageUrl }
-        : page
-    );
+    const updatedPages = story.pages.map(page => {
+      if (page.pageNumber === pageNumber) {
+        const currentHistory = page.imageHistory || [];
+        
+        // Mark previous images as inactive
+        const inactiveHistory = currentHistory.map(h => ({ ...h, isActive: false }));
+        
+        // Add current image to history if it exists
+        if (page.imageUrl) {
+          inactiveHistory.push({
+            url: page.imageUrl,
+            prompt: page.imagePrompt || undefined,
+            createdAt: new Date().toISOString(),
+            isActive: false
+          });
+        }
+        
+        // Add new image as active
+        const newHistory = [...inactiveHistory, {
+          url: imageUrl,
+          prompt: prompt,
+          createdAt: new Date().toISOString(),
+          isActive: true
+        }];
+        
+        return { 
+          ...page, 
+          imageUrl, 
+          imagePrompt: prompt,
+          imageHistory: newHistory
+        };
+      }
+      return page;
+    });
 
     return this.updateStory(id, { pages: updatedPages });
   }

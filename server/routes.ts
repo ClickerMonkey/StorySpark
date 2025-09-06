@@ -603,7 +603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalCustomPrompt
       );
       
-      const updatedStory = await storage.updateStoryPageImage(storyId, pageNumber, imageUrl);
+      const updatedStory = await storage.updateStoryPageImage(storyId, pageNumber, imageUrl, finalCustomPrompt);
       res.json({ imageUrl, story: updatedStory });
     } catch (error) {
       console.error("Error regenerating page image:", error);
@@ -612,6 +612,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(500).json({ message: error instanceof Error ? error.message : "Failed to regenerate page image" });
       }
+    }
+  });
+
+  // Restore an image version from history
+  app.post("/api/stories/:id/pages/:pageNumber/restore-image", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const storyId = req.params.id;
+      const pageNumber = parseInt(req.params.pageNumber);
+      const { imageUrl, prompt } = req.body;
+      
+      const story = await storage.getStory(storyId);
+      if (!story) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updatedStory = await storage.updateStoryPageImage(storyId, pageNumber, imageUrl, prompt);
+      res.json({ imageUrl, story: updatedStory });
+    } catch (error) {
+      console.error("Error restoring image version:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to restore image version" });
     }
   });
 
