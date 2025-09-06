@@ -11,6 +11,9 @@ export const users = pgTable("users", {
   googleId: text("google_id").unique(),
   openaiApiKey: text("openai_api_key"),
   openaiBaseUrl: text("openai_base_url").default("https://api.openai.com/v1"),
+  replicateApiKey: text("replicate_api_key"),
+  preferredImageProvider: text("preferred_image_provider").default("openai"), // openai, replicate
+  preferredReplicateModel: text("preferred_replicate_model"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -118,6 +121,17 @@ export const createRevisionSchema = z.object({
   fromRevision: z.number().optional(),
   description: z.string().optional(),
   step: z.enum(["details", "setting", "characters", "review", "images"]),
+});
+
+export const updateUserProfileSchema = z.object({
+  replicateApiKey: z.string().optional(),
+  preferredImageProvider: z.enum(["openai", "replicate"]).optional(),
+  preferredReplicateModel: z.string().optional(),
+});
+
+export const imageGenerationConfigSchema = z.object({
+  provider: z.enum(["openai", "replicate"]),
+  model: z.string().optional(), // For replicate models
 });
 
 export type Character = {
