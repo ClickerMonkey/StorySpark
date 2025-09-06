@@ -9,6 +9,9 @@ interface User {
   profileImageUrl?: string;
   openaiApiKey?: string;
   openaiBaseUrl?: string;
+  replicateApiKey?: string;
+  preferredImageProvider?: string;
+  preferredReplicateModel?: string;
 }
 
 interface AuthState {
