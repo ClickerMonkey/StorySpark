@@ -88,10 +88,10 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-      <div className="flex items-start gap-6">
+    <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-6">
         {/* Image Section */}
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 mx-auto sm:mx-0">
           <div className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
             {isGenerating || isRegenerating ? (
               <div className="text-center">
