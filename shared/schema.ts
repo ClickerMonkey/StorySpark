@@ -31,6 +31,7 @@ export const stories = pgTable("stories", {
   totalPages: integer("total_pages").notNull(),
   pages: jsonb("pages").$type<StoryPage[]>().notNull().default([]),
   coreImageUrl: text("core_image_url"),
+  storyGuidance: text("story_guidance"), // Optional guidance for tone, perspective, lessons learned
   status: text("status").notNull().default("draft"), // draft, setting_expansion, characters_extracted, text_approved, generating_images, completed
   isBookmarked: integer("is_bookmarked").default(0),
   currentRevision: integer("current_revision").notNull().default(1),
@@ -52,6 +53,7 @@ export const storyRevisions = pgTable("story_revisions", {
   totalPages: integer("total_pages").notNull(),
   pages: jsonb("pages").$type<StoryPage[]>().notNull().default([]),
   coreImageUrl: text("core_image_url"),
+  storyGuidance: text("story_guidance"), // Optional guidance for tone, perspective, lessons learned
   status: text("status").notNull(),
   stepCompleted: text("step_completed").notNull(), // details, setting, characters, review, images, complete
   parentRevision: integer("parent_revision"), // Which revision this was created from
@@ -80,6 +82,7 @@ export const createStorySchema = z.object({
   plot: z.string().min(20, "Plot must be at least 20 characters"),
   totalPages: z.number().min(5, "Minimum 5 pages").max(50, "Maximum 50 pages"),
   ageGroup: z.enum(["3-5", "6-8", "9-12"]),
+  storyGuidance: z.string().optional(), // Optional story-wide guidance
 });
 
 export const approveSettingSchema = z.object({
@@ -152,6 +155,7 @@ export type StoryPage = {
   text: string;
   imageUrl?: string;
   imagePrompt?: string;
+  imageGuidance?: string; // Optional guidance for this page's image generation
   imageHistory?: ImageVersion[];
 };
 

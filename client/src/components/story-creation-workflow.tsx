@@ -1044,6 +1044,31 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                       )}
                     />
 
+                    <FormField
+                      control={form.control}
+                      name="storyGuidance"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-lg font-semibold text-gray-900 flex items-center">
+                            <Sparkles className="text-purple-500 mr-2" size={20} />
+                            Story Guidance (Optional)
+                          </FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Add guidance for tone, perspective, lessons learned, or mood (e.g., uplifting and encouraging, teaches about friendship, funny and lighthearted...)"
+                              className="min-h-[80px] border-2 border-gray-200 focus:border-indigo-600"
+                              {...field}
+                              data-testid="input-story-guidance"
+                            />
+                          </FormControl>
+                          <p className="text-sm text-gray-500 mt-1">
+                            This guidance will be applied to all text and image generation for your story
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
