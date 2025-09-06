@@ -90,6 +90,9 @@ export class MemStorage implements IStorage {
         googleId: userData.googleId || null,
         openaiApiKey: null,
         openaiBaseUrl: null,
+        replicateApiKey: null,
+        preferredImageProvider: null,
+        preferredReplicateModel: null,
         createdAt: now,
         updatedAt: now,
       };
@@ -118,9 +121,9 @@ export class MemStorage implements IStorage {
     
     const updatedUser = { 
       ...user, 
-      replicateApiKey: profileData.replicateApiKey ?? user.replicateApiKey,
-      preferredImageProvider: profileData.preferredImageProvider ?? user.preferredImageProvider,
-      preferredReplicateModel: profileData.preferredReplicateModel ?? user.preferredReplicateModel,
+      ...(profileData.replicateApiKey !== undefined && { replicateApiKey: profileData.replicateApiKey || null }),
+      ...(profileData.preferredImageProvider !== undefined && { preferredImageProvider: profileData.preferredImageProvider }),
+      ...(profileData.preferredReplicateModel !== undefined && { preferredReplicateModel: profileData.preferredReplicateModel || null }),
       updatedAt: new Date()
     };
     this.users.set(userId, updatedUser);
@@ -514,14 +517,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserProfile(userId: string, profileData: { replicateApiKey?: string; preferredImageProvider?: string; preferredReplicateModel?: string }): Promise<User | undefined> {
+    // Only include fields that are defined and not empty strings
+    const updateData: any = { updatedAt: new Date() };
+    
+    if (profileData.replicateApiKey !== undefined) {
+      updateData.replicateApiKey = profileData.replicateApiKey || null;
+    }
+    if (profileData.preferredImageProvider !== undefined) {
+      updateData.preferredImageProvider = profileData.preferredImageProvider;
+    }
+    if (profileData.preferredReplicateModel !== undefined) {
+      updateData.preferredReplicateModel = profileData.preferredReplicateModel || null;
+    }
+
     const [updatedUser] = await db
       .update(users)
-      .set({
-        replicateApiKey: profileData.replicateApiKey,
-        preferredImageProvider: profileData.preferredImageProvider,
-        preferredReplicateModel: profileData.preferredReplicateModel,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(users.id, userId))
       .returning();
     return updatedUser || undefined;
