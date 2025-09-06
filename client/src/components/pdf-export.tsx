@@ -66,17 +66,17 @@ export function PDFExport({ story, className }: PDFExportProps) {
         }
       }
 
-      // Add title overlay at bottom of right side
+      // Add title overlay at bottom of right side with better contrast
       pdf.setFontSize(24);
-      pdf.setTextColor(255, 255, 255);
       pdf.setFont(undefined, 'bold');
       
-      // Add text background
+      // Add solid background for title
       const titleY = pageHeight - 20;
-      pdf.setFillColor(0, 0, 0, 0.7);
-      pdf.rect(halfWidth, titleY - 10, halfWidth, 20, 'F');
+      pdf.setFillColor(0, 0, 0);  // Solid black background
+      pdf.rect(halfWidth, titleY - 12, halfWidth, 24, 'F');
       
-      // Center the title text
+      // White text on black background for maximum contrast
+      pdf.setTextColor(255, 255, 255);
       const titleWidth = pdf.getTextWidth(story.title);
       const titleX = halfWidth + (halfWidth - titleWidth) / 2;
       pdf.text(story.title, titleX, titleY);
@@ -127,12 +127,12 @@ export function PDFExport({ story, className }: PDFExportProps) {
             
             pdf.addImage(imageData, 'JPEG', halfWidth, yOffset, halfWidth, imgHeight);
             
-            // Add page number
+            // Add page number with better contrast
             pdf.setFontSize(12);
-            pdf.setTextColor(255, 255, 255);
-            pdf.setFillColor(0, 0, 0, 0.5);
-            pdf.rect(halfWidth + 10, 10, 20, 15, 'F');
-            pdf.text(`${rightPage.pageNumber}`, halfWidth + 15, 20);
+            pdf.setFillColor(255, 255, 255);  // White background
+            pdf.rect(halfWidth + 10, 5, 25, 20, 'F');
+            pdf.setTextColor(0, 0, 0);  // Black text on white background
+            pdf.text(`${rightPage.pageNumber}`, halfWidth + 15, 18);
           } catch (error) {
             console.warn(`Failed to load image for page ${rightPage.pageNumber}:`, error);
             // Add placeholder text
