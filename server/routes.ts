@@ -154,9 +154,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/auth/user", requireAuth, async (req: AuthenticatedRequest, res) => {
-    res.json({
-      user: req.user
-    });
+    try {
+      // Fetch the complete user data from storage to ensure all fields are included
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          profileImageUrl: user.profileImageUrl,
+          openaiApiKey: user.openaiApiKey,
+          openaiBaseUrl: user.openaiBaseUrl,
+          replicateApiKey: user.replicateApiKey,
+          preferredImageProvider: user.preferredImageProvider,
+          preferredReplicateModel: user.preferredReplicateModel,
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
   });
 
   app.post("/api/auth/setup-openai", requireAuth, async (req: AuthenticatedRequest, res) => {
