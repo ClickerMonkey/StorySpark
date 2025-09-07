@@ -633,11 +633,16 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
 
           // Use the user's preferred model or a default working FLUX model
           let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
+          console.log("REGENERATE DEBUG - User preferred model:", req.user.preferredReplicateModel);
+          console.log("REGENERATE DEBUG - Initial modelId:", modelId);
           
           // Fallback to working model if user has invalid model set
           if (modelId === "prunaai/flux-kontext-dev") {
+            console.log("REGENERATE DEBUG - Detected invalid model, switching to flux-schnell");
             modelId = "black-forest-labs/flux-schnell";
           }
+          
+          console.log("REGENERATE DEBUG - Final modelId:", modelId);
           
           imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
             width: 1024,
@@ -768,11 +773,16 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
 
         // Use the user's preferred model or a default working FLUX model
         let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
+        console.log("MAIN GENERATE DEBUG - User preferred model:", req.user.preferredReplicateModel);
+        console.log("MAIN GENERATE DEBUG - Initial modelId:", modelId);
         
         // Fallback to working model if user has invalid model set
         if (modelId === "prunaai/flux-kontext-dev") {
+          console.log("MAIN GENERATE DEBUG - Detected invalid model, switching to flux-schnell");
           modelId = "black-forest-labs/flux-schnell";
         }
+        
+        console.log("MAIN GENERATE DEBUG - Final modelId:", modelId);
         
         imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
           width: 1024,
