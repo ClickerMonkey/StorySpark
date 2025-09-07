@@ -9,6 +9,14 @@ import { createStorySchema, approveStorySchema, approveSettingSchema, approveCha
 import { verifyGoogleToken, generateJWT, requireAuth, optionalAuth, type AuthenticatedRequest } from "./auth";
 import { z } from "zod";
 
+// Helper function to truncate URLs for logging
+function truncateForLog(value: any): string {
+  if (typeof value === 'string') {
+    return value.length > 128 ? `${value.substring(0, 128)}...` : value;
+  }
+  return String(value);
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register image serving routes
   app.use('/images', imageRoutes);
@@ -1136,8 +1144,8 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
             primaryImage: !!imageOptions.primaryImage,
             referenceImage: !!imageOptions.referenceImage,
             additionalImages: Object.keys(additionalImages),
-            primaryImageType: imageOptions.primaryImage?.substring(0, 30) + '...',
-            referenceImageType: imageOptions.referenceImage?.substring(0, 30) + '...'
+            primaryImageType: truncateForLog(imageOptions.primaryImage),
+            referenceImageType: truncateForLog(imageOptions.referenceImage)
           });
           
           imageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt, imageOptions);
@@ -1306,7 +1314,7 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
             referenceImage: useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined,
             additionalPrompt: customPromptText
           });
-          console.log('Template-based generation returned imageUrl:', imageUrl);
+          console.log('Template-based generation returned imageUrl:', truncateForLog(imageUrl));
           console.log('Template-based generation imageUrl type:', typeof imageUrl);
         } else {
           // Fall back to legacy hardcoded generation
@@ -1318,7 +1326,7 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
             guidanceScale: 7.5,
             imageInput: useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined
           });
-          console.log('Legacy generation returned imageUrl:', imageUrl);
+          console.log('Legacy generation returned imageUrl:', truncateForLog(imageUrl));
           console.log('Legacy generation imageUrl type:', typeof imageUrl);
         }
       } else {
@@ -1332,11 +1340,11 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
           req.user.openaiBaseUrl,
           useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined
         );
-        console.log('OpenAI generation returned imageUrl:', imageUrl);
+        console.log('OpenAI generation returned imageUrl:', truncateForLog(imageUrl));
         console.log('OpenAI generation imageUrl type:', typeof imageUrl);
       }
       
-      console.log('About to call downloadAndStore with imageUrl:', imageUrl);
+      console.log('About to call downloadAndStore with imageUrl:', truncateForLog(imageUrl));
       console.log('imageUrl type:', typeof imageUrl);
       console.log('imageUrl is string?', typeof imageUrl === 'string');
       if (typeof imageUrl === 'string') {
@@ -1344,7 +1352,7 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
         console.log('imageUrl length:', imageUrl.length);
       } else {
         console.error('ERROR: imageUrl is not a string! Received type:', typeof imageUrl);
-        console.error('imageUrl value:', imageUrl);
+        console.error('imageUrl value:', truncateForLog(imageUrl));
         console.error('imageUrl keys (if object):', imageUrl && typeof imageUrl === 'object' ? Object.keys(imageUrl) : 'N/A');
         throw new Error(`Invalid imageUrl type. Expected string, got ${typeof imageUrl}. Value: ${JSON.stringify(imageUrl)}`);
       }

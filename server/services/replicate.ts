@@ -1,5 +1,16 @@
 import Replicate from "replicate";
 
+// Helper function to truncate URLs for logging
+function truncateForLog(value: any): string {
+  if (typeof value === 'string') {
+    return value.length > 128 ? `${value.substring(0, 128)}...` : value;
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(v => truncateForLog(v)).join(', ')}]`;
+  }
+  return String(value);
+}
+
 export interface ReplicateModel {
   id: string;
   name: string;
@@ -220,7 +231,7 @@ export class ReplicateService {
             
             // Only set the array if we have images
             if (imageArray.length > 0) {
-              console.log(`Setting array field '${imageField}' with ${imageArray.length} images:`, imageArray);
+              console.log(`Setting array field '${imageField}' with ${imageArray.length} images:`, truncateForLog(imageArray));
               input[imageField] = imageArray;
             }
           } else {
@@ -246,7 +257,7 @@ export class ReplicateService {
             
             // Apply the image if we have one
             if (imageUrl) {
-              console.log(`Setting single image field '${imageField}' with:`, imageUrl);
+              console.log(`Setting single image field '${imageField}' with:`, truncateForLog(imageUrl));
               input[imageField] = imageUrl;
             }
           }
@@ -294,7 +305,7 @@ export class ReplicateService {
         if (firstItem && typeof firstItem === 'object' && typeof firstItem.url === 'function') {
           try {
             const url = firstItem.url();
-            console.log('Successfully extracted URL from FileOutput.url():', url);
+            console.log('Successfully extracted URL from FileOutput.url():', truncateForLog(url));
             return url.toString();
           } catch (urlError) {
             console.error('Error getting URL from FileOutput.url():', urlError);
@@ -317,7 +328,7 @@ export class ReplicateService {
             
             // Check for direct URL property
             if (firstItem.url && typeof firstItem.url === 'string') {
-              console.log('Found URL as string property:', firstItem.url);
+              console.log('Found URL as string property:', truncateForLog(firstItem.url));
               return firstItem.url;
             }
             
@@ -325,9 +336,9 @@ export class ReplicateService {
             if (firstItem.toString && firstItem.toString !== Object.prototype.toString) {
               try {
                 const urlString = firstItem.toString();
-                console.log('toString result:', urlString);
+                console.log('toString result:', truncateForLog(urlString));
                 if (urlString && typeof urlString === 'string' && urlString.startsWith('http') && !urlString.includes('function')) {
-                  console.log('Using toString result as URL:', urlString);
+                  console.log('Using toString result as URL:', truncateForLog(urlString));
                   return urlString;
                 }
               } catch (toStringError) {

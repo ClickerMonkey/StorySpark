@@ -18,7 +18,7 @@ export class ImageStorageService {
     customFilename?: string
   ): Promise<string> {
     try {
-      console.log('ImageStorageService.downloadAndStore - Received imageUrl:', imageUrl);
+      console.log('ImageStorageService.downloadAndStore - Received imageUrl:', imageUrl?.length > 128 ? imageUrl.substring(0, 128) + '...' : imageUrl);
       console.log('ImageStorageService.downloadAndStore - imageUrl type:', typeof imageUrl);
       console.log('ImageStorageService.downloadAndStore - imageUrl length:', imageUrl.length);
       
