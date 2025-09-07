@@ -99,6 +99,7 @@ export class MemStorage implements IStorage {
         replicateApiKey: null,
         preferredImageProvider: null,
         preferredReplicateModel: null,
+        replicateModelTemplates: [],
         createdAt: now,
         updatedAt: now,
       };
