@@ -96,7 +96,7 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
     regenerateImageMutation.mutate({ 
       prompt: customPrompt.trim(), 
       useReference: useCurrentImageAsReference,
-      ...(selectedModel && { customModel: selectedModel }),
+      ...(selectedModel && selectedModel !== "default" && { customModel: selectedModel }),
     });
   };
 
@@ -206,7 +206,7 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
                         <SelectValue placeholder="Use default model" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Use default model</SelectItem>
+                        <SelectItem value="default">Use default model</SelectItem>
                         {user.replicateModelTemplates.map((template: any) => (
                           <SelectItem key={template.modelId} value={template.modelId}>
                             {template.displayName || template.modelId}
@@ -356,7 +356,7 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
     regenerateMutation.mutate({
       customPrompt: customPrompt.trim(),
       useCurrentImageAsReference,
-      ...(selectedModel && { customModel: selectedModel }),
+      ...(selectedModel && selectedModel !== "default" && { customModel: selectedModel }),
     });
   };
 
@@ -469,7 +469,7 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
                     <SelectValue placeholder="Use default model" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Use default model</SelectItem>
+                    <SelectItem value="default">Use default model</SelectItem>
                     {user.replicateModelTemplates.map((template: any) => (
                       <SelectItem key={template.modelId} value={template.modelId}>
                         {template.displayName || template.modelId}
@@ -950,7 +950,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
       const response = await apiRequest("POST", `/api/stories/${generatedStory.id}/regenerate-core-image`, {
         customPrompt: "", // No custom prompt for initial generation
         useCurrentImageAsReference: false,
-        ...(initialCoreImageModel && { customModel: initialCoreImageModel }),
+        ...(initialCoreImageModel && initialCoreImageModel !== "default" && { customModel: initialCoreImageModel }),
       });
       return response.json();
     },
@@ -1753,7 +1753,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                               <SelectValue placeholder="Use default model" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Use default model</SelectItem>
+                              <SelectItem value="default">Use default model</SelectItem>
                               {user.replicateModelTemplates.map((template: any) => (
                                 <SelectItem key={template.modelId} value={template.modelId}>
                                   {template.displayName || template.modelId}
