@@ -480,7 +480,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
     if (!existingStory.pages || existingStory.pages.length === 0) return "review";
     
     // If story has images, go to images step, otherwise review
-    const hasImages = existingStory.pages.some(page => page.imageUrl);
+    const hasImages = existingStory.pages.some(page => getPageImageUrl(page));
     return hasImages ? "complete" : "images";
   };
   
@@ -1727,7 +1727,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                 {editedPages.map((page) => {
                   const isGenerating = imageGenerationProgress[page.pageNumber];
                   const storyPage = generatedStory.pages.find(p => p.pageNumber === page.pageNumber);
-                  const hasImage = storyPage?.imageUrl;
+                  const hasImage = getPageImageUrl(storyPage);
                   
                   return (
                     <PageImageCard
@@ -1780,7 +1780,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                         <span className="text-sm font-medium text-indigo-600">
                           Page {page.pageNumber}
                         </span>
-                        {page.imageUrl && (
+                        {getPageImageUrl(page) && (
                           <span className="ml-2 text-xs text-green-600 flex items-center">
                             <Check className="w-3 h-3 mr-1" />
                             Image

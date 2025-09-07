@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { FileDown, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { getPageImageUrl, getCoreImageUrl } from '@/utils/imageUrl';
 
 interface PDFExportProps {
   story: Story;
@@ -36,7 +37,8 @@ export function PDFExport({ story, className }: PDFExportProps) {
       pdf.rect(0, 0, halfWidth, pageHeight, 'F');
 
       // Right side (front cover)
-      if (story.coreImageUrl) {
+      const coreImageUrl = getCoreImageUrl(story);
+      if (coreImageUrl) {
         try {
           // Load and add the core image
           const img = new Image();
@@ -44,7 +46,7 @@ export function PDFExport({ story, className }: PDFExportProps) {
           await new Promise((resolve, reject) => {
             img.onload = resolve;
             img.onerror = reject;
-            img.src = story.coreImageUrl!;
+            img.src = coreImageUrl;
           });
 
           // Create canvas for the image
@@ -114,14 +116,15 @@ export function PDFExport({ story, className }: PDFExportProps) {
         });
 
         // Right side - show image if available
-        if (currentPage.imageUrl) {
+        const pageImageUrl = getPageImageUrl(currentPage);
+        if (pageImageUrl) {
           try {
             const img = new Image();
             img.crossOrigin = 'anonymous';
             await new Promise((resolve, reject) => {
               img.onload = resolve;
               img.onerror = reject;
-              img.src = currentPage.imageUrl!;
+              img.src = pageImageUrl;
             });
 
             const canvas = document.createElement('canvas');
