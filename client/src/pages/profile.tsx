@@ -449,7 +449,7 @@ export default function Profile() {
                             <div className="hidden sm:flex items-center justify-between">
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium">{model.name}</p>
-                                <p className="text-sm text-gray-500 truncate">{model.description}</p>
+                                <p className="text-sm text-gray-500 break-words">{model.description}</p>
                               </div>
                               <div className="flex items-center gap-2 ml-4">
                                 <div className="flex gap-1 flex-wrap">
