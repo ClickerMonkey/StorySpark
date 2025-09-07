@@ -9,11 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { User, BookOpen, Settings, Key, Zap, Save, Eye, EyeOff, Search, ArrowLeft, Bot, ChevronDown, Edit, Trash2, Plus } from "lucide-react";
+import { User, BookOpen, Settings, Key, Zap, Save, Eye, EyeOff, Search, ArrowLeft, Bot, ChevronDown, Edit, Trash2, Plus, CheckCircle, Loader2, AlertCircle } from "lucide-react";
 import { Link } from "wouter";
-import { ModelConfigurationPanel } from "@/components/ModelConfigurationPanel";
+import { DynamicModelForm } from "@/components/DynamicModelForm";
 import type { ReplicateModelTemplate } from "@shared/schema";
 
 export default function Profile() {
@@ -34,8 +35,9 @@ export default function Profile() {
   });
 
   const [modelSearch, setModelSearch] = useState("");
-  const [configuringModel, setConfiguringModel] = useState<string | null>(null);
-  const [showModelConfiguration, setShowModelConfiguration] = useState(false);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [currentTemplate, setCurrentTemplate] = useState<ReplicateModelTemplate | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Query for user's saved templates
   const { data: userTemplates = [], isLoading: templatesLoading } = useQuery<ReplicateModelTemplate[]>({
@@ -86,14 +88,28 @@ export default function Profile() {
     setModelSearch("");
   };
 
-  const configureModel = (modelName: string) => {
-    setConfiguringModel(modelName);
-    setShowModelConfiguration(true);
+  const configureNewModel = (modelId: string) => {
+    setIsAnalyzing(true);
+    setIsConfigModalOpen(true);
+    setCurrentTemplate(null);
+    analyzeModelMutation.mutate(modelId);
   };
 
-  const backToProfile = () => {
-    setShowModelConfiguration(false);
-    setConfiguringModel(null);
+  const editExistingTemplate = (template: ReplicateModelTemplate) => {
+    setCurrentTemplate(template);
+    setIsConfigModalOpen(true);
+  };
+
+  const closeConfigModal = () => {
+    setIsConfigModalOpen(false);
+    setCurrentTemplate(null);
+    setIsAnalyzing(false);
+  };
+
+  const handleSaveTemplate = () => {
+    if (currentTemplate) {
+      saveTemplateMutation.mutate(currentTemplate);
+    }
   };
 
   const updateProfileMutation = useMutation({
@@ -112,6 +128,54 @@ export default function Profile() {
       toast({
         title: "Update Failed",
         description: error instanceof Error ? error.message : "Failed to update profile",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Analyze model mutation
+  const analyzeModelMutation = useMutation({
+    mutationFn: async (modelId: string) => {
+      const response = await apiRequest('POST', `/api/replicate/analyze-model`, { modelId });
+      return response.json();
+    },
+    onSuccess: (data: any) => {
+      setCurrentTemplate(data.template);
+      setIsAnalyzing(false);
+      toast({
+        title: "Model Analyzed Successfully", 
+        description: `Found ${Object.keys(data.template.inputSchema.properties || {}).length} input properties`,
+      });
+    },
+    onError: (error) => {
+      setIsAnalyzing(false);
+      toast({
+        title: "Analysis Failed",
+        description: error instanceof Error ? error.message : "Could not analyze the model schema",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Save template mutation
+  const saveTemplateMutation = useMutation({
+    mutationFn: async (template: ReplicateModelTemplate) => {
+      const response = await apiRequest('POST', `/api/replicate/save-template`, { template });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/replicate/templates'] });
+      toast({
+        title: "Template Saved!",
+        description: "Your model configuration has been saved successfully.",
+      });
+      setIsConfigModalOpen(false);
+      setCurrentTemplate(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Save Failed",
+        description: error instanceof Error ? error.message : "Failed to save template",
         variant: "destructive",
       });
     },
@@ -154,63 +218,6 @@ export default function Profile() {
     }));
   };
 
-  // Show model configuration panel if configuring a model
-  if (showModelConfiguration && configuringModel) {
-    return (
-      <div className="min-h-screen bg-slate-50">
-        {/* Navigation Header */}
-        <nav className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-2 sm:space-x-3">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={backToProfile}
-                  className="mr-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-600 to-pink-600 rounded-xl flex items-center justify-center">
-                  <Bot className="text-white" size={16} />
-                </div>
-                <div>
-                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Configure Model</h1>
-                  <p className="text-sm text-gray-500 hidden sm:block">{configuringModel}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-2 sm:space-x-4">
-                <Link href="/library">
-                  <Button variant="ghost" className="text-gray-600 hover:text-gray-900 px-2 sm:px-4" data-testid="link-library">
-                    <BookOpen className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">My Stories</span>
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </nav>
-
-        {/* Model Configuration Panel */}
-        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-6">
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h2 className="text-lg font-semibold text-blue-900 mb-2">Configure Template for {configuringModel}</h2>
-              <p className="text-sm text-blue-700">
-                This will analyze the model's schema and create a custom template with your preferred settings.
-                Once saved, this template will be automatically applied during story generation.
-              </p>
-            </div>
-          </div>
-          <ModelConfigurationPanel 
-            initialModelId={configuringModel}
-            onSaved={backToProfile}
-          />
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -473,7 +480,7 @@ export default function Profile() {
                                   </Button>
                                   <Button
                                     size="sm"
-                                    onClick={() => configureModel(model.id || model.name)}
+                                    onClick={() => configureNewModel(model.id || model.name)}
                                     className="text-xs h-7 px-2 bg-indigo-600 hover:bg-indigo-700"
                                   >
                                     <Settings className="h-3 w-3" />
@@ -513,7 +520,7 @@ export default function Profile() {
                                   </Button>
                                   <Button
                                     size="sm"
-                                    onClick={() => configureModel(model.id || model.name)}
+                                    onClick={() => configureNewModel(model.id || model.name)}
                                     className="text-xs h-8 bg-indigo-600 hover:bg-indigo-700"
                                   >
                                     <Settings className="h-3 w-3 mr-1" />
@@ -584,7 +591,7 @@ export default function Profile() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => configureModel(template.modelId)}
+                                onClick={() => editExistingTemplate(template)}
                                 data-testid={`button-edit-template-${template.modelId.replace('/', '-')}`}
                               >
                                 <Edit className="h-4 w-4" />
@@ -652,6 +659,74 @@ export default function Profile() {
           </div>
         </form>
       </main>
+
+      {/* Model Configuration Modal */}
+      <Dialog open={isConfigModalOpen} onOpenChange={closeConfigModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              {currentTemplate ? `Configure: ${currentTemplate.modelName || currentTemplate.modelId}` : 'Analyzing Model...'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {isAnalyzing || analyzeModelMutation.isPending ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                <span>Analyzing model schema...</span>
+              </div>
+            ) : currentTemplate ? (
+              <>
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h3 className="font-medium text-blue-900 mb-1">Model Configuration</h3>
+                  <p className="text-sm text-blue-700">
+                    Customize the model parameters below. Changes are saved automatically to your template.
+                  </p>
+                </div>
+                
+                <DynamicModelForm
+                  template={currentTemplate}
+                  onTemplateUpdate={setCurrentTemplate}
+                />
+                
+                <div className="flex gap-3 pt-4 border-t">
+                  <Button 
+                    onClick={handleSaveTemplate}
+                    disabled={saveTemplateMutation.isPending}
+                    data-testid="button-save-template-modal"
+                  >
+                    {saveTemplateMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Save Configuration
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button 
+                    variant="outline"
+                    onClick={closeConfigModal}
+                    data-testid="button-cancel-config-modal"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <AlertCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>Failed to load model configuration</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
