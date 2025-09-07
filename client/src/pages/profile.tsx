@@ -10,8 +10,9 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { User, BookOpen, Settings, Key, Zap, Save, Eye, EyeOff, Search } from "lucide-react";
+import { User, BookOpen, Settings, Key, Zap, Save, Eye, EyeOff, Search, ArrowLeft, Bot } from "lucide-react";
 import { Link } from "wouter";
+import { ModelConfigurationPanel } from "@/components/ModelConfigurationPanel";
 
 export default function Profile() {
   const { user } = useAuth();
@@ -31,6 +32,8 @@ export default function Profile() {
   });
 
   const [modelSearch, setModelSearch] = useState("");
+  const [configuringModel, setConfiguringModel] = useState<string | null>(null);
+  const [showModelConfiguration, setShowModelConfiguration] = useState(false);
 
   // Query for searching Replicate models
   const { data: replicateModels, isLoading: modelsLoading, refetch: searchModels } = useQuery({
@@ -75,6 +78,16 @@ export default function Profile() {
     setModelSearch("");
   };
 
+  const configureModel = (modelName: string) => {
+    setConfiguringModel(modelName);
+    setShowModelConfiguration(true);
+  };
+
+  const backToProfile = () => {
+    setShowModelConfiguration(false);
+    setConfiguringModel(null);
+  };
+
   const updateProfileMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const response = await apiRequest("PATCH", "/api/user/profile", data);
@@ -107,6 +120,64 @@ export default function Profile() {
       [provider]: !prev[provider]
     }));
   };
+
+  // Show model configuration panel if configuring a model
+  if (showModelConfiguration && configuringModel) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        {/* Navigation Header */}
+        <nav className="bg-white shadow-sm border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={backToProfile}
+                  className="mr-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-600 to-pink-600 rounded-xl flex items-center justify-center">
+                  <Bot className="text-white" size={16} />
+                </div>
+                <div>
+                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Configure Model</h1>
+                  <p className="text-sm text-gray-500 hidden sm:block">{configuringModel}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2 sm:space-x-4">
+                <Link href="/library">
+                  <Button variant="ghost" className="text-gray-600 hover:text-gray-900 px-2 sm:px-4" data-testid="link-library">
+                    <BookOpen className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">My Stories</span>
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        {/* Model Configuration Panel */}
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-6">
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h2 className="text-lg font-semibold text-blue-900 mb-2">Configure Template for {configuringModel}</h2>
+              <p className="text-sm text-blue-700">
+                This will analyze the model's schema and create a custom template with your preferred settings.
+                Once saved, this template will be automatically applied during story generation.
+              </p>
+            </div>
+          </div>
+          <ModelConfigurationPanel 
+            initialModelId={configuringModel}
+            onSaved={backToProfile}
+          />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -315,27 +386,52 @@ export default function Profile() {
                         {replicateModels.models.map((model: any) => (
                           <div
                             key={model.name}
-                            className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                            onClick={() => selectModel(model.name)}
+                            className="p-3 border rounded-lg hover:bg-gray-50 transition-colors"
                             data-testid={`model-option-${model.name}`}
                           >
                             <div className="flex items-center justify-between">
-                              <div>
+                              <div className="flex-1">
                                 <p className="font-medium">{model.name}</p>
                                 <p className="text-sm text-gray-500 truncate">{model.description}</p>
                               </div>
-                              <div className="flex gap-1 flex-wrap">
-                                {model.supportsImageInput && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    Image Input
+                              <div className="flex items-center gap-2">
+                                <div className="flex gap-1 flex-wrap">
+                                  {model.supportsImageInput && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      Image Input
+                                    </Badge>
+                                  )}
+                                  <Badge variant="outline" className="text-xs">
+                                    {model.latestVersion?.created_at ? 
+                                      new Date(model.latestVersion.created_at).getFullYear() : 
+                                      'Latest'
+                                    }
                                   </Badge>
-                                )}
-                                <Badge variant="outline" className="text-xs">
-                                  {model.latestVersion?.created_at ? 
-                                    new Date(model.latestVersion.created_at).getFullYear() : 
-                                    'Latest'
-                                  }
-                                </Badge>
+                                </div>
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      selectModel(model.name);
+                                    }}
+                                    className="text-xs h-8"
+                                  >
+                                    Quick Select
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      configureModel(model.name);
+                                    }}
+                                    className="text-xs h-8 bg-indigo-600 hover:bg-indigo-700"
+                                  >
+                                    <Settings className="h-3 w-3 mr-1" />
+                                    Configure
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           </div>

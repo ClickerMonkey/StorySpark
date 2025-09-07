@@ -27,6 +27,8 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ModelConfigurationPanelProps {
   className?: string;
+  initialModelId?: string; // Model to analyze on load
+  onSaved?: () => void; // Callback when template is saved
 }
 
 /**
@@ -39,12 +41,23 @@ interface ModelConfigurationPanelProps {
  * - Save and manage user templates
  * - Test configurations before saving
  */
-export function ModelConfigurationPanel({ className = '' }: ModelConfigurationPanelProps) {
-  const [selectedModelId, setSelectedModelId] = useState('');
-  const [customModelId, setCustomModelId] = useState('');
+export function ModelConfigurationPanel({ 
+  className = '',
+  initialModelId,
+  onSaved
+}: ModelConfigurationPanelProps) {
+  const [selectedModelId, setSelectedModelId] = useState(initialModelId || '');
+  const [customModelId, setCustomModelId] = useState(initialModelId || '');
   const [currentTemplate, setCurrentTemplate] = useState<ReplicateModelTemplate | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Auto-analyze the initial model if provided
+  useEffect(() => {
+    if (initialModelId && !currentTemplate) {
+      analyzeModelMutation.mutate(initialModelId);
+    }
+  }, [initialModelId]);
 
   // Popular Replicate models for quick selection
   const popularModels = [
@@ -93,6 +106,7 @@ export function ModelConfigurationPanel({ className = '' }: ModelConfigurationPa
         title: "Template Saved",
         description: "Model configuration saved successfully",
       });
+      onSaved?.(); // Call the callback if provided
     },
     onError: (error) => {
       toast({
