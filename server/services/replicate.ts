@@ -324,38 +324,46 @@ export class ReplicateService {
 
       const output = await this.replicate.run(modelId as `${string}/${string}`, { input });
       
+      console.log('generateImage - Raw Replicate output:', output);
+      console.log('generateImage - Output type:', typeof output);
+      console.log('generateImage - Is array?', Array.isArray(output));
+      
       // Handle different output formats
       if (Array.isArray(output)) {
         const firstItem = output[0];
+        console.log('generateImage - First item:', firstItem);
+        console.log('generateImage - First item type:', typeof firstItem);
+        console.log('generateImage - First item keys:', firstItem && typeof firstItem === 'object' ? Object.keys(firstItem) : 'N/A');
+        console.log('generateImage - First item url type:', firstItem && typeof firstItem === 'object' ? typeof firstItem.url : 'N/A');
         
         // Handle FileOutput objects (new Replicate behavior)
         if (firstItem && typeof firstItem === 'object' && typeof firstItem.url === 'function') {
           try {
             const url = firstItem.url();
-            console.log('Successfully extracted URL from FileOutput.url():', url);
+            console.log('generateImage - Successfully extracted URL from FileOutput.url():', url);
             return url.toString();
           } catch (urlError) {
-            console.error('Error getting URL from FileOutput.url():', urlError);
-            console.log('FileOutput object keys:', Object.keys(firstItem));
-            console.log('FileOutput object:', JSON.stringify(firstItem, null, 2));
+            console.error('generateImage - Error getting URL from FileOutput.url():', urlError);
+            console.log('generateImage - FileOutput object keys:', Object.keys(firstItem));
+            console.log('generateImage - FileOutput object:', JSON.stringify(firstItem, null, 2));
             
             // Try to extract URL from object properties
             if (firstItem.href && typeof firstItem.href === 'string') {
-              console.log('Found URL in href property:', firstItem.href);
+              console.log('generateImage - Found URL in href property:', firstItem.href);
               return firstItem.href;
             }
             if (firstItem.src && typeof firstItem.src === 'string') {
-              console.log('Found URL in src property:', firstItem.src);
+              console.log('generateImage - Found URL in src property:', firstItem.src);
               return firstItem.src;
             }
             if (firstItem.path && typeof firstItem.path === 'string' && firstItem.path.startsWith('http')) {
-              console.log('Found URL in path property:', firstItem.path);
+              console.log('generateImage - Found URL in path property:', firstItem.path);
               return firstItem.path;
             }
             
             // Check for direct URL property
             if (firstItem.url && typeof firstItem.url === 'string') {
-              console.log('Found URL as string property:', firstItem.url);
+              console.log('generateImage - Found URL as string property:', firstItem.url);
               return firstItem.url;
             }
             
@@ -363,24 +371,43 @@ export class ReplicateService {
             if (firstItem.toString && firstItem.toString !== Object.prototype.toString) {
               try {
                 const urlString = firstItem.toString();
-                console.log('toString result:', urlString);
+                console.log('generateImage - toString result:', urlString);
                 if (urlString && typeof urlString === 'string' && urlString.startsWith('http') && !urlString.includes('function')) {
-                  console.log('Using toString result as URL:', urlString);
+                  console.log('generateImage - Using toString result as URL:', urlString);
                   return urlString;
                 }
               } catch (toStringError) {
-                console.error('Error calling toString on FileOutput:', toStringError);
+                console.error('generateImage - Error calling toString on FileOutput:', toStringError);
               }
             }
             
-            throw new Error(`Could not extract valid URL from FileOutput object. Available properties: ${Object.keys(firstItem).join(', ')}`);
+            throw new Error(`generateImage - Could not extract valid URL from FileOutput object. Available properties: ${Object.keys(firstItem).join(', ')}`);
           }
         }
         
+        console.log('generateImage - Returning firstItem as string:', firstItem);
         return firstItem as string;
       } else if (typeof output === 'string') {
+        console.log('generateImage - Output is string, returning directly:', output);
         return output;
       } else if (output && typeof output === 'object' && 'url' in output) {
+        console.log('generateImage - Found object with url property, type:', typeof output.url);
+        // Handle case where the output object has a url function property
+        if (typeof output.url === 'function') {
+          console.log('generateImage - Found url function in output object, calling it...');
+          try {
+            const url = output.url();
+            console.log('generateImage - Successfully got URL from output.url():', url);
+            return url.toString();
+          } catch (error) {
+            console.error('generateImage - Error calling output.url():', error);
+            throw new Error('generateImage - Failed to extract URL from output object with url function');
+          }
+        } else if (typeof output.url === 'string') {
+          console.log('generateImage - Found URL string in output.url property:', output.url);
+          return output.url;
+        }
+        console.log('generateImage - Returning output.url as any:', (output as any).url);
         return (output as any).url;
       }
       throw new Error('Unexpected output format from Replicate');
