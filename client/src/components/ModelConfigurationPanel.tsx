@@ -77,8 +77,8 @@ export function ModelConfigurationPanel({
   // Analyze model schema
   const analyzeModelMutation = useMutation({
     mutationFn: async (modelId: string) => {
-      const response = await apiRequest(`/api/replicate/analyze-model`, 'POST', { modelId });
-      return response;
+      const response = await apiRequest('POST', `/api/replicate/analyze-model`, { modelId });
+      return response.json();
     },
     onSuccess: (data: any) => {
       setCurrentTemplate(data.template);
@@ -99,7 +99,8 @@ export function ModelConfigurationPanel({
   // Save template
   const saveTemplateMutation = useMutation({
     mutationFn: async (template: ReplicateModelTemplate) => {
-      return await apiRequest(`/api/replicate/save-template`, 'POST', { template });
+      const response = await apiRequest('POST', `/api/replicate/save-template`, { template });
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/replicate/templates'] });
@@ -122,7 +123,8 @@ export function ModelConfigurationPanel({
   const deleteTemplateMutation = useMutation({
     mutationFn: async (modelId: string) => {
       const template = { modelId, delete: true };
-      return await apiRequest(`/api/replicate/save-template`, 'POST', { template });
+      const response = await apiRequest('POST', `/api/replicate/save-template`, { template });
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/replicate/templates'] });
