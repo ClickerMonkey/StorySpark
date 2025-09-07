@@ -166,15 +166,22 @@ export class ReplicateService {
 
       const output = await this.replicate.run(modelId, { input });
       
+      console.log('Replicate output type:', typeof output);
+      console.log('Replicate raw output:', output);
+      
       // Handle different output formats
       if (Array.isArray(output)) {
+        console.log('Replicate returned array, using first item:', output[0]);
         return output[0] as string;
       } else if (typeof output === 'string') {
+        console.log('Replicate returned string:', output);
         return output;
       } else if (output && typeof output === 'object' && 'url' in output) {
+        console.log('Replicate returned object with URL:', (output as any).url);
         return (output as any).url;
       }
       
+      console.error('Unexpected Replicate output format:', output);
       throw new Error('Unexpected output format from Replicate');
     } catch (error) {
       console.error('Error generating image with Replicate:', error);
