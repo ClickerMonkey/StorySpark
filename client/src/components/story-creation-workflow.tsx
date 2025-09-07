@@ -919,6 +919,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState("");
+  const [initialCoreImageModel, setInitialCoreImageModel] = useState("");
 
   const updateTitleMutation = useMutation({
     mutationFn: async (newTitle: string) => {
@@ -951,7 +952,8 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
       if (!generatedStory) throw new Error("No story to generate core image for");
       const response = await apiRequest("POST", `/api/stories/${generatedStory.id}/regenerate-core-image`, {
         customPrompt: "", // No custom prompt for initial generation
-        useCurrentImageAsReference: false
+        useCurrentImageAsReference: false,
+        ...(initialCoreImageModel && { customModel: initialCoreImageModel }),
       });
       return response.json();
     },
@@ -1745,6 +1747,26 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                         <AlertCircle className="mr-2" size={16} />
                         <span className="font-medium">Missing</span>
                       </div>
+                      
+                      {/* Model Selection for initial generation - show if user has multiple replicate models */}
+                      {user?.preferredImageProvider === "replicate" && user?.replicateModelTemplates && user.replicateModelTemplates.length > 1 && (
+                        <div className="flex flex-col">
+                          <Select value={initialCoreImageModel} onValueChange={setInitialCoreImageModel}>
+                            <SelectTrigger className="w-48 h-8 text-xs" data-testid="select-initial-core-model">
+                              <SelectValue placeholder="Use default model" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">Use default model</SelectItem>
+                              {user.replicateModelTemplates.map((template: any) => (
+                                <SelectItem key={template.modelId} value={template.modelId}>
+                                  {template.displayName || template.modelId}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                      
                       <Button
                         size="sm"
                         onClick={() => generateCoreImageMutation.mutate()}
