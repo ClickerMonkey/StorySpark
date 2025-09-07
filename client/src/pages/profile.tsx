@@ -8,11 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { User, BookOpen, Settings, Key, Zap, Save, Eye, EyeOff, Search, ArrowLeft, Bot } from "lucide-react";
+import { User, BookOpen, Settings, Key, Zap, Save, Eye, EyeOff, Search, ArrowLeft, Bot, ChevronDown, Edit, Trash2, Plus } from "lucide-react";
 import { Link } from "wouter";
 import { ModelConfigurationPanel } from "@/components/ModelConfigurationPanel";
+import type { ReplicateModelTemplate } from "@shared/schema";
 
 export default function Profile() {
   const { user } = useAuth();
@@ -34,6 +36,12 @@ export default function Profile() {
   const [modelSearch, setModelSearch] = useState("");
   const [configuringModel, setConfiguringModel] = useState<string | null>(null);
   const [showModelConfiguration, setShowModelConfiguration] = useState(false);
+
+  // Query for user's saved templates
+  const { data: userTemplates = [], isLoading: templatesLoading } = useQuery<ReplicateModelTemplate[]>({
+    queryKey: ['/api/replicate/templates'],
+    select: (data) => Array.isArray(data) ? data : [],
+  });
 
   // Query for searching Replicate models
   const { data: replicateModels, isLoading: modelsLoading, refetch: searchModels } = useQuery({
@@ -104,6 +112,31 @@ export default function Profile() {
       toast({
         title: "Update Failed",
         description: error instanceof Error ? error.message : "Failed to update profile",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete template mutation
+  const deleteTemplateMutation = useMutation({
+    mutationFn: async (modelId: string) => {
+      const response = await apiRequest('POST', `/api/replicate/save-template`, { 
+        template: { modelId }, 
+        action: 'delete' 
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/replicate/templates'] });
+      toast({
+        title: "Template Deleted",
+        description: "The model template has been removed.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Delete Failed",
+        description: error instanceof Error ? error.message : "Failed to delete template",
         variant: "destructive",
       });
     },
@@ -337,30 +370,34 @@ export default function Profile() {
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="preferred-model">Preferred Replicate Model</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="preferred-model"
-                        value={formData.preferredReplicateModel}
-                        onChange={(e) => setFormData(prev => ({...prev, preferredReplicateModel: e.target.value}))}
-                        placeholder="e.g., stability-ai/stable-diffusion"
-                        className="flex-1"
-                      />
-                      {formData.preferredReplicateModel && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => configureModel(formData.preferredReplicateModel)}
-                          className="shrink-0"
-                          data-testid="button-configure-preferred-model"
-                        >
-                          <Settings className="h-4 w-4 mr-1" />
-                          Configure
-                        </Button>
-                      )}
-                    </div>
+                    <Select
+                      value={formData.preferredReplicateModel}
+                      onValueChange={(value) => setFormData(prev => ({...prev, preferredReplicateModel: value}))}
+                      disabled={userTemplates.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={
+                          userTemplates.length === 0 
+                            ? "No templates configured - search and configure a model first"
+                            : "Select a configured model template"
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {userTemplates.map((template) => (
+                          <SelectItem key={template.modelId} value={template.modelId}>
+                            <div className="flex flex-col">
+                              <span>{template.modelName || template.modelId}</span>
+                              <span className="text-xs text-gray-500">{template.modelId}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <p className="text-sm text-gray-500 mt-1">
-                      Leave empty to choose during story creation
+                      {userTemplates.length === 0 
+                        ? "Search for a model below and configure it to add to this dropdown"
+                        : "Select from your configured model templates"
+                      }
                     </p>
                   </div>
                   
@@ -498,6 +535,99 @@ export default function Profile() {
               )}
             </CardContent>
           </Card>
+
+          {/* Saved Template Management */}
+          {formData.preferredImageProvider === "replicate" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Configured Model Templates
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {templatesLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-400 mr-2"></div>
+                    Loading templates...
+                  </div>
+                ) : userTemplates.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Settings className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <h4 className="font-medium mb-1">No Model Templates Yet</h4>
+                    <p className="text-sm">Search for a model below and configure it to get started.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {userTemplates.map((template) => (
+                      <Collapsible key={template.modelId}>
+                        <div className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium">{template.modelName || template.modelId}</h4>
+                                <Badge variant="outline" className="text-xs">{template.modelId}</Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                  {Object.keys(template.userValues || {}).length} settings
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-gray-500 mt-1">
+                                Last analyzed: {new Date(template.lastAnalyzed).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <CollapsibleTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <ChevronDown className="h-4 w-4" />
+                                </Button>
+                              </CollapsibleTrigger>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => configureModel(template.modelId)}
+                                data-testid={`button-edit-template-${template.modelId.replace('/', '-')}`}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteTemplateMutation.mutate(template.modelId)}
+                                disabled={deleteTemplateMutation.isPending}
+                                data-testid={`button-delete-template-${template.modelId.replace('/', '-')}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          <CollapsibleContent className="mt-4">
+                            {Object.keys(template.userValues || {}).length > 0 ? (
+                              <div className="bg-gray-50 rounded-lg p-3">
+                                <h5 className="text-sm font-medium mb-2">Configured Settings:</h5>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                  {Object.entries(template.userValues || {}).map(([key, value]) => (
+                                    <div key={key} className="flex justify-between">
+                                      <span className="font-medium">{key}:</span>
+                                      <span className="text-gray-600 break-all ml-2">
+                                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500 italic">No custom settings configured</p>
+                            )}
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Save Button */}
           <div className="flex justify-end">
