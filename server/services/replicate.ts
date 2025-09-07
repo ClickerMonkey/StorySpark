@@ -369,6 +369,22 @@ export class ReplicateService {
       } else if (typeof output === 'string') {
         return output;
       } else if (output && typeof output === 'object' && 'url' in output) {
+        // Handle case where the output object has a url function property
+        if (typeof output.url === 'function') {
+          console.log('Template generation - Found url function in output object, calling it...');
+          try {
+            const url = output.url();
+            console.log('Template generation - Successfully called output.url():', truncateForLog(url));
+            return url.toString();
+          } catch (error) {
+            console.error('Template generation - Error calling output.url():', error);
+            throw new Error('Template generation - Failed to extract URL from output object with url function');
+          }
+        } else if (typeof output.url === 'string') {
+          console.log('Template generation - Found URL string in output.url property:', truncateForLog(output.url));
+          return output.url;
+        }
+        console.log('Template generation - Returning output.url as any:', truncateForLog((output as any).url));
         return (output as any).url;
       }
       throw new Error('Unexpected output format from Replicate');
@@ -531,7 +547,7 @@ export class ReplicateService {
           console.log('generateImage - Found URL string in output.url property:', output.url);
           return output.url;
         }
-        console.log('generateImage - Returning output.url as any:', (output as any).url);
+        console.log('generateImage - Returning output.url as any:', truncateForLog((output as any).url));
         return (output as any).url;
       }
       throw new Error('Unexpected output format from Replicate');
