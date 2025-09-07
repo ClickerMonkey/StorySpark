@@ -11,6 +11,24 @@ function truncateForLog(value: any): string {
   return String(value);
 }
 
+// Helper function to truncate base64 images in JSON objects for logging
+function truncateBase64InObject(obj: any): string {
+  try {
+    let jsonString = JSON.stringify(obj, null, 2);
+    
+    // Regex to match base64 data URLs and truncate them
+    // Matches: "data:image/[type];base64,[long-base64-string]"
+    jsonString = jsonString.replace(
+      /"(data:image\/[^;]+;base64,)[^"]{128,}"/g, 
+      (match, prefix) => `"${prefix}[base64-truncated-128+chars]..."`
+    );
+    
+    return jsonString;
+  } catch (error) {
+    return String(obj);
+  }
+}
+
 export interface ReplicateModel {
   id: string;
   name: string;
@@ -184,7 +202,7 @@ export class ReplicateService {
       console.log('generateImageWithTemplate called with:');
       console.log('- modelId:', template.modelId);
       console.log('- prompt:', prompt);
-      console.log('- options:', JSON.stringify(options, null, 2));
+      console.log('- options:', truncateBase64InObject(options));
       console.log('- template imageArrayFields:', template.imageArrayFields);
       
       const input: any = {};
@@ -292,7 +310,7 @@ export class ReplicateService {
       
       console.log('=== REPLICATE TEMPLATE CALL ===');
       console.log('Model ID:', template.modelId);
-      console.log('Input Object:', JSON.stringify(input, null, 2));
+      console.log('Input Object:', truncateBase64InObject(input));
       console.log('================================');
       
       const output = await this.replicate.run(template.modelId as `${string}/${string}`, { input });
@@ -381,7 +399,7 @@ export class ReplicateService {
       console.log('generateImage called with:');
       console.log('- modelId:', modelId);
       console.log('- prompt:', prompt);
-      console.log('- options:', JSON.stringify(options, null, 2));
+      console.log('- options:', truncateBase64InObject(options));
       
       const input: any = {
         prompt,
@@ -428,7 +446,7 @@ export class ReplicateService {
 
       console.log('=== REPLICATE DIRECT CALL ===');
       console.log('Model ID:', modelId);
-      console.log('Input Object:', JSON.stringify(input, null, 2));
+      console.log('Input Object:', truncateBase64InObject(input));
       console.log('==============================');
       
       const output = await this.replicate.run(modelId as `${string}/${string}`, { input });
