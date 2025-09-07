@@ -1042,7 +1042,16 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
         
         // Check if user has a template for this model
         const userTemplates = req.user.replicateModelTemplates || [];
+        console.log('Page regeneration - Debug template lookup:');
+        console.log('- Looking for modelId:', modelId);
+        console.log('- User templates count:', userTemplates.length);
+        console.log('- Available template modelIds:', userTemplates.map((t: any) => t.modelId));
+        
         const template = userTemplates.find((t: any) => t.modelId === modelId);
+        console.log('- Template found:', !!template);
+        if (template) {
+          console.log('- Template details:', JSON.stringify(template, null, 2));
+        }
         
         if (template) {
           // Use intelligent template-based generation with multi-image support
