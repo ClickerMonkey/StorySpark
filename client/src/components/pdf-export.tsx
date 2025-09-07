@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Story } from '@shared/schema';
 import { Button } from '@/components/ui/button';
-import { FileDown, Loader2 } from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { getPageImageUrl, getCoreImageUrl } from '@/utils/imageUrl';
@@ -194,7 +194,7 @@ export function PDFExport({ story, className }: PDFExportProps) {
         </>
       ) : (
         <>
-          <FileDown className="w-4 h-4 mr-2" />
+          <FileText className="w-4 h-4 mr-2" />
           Export PDF
         </>
       )}
