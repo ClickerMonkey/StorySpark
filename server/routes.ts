@@ -693,6 +693,9 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
 
       // Check API keys based on preferred provider
       const preferredProvider = req.user?.preferredImageProvider || "openai";
+      console.log("REGENERATE DEBUG - User preferred provider:", preferredProvider);
+      console.log("REGENERATE DEBUG - User has replicateApiKey:", !!req.user?.replicateApiKey);
+      console.log("REGENERATE DEBUG - User has openaiApiKey:", !!req.user?.openaiApiKey);
       
       if (preferredProvider === "replicate") {
         if (!req.user?.replicateApiKey) {
@@ -735,6 +738,7 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
       let imageUrl: string;
 
       if (preferredProvider === "replicate") {
+        console.log("REGENERATE DEBUG - Using Replicate for image generation");
         // Use Replicate for image generation
         const replicateService = new ReplicateService(req.user.replicateApiKey!);
         
@@ -767,6 +771,7 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
           guidanceScale: 7.5
         });
       } else {
+        console.log("REGENERATE DEBUG - Using OpenAI for image generation");
         // Use OpenAI for image generation
         imageUrl = await generatePageImage(
           page.text,
