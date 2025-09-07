@@ -14,6 +14,7 @@ export const users = pgTable("users", {
   replicateApiKey: text("replicate_api_key"),
   preferredImageProvider: text("preferred_image_provider").default("openai"), // openai, replicate
   preferredReplicateModel: text("preferred_replicate_model"),
+  replicateModelTemplates: jsonb("replicate_model_templates").$type<ReplicateModelTemplate[]>().default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -144,6 +145,37 @@ export type Character = {
   description: string;
   imageUrl?: string;
   imageFileId?: string; // UUID reference to file storage
+};
+
+export type ReplicateModelInputProperty = {
+  name: string;
+  type: string;
+  description?: string;
+  default?: any;
+  required?: boolean;
+  enum?: any[];
+  minimum?: number;
+  maximum?: number;
+  isPromptField?: boolean; // Identified by LLM as receiving prompt text
+  isImageField?: boolean;  // Identified by LLM as receiving image URLs
+};
+
+export type ReplicateModelTemplate = {
+  modelId: string;
+  modelName?: string;
+  inputSchema: {
+    type: string;
+    properties: Record<string, ReplicateModelInputProperty>;
+    required?: string[];
+  };
+  outputSchema?: {
+    type: string;
+    properties?: Record<string, any>;
+  };
+  promptField?: string;   // Main prompt property name (identified by LLM)
+  imageFields?: string[]; // Image input property names (identified by LLM) 
+  userValues: Record<string, any>; // User-configured values for non-prompt/image fields
+  lastAnalyzed: string; // ISO date when LLM analyzed this schema
 };
 
 export type ImageVersion = {
