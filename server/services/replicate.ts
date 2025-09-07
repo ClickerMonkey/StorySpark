@@ -127,6 +127,11 @@ export class ReplicateService {
       imageInput?: string; // Base64 or URL
     } = {}
   ): Promise<string> {
+    console.log('=== REPLICATE GENERATION START ===');
+    console.log('Model ID:', modelId);
+    console.log('Prompt length:', prompt.length);
+    console.log('Options:', options);
+    
     try {
       const input: any = {
         prompt,
@@ -164,7 +169,12 @@ export class ReplicateService {
         }
       }
 
+      console.log('Final input being sent to Replicate:', JSON.stringify(input, null, 2));
+      console.log('About to call replicate.run...');
+      
       const output = await this.replicate.run(modelId, { input });
+      
+      console.log('Replicate.run completed successfully');
       
       console.log('Replicate output type:', typeof output);
       console.log('Replicate raw output:', output);
