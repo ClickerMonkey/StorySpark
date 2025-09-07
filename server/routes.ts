@@ -1091,35 +1091,40 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
             additionalPrompt: finalCustomPrompt
           };
           
-          // Convert file IDs to local URLs instead of using external Replicate URLs
-          const getImageUrl = (url: string | undefined, fileId: string | undefined): string | undefined => {
+          // Convert file IDs to base64 data instead of using URLs
+          const imageStorage = new ImageStorageService();
+          const getImageBase64 = async (url: string | undefined, fileId: string | undefined): Promise<string | undefined> => {
             if (fileId) {
-              // Use stored file reference instead of external URL
-              const protocol = req.protocol;
-              const host = req.get('host');
-              return `${protocol}://${host}/api/files/${fileId}`;
+              try {
+                const fileData = await imageStorage.retrieve(fileId);
+                if (fileData) {
+                  return `data:${fileData.mimeType};base64,${fileData.buffer.toString('base64')}`;
+                }
+              } catch (error) {
+                console.error('Error loading image file:', fileId, error);
+              }
             }
-            return url; // Fallback to original URL if no fileId
+            return url; // Fallback to original URL if no fileId or error
           };
 
           // Set primary image (current page image takes priority)
-          const primaryImageUrl = getImageUrl(currentImageUrl, page.imageFileId);
-          if (primaryImageUrl) {
-            imageOptions.primaryImage = primaryImageUrl;
+          const primaryImageBase64 = await getImageBase64(currentImageUrl, page.imageFileId);
+          if (primaryImageBase64) {
+            imageOptions.primaryImage = primaryImageBase64;
           }
           
           // Set reference image (story core image for visual consistency)
-          const referenceImageUrl = getImageUrl(story.coreImageUrl, story.coreImageFileId);
-          if (referenceImageUrl && referenceImageUrl !== primaryImageUrl) {
-            imageOptions.referenceImage = referenceImageUrl;
+          const referenceImageBase64 = await getImageBase64(story.coreImageUrl, story.coreImageFileId);
+          if (referenceImageBase64 && referenceImageBase64 !== primaryImageBase64) {
+            imageOptions.referenceImage = referenceImageBase64;
           }
           
           // Set additional images for models that support extra image inputs
           const additionalImages: { [key: string]: string } = {};
           if (previousPage?.imageFileId) {
-            const prevImageUrl = getImageUrl(previousPageImageUrl, previousPage.imageFileId);
-            if (prevImageUrl && prevImageUrl !== primaryImageUrl && prevImageUrl !== referenceImageUrl) {
-              additionalImages.previous_page = prevImageUrl;
+            const prevImageBase64 = await getImageBase64(previousPageImageUrl, previousPage.imageFileId);
+            if (prevImageBase64 && prevImageBase64 !== primaryImageBase64 && prevImageBase64 !== referenceImageBase64) {
+              additionalImages.previous_page = prevImageBase64;
             }
           }
           
@@ -1131,38 +1136,44 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
             primaryImage: !!imageOptions.primaryImage,
             referenceImage: !!imageOptions.referenceImage,
             additionalImages: Object.keys(additionalImages),
-            primaryImageUrl: imageOptions.primaryImage,
-            referenceImageUrl: imageOptions.referenceImage
+            primaryImageType: imageOptions.primaryImage?.substring(0, 30) + '...',
+            referenceImageType: imageOptions.referenceImage?.substring(0, 30) + '...'
           });
           
           imageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt, imageOptions);
         } else {
           // Fall back to legacy hardcoded generation with primary reference image
-          const legacyImageUrl = getImageUrl(currentImageUrl, page.imageFileId) || 
-                                 getImageUrl(previousPageImageUrl, previousPage?.imageFileId) || 
-                                 getImageUrl(story.coreImageUrl, story.coreImageFileId);
+          const legacyImageBase64 = (await getImageBase64(currentImageUrl, page.imageFileId)) || 
+                                   (await getImageBase64(previousPageImageUrl, previousPage?.imageFileId)) || 
+                                   (await getImageBase64(story.coreImageUrl, story.coreImageFileId));
           
           imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
             width: 1024,
             height: 1024,
             numSteps: 50,
             guidanceScale: 7.5,
-            imageInput: legacyImageUrl
+            imageInput: legacyImageBase64
           });
         }
       } else {
-        // Use OpenAI for image generation with stored file references
-        const protocol = req.protocol;
-        const host = req.get('host');
-        const getImageUrl = (url: string | undefined, fileId: string | undefined): string | undefined => {
+        // Use OpenAI for image generation with base64 encoded files
+        const imageStorage = new ImageStorageService();
+        const getImageBase64 = async (url: string | undefined, fileId: string | undefined): Promise<string | undefined> => {
           if (fileId) {
-            return `${protocol}://${host}/api/files/${fileId}`;
+            try {
+              const fileData = await imageStorage.retrieve(fileId);
+              if (fileData) {
+                return `data:${fileData.mimeType};base64,${fileData.buffer.toString('base64')}`;
+              }
+            } catch (error) {
+              console.error('Error loading image file:', fileId, error);
+            }
           }
-          return url;
+          return url; // Fallback to original URL if no fileId or error
         };
 
-        const openaiCoreImageUrl = getImageUrl(story.coreImageUrl, story.coreImageFileId) || "";
-        const openaiPreviousImageUrl = getImageUrl(previousPageImageUrl, previousPage?.imageFileId);
+        const openaiCoreImageUrl = (await getImageBase64(story.coreImageUrl, story.coreImageFileId)) || "";
+        const openaiPreviousImageUrl = await getImageBase64(previousPageImageUrl, previousPage?.imageFileId);
         
         imageUrl = await generatePageImage(
           page.text,
