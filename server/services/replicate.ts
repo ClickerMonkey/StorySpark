@@ -165,7 +165,7 @@ export class ReplicateService {
         }
       }
 
-      const output = await this.replicate.run(modelId, { input });
+      const output = await this.replicate.run(modelId as `${string}/${string}`, { input });
       
       // Handle different output formats
       if (Array.isArray(output)) {

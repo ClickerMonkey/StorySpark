@@ -35,6 +35,13 @@ export default function Profile() {
   // Query for searching Replicate models
   const { data: replicateModels, isLoading: modelsLoading, refetch: searchModels } = useQuery({
     queryKey: ["/api/replicate/models", modelSearch],
+    queryFn: async () => {
+      if (!modelSearch.trim()) return null;
+      const params = new URLSearchParams();
+      params.append('q', modelSearch.trim());
+      const response = await apiRequest("GET", `/api/replicate/models?${params.toString()}`);
+      return response.json();
+    },
     enabled: false, // Only run when explicitly triggered
   });
 
