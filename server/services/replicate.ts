@@ -62,7 +62,6 @@ export class ReplicateService {
       
       // Map all models to our interface without filtering
       const allModels = models.results
-        .slice(0, limit)
         .map(model => ({
           id: `${model.owner}/${model.name}`,
           name: model.name,
