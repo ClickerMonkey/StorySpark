@@ -454,3 +454,76 @@ CRITICAL REQUIREMENTS:
     throw new Error("Failed to generate page image. Please check your API key and try again.");
   }
 }
+
+export async function generateStoryIdea(ageGroup?: string, apiKey?: string, baseURL?: string): Promise<{
+  title: string;
+  setting: string;
+  characters: string;
+  plot: string;
+  ageGroup: string;
+  totalPages: number;
+}> {
+  const openai = createOpenAIClient(apiKey!, baseURL);
+
+  const ageGroupPrompt = ageGroup ? `for ${ageGroup} year olds` : "for children aged 3-12";
+  
+  const prompt = `Generate a creative, engaging children's story idea ${ageGroupPrompt}. Create something original and fun that would make a great children's book.
+
+Requirements:
+- Safe, wholesome, age-appropriate content
+- Positive themes and messages
+- Diverse, relatable characters
+- Engaging plot with clear beginning, middle, and end
+- Educational value or life lesson
+- Imaginative setting that sparks wonder
+
+Please return a JSON response in this exact format:
+{
+  "title": "An engaging story title",
+  "setting": "Brief description of where the story takes place",
+  "characters": "Brief description of the main characters (2-4 characters)",
+  "plot": "A clear plot summary with beginning, middle, and end",
+  "ageGroup": "3-5" | "6-8" | "9-12",
+  "totalPages": 6 | 8 | 10 | 12
+}
+
+Make the totalPages appropriate for the age group (3-5: 6-8 pages, 6-8: 8-10 pages, 9-12: 10-12 pages).`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are a creative children's book author who generates inspiring, educational, and entertaining story ideas. Always respond with valid JSON and create diverse, inclusive stories with positive messages."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.8,
+      max_tokens: 800,
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || "{}");
+    
+    // Validate required fields exist
+    if (!result.title || !result.setting || !result.characters || !result.plot || !result.ageGroup || !result.totalPages) {
+      throw new Error("Invalid response format from OpenAI");
+    }
+
+    return {
+      title: result.title,
+      setting: result.setting,
+      characters: result.characters,
+      plot: result.plot,
+      ageGroup: result.ageGroup,
+      totalPages: result.totalPages
+    };
+  } catch (error) {
+    console.error("Error generating story idea:", error);
+    throw new Error("Failed to generate story idea. Please check your API key and try again.");
+  }
+}
