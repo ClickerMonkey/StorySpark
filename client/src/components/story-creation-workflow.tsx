@@ -18,7 +18,7 @@ import { getCoreImageUrl, getPageImageUrl, getCharacterImageUrl } from "@/utils/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
 import { RevisionPanel } from "@/components/revision-panel";
-import { Loader2, BookOpen, Users, ScrollText, Palette, Eye, Edit, Check, Plus, History, RefreshCw, Sparkles, ZoomIn, ZoomOut, RotateCcw, X } from "lucide-react";
+import { Loader2, BookOpen, Users, ScrollText, Palette, Eye, Edit, Check, Plus, History, RefreshCw, Sparkles, ZoomIn, ZoomOut, RotateCcw, X, AlertCircle } from "lucide-react";
 
 type WorkflowStep = "details" | "setting" | "characters" | "review" | "images" | "complete";
 
@@ -881,6 +881,35 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
     },
   });
 
+  // Generate core image mutation
+  const generateCoreImageMutation = useMutation({
+    mutationFn: async () => {
+      if (!generatedStory) throw new Error("No story to generate core image for");
+      const response = await apiRequest("POST", `/api/stories/${generatedStory.id}/regenerate-core-image`, {
+        customPrompt: "", // No custom prompt for initial generation
+        useCurrentImageAsReference: false
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.story) {
+        setGeneratedStory(data.story);
+      }
+      toast({
+        title: "Core Image Generated!",
+        description: "Your core character and setting image has been created.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/stories', generatedStory.id] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate core image",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleTitleEdit = () => {
     setTempTitle(generatedStory?.title || "");
     setIsEditingTitle(true);
@@ -1641,18 +1670,55 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                     <Palette className="text-indigo-600 mr-2" size={20} />
                     Core Character & Setting Image
                   </h3>
-                  <div className="flex items-center text-emerald-600">
-                    <Check className="mr-2" size={16} />
-                    <span className="font-medium">Complete</span>
-                  </div>
+                  {generatedStory.coreImageUrl ? (
+                    <div className="flex items-center text-emerald-600">
+                      <Check className="mr-2" size={16} />
+                      <span className="font-medium">Complete</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center text-amber-600">
+                        <AlertCircle className="mr-2" size={16} />
+                        <span className="font-medium">Missing</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => generateCoreImageMutation.mutate()}
+                        disabled={generateCoreImageMutation.isPending}
+                        className="bg-indigo-600 hover:bg-indigo-700"
+                        data-testid="button-generate-core-image"
+                      >
+                        {generateCoreImageMutation.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <Palette className="h-4 w-4 mr-1" />
+                            Generate
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 
-                {generatedStory.coreImageUrl && (
+                {generatedStory.coreImageUrl ? (
                   <CoreImageDisplay 
                     imageUrl={generatedStory.coreImageUrl}
                     storyId={generatedStory.id}
                     onImageRegenerated={(updatedStory) => setGeneratedStory(updatedStory)}
                   />
+                ) : (
+                  <div className="bg-white rounded-lg p-8 text-center border-2 border-dashed border-gray-300">
+                    <Palette className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-600 font-medium mb-2">No core image generated yet</p>
+                    <p className="text-gray-500 text-sm">
+                      Generate a core image featuring your main characters and setting to provide
+                      context for all page images.
+                    </p>
+                  </div>
                 )}
               </div>
 
