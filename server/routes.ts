@@ -796,7 +796,7 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
           height: 1024,
           numSteps: 50,
           guidanceScale: 7.5,
-          imageInput: story.coreImageUrl // Pass reference image for visual consistency
+          imageInput: story.coreImageUrl || undefined // Pass reference image for visual consistency
         });
       } else {
         // Use OpenAI for image generation
