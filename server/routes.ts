@@ -988,21 +988,89 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
         return res.status(403).json({ message: "Access denied" });
       }
 
-      if (!req.user?.openaiApiKey) {
-        return res.status(400).json({ message: "OpenAI API key required" });
+      // Check API keys based on preferred provider
+      const preferredProvider = req.user?.preferredImageProvider || "openai";
+      
+      if (preferredProvider === "replicate") {
+        if (!req.user?.replicateApiKey) {
+          return res.status(400).json({ message: "Replicate API key required" });
+        }
+      } else {
+        if (!req.user?.openaiApiKey) {
+          return res.status(400).json({ message: "OpenAI API key required" });
+        }
       }
 
-      const imageUrl = await regenerateCoreImage(
-        story.expandedSetting || story.setting,
-        story.extractedCharacters || [],
-        customPrompt,
-        useCurrentImageAsReference,
-        req.user.openaiApiKey,
-        req.user.openaiBaseUrl,
-        useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined
+      // Initialize image storage service
+      const imageStorage = new ImageStorageService();
+
+      let imageUrl: string;
+      let coreImageFileId: string;
+
+      if (preferredProvider === "replicate") {
+        // Use Replicate for core image regeneration
+        const replicateService = new ReplicateService(req.user.replicateApiKey!);
+        
+        const characterDescriptions = story.extractedCharacters && story.extractedCharacters.length > 0
+          ? `Characters: ${story.extractedCharacters.map(c => `${c.name} - ${c.description}`).join(', ')}\n`
+          : "";
+        
+        const settingDescription = story.expandedSetting || story.setting;
+        const storyGuidanceText = story.storyGuidance ? `\nStory guidance: ${story.storyGuidance}` : "";
+        const customPromptText = customPrompt ? `\nCustom instructions: ${customPrompt}` : "";
+        
+        const replicatePrompt = `Create a beautiful core reference image for a children's storybook:
+
+${characterDescriptions}Setting: ${settingDescription}${storyGuidanceText}${customPromptText}
+
+This image will serve as the visual foundation for the entire story. Create a scene that captures:
+- The overall mood and atmosphere of the setting
+- Key characters in a natural, welcoming scene
+- The magical or special elements of this world
+- A composition that could serve as a book cover
+
+Style: Bright, vibrant colors suitable for children, cartoonish and friendly illustration style, high quality digital illustration, safe and wholesome content only`;
+
+        // Use the user's preferred model or a default working FLUX model
+        let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
+        // Fallback to working model if user has invalid model set
+        if (modelId === "prunaai/flux-kontext-dev") {
+          modelId = "black-forest-labs/flux-schnell";
+        }
+        
+        imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
+          width: 1024,
+          height: 1024,
+          numSteps: 50,
+          guidanceScale: 7.5,
+          imageInput: useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined
+        });
+      } else {
+        // Use OpenAI for core image regeneration
+        imageUrl = await regenerateCoreImage(
+          story.expandedSetting || story.setting,
+          story.extractedCharacters || [],
+          customPrompt,
+          useCurrentImageAsReference,
+          req.user.openaiApiKey!,
+          req.user.openaiBaseUrl,
+          useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined
+        );
+      }
+      
+      // Download and store the regenerated core image as a file
+      coreImageFileId = await imageStorage.downloadAndStore(
+        imageUrl,
+        story.id,
+        'core',
+        'core_image_regenerated'
       );
       
-      const updatedStory = await storage.updateStory(storyId, { coreImageUrl: imageUrl });
+      // Update story with both URL (for backward compatibility) and file ID
+      await storage.updateStoryCoreImage(storyId, imageUrl);
+      await storage.updateStoryCoreImageFileId(storyId, coreImageFileId);
+      
+      const updatedStory = await storage.getStory(storyId);
       res.json({ imageUrl, story: updatedStory });
     } catch (error) {
       console.error("Error regenerating core image:", error);
