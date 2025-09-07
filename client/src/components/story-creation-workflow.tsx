@@ -996,6 +996,29 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
               <div className="space-y-6">
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    {/* Generate Story Idea Button - Moved to top */}
+                    <div className="flex justify-center">
+                      <Button
+                        type="button"
+                        onClick={handleGenerateStoryIdea}
+                        disabled={generateStoryIdeaMutation.isPending}
+                        variant="outline"
+                        className="w-full sm:w-auto border-2 border-purple-300 hover:border-purple-400 text-purple-700 hover:text-purple-800 px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-sm sm:text-base font-medium shadow-md hover:shadow-lg transition-all"
+                        data-testid="button-generate-idea"
+                      >
+                        {generateStoryIdeaMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Generating Idea...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            Generate Story Idea for Me
+                          </>
+                        )}
+                      </Button>
+                    </div>
                     <FormField
                       control={form.control}
                       name="title"
@@ -1172,29 +1195,6 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                       />
                     </div>
 
-                    {/* Generate Story Idea Button */}
-                    <div className="flex justify-center mt-4 sm:mt-6">
-                      <Button
-                        type="button"
-                        onClick={handleGenerateStoryIdea}
-                        disabled={generateStoryIdeaMutation.isPending}
-                        variant="outline"
-                        className="w-full sm:w-auto border-2 border-purple-300 hover:border-purple-400 text-purple-700 hover:text-purple-800 px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-sm sm:text-base font-medium shadow-md hover:shadow-lg transition-all"
-                        data-testid="button-generate-idea"
-                      >
-                        {generateStoryIdeaMutation.isPending ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Generating Idea...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="mr-2 h-4 w-4" />
-                            Generate Story Idea for Me
-                          </>
-                        )}
-                      </Button>
-                    </div>
 
                     <div className="flex justify-center mt-4 sm:mt-6">
                       <Button
