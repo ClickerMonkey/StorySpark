@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createStorySchema, insertStorySchema, type CreateStory, type Story, type StoryPage, type Character } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -46,10 +47,7 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
   const { toast } = useToast();
 
   // Get current user to access replicate model templates
-  const { data: user } = useQuery({
-    queryKey: ["/api/auth/user"],
-    retry: false,
-  });
+  const { user } = useAuth();
 
   const regenerateImageMutation = useMutation({
     mutationFn: async ({ prompt, useReference, customModel }: { prompt: string; useReference: boolean; customModel?: string }) => {
@@ -301,10 +299,7 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
   const queryClient = useQueryClient();
 
   // Get current user to access replicate model templates
-  const { data: user } = useQuery({
-    queryKey: ["/api/auth/user"],
-    retry: false,
-  });
+  const { user } = useAuth();
 
   const regenerateMutation = useMutation({
     mutationFn: async (data: { customPrompt: string; useCurrentImageAsReference: boolean; customModel?: string }) => {
@@ -1749,7 +1744,6 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                       </div>
                       
                       {/* Model Selection for initial generation - show if user has multiple replicate models */}
-                      {console.log('Debug - user data:', { preferredImageProvider: user?.preferredImageProvider, replicateModelTemplates: user?.replicateModelTemplates, count: user?.replicateModelTemplates?.length })}
                       {user?.preferredImageProvider === "replicate" && user?.replicateModelTemplates && user.replicateModelTemplates.length > 1 && (
                         <div className="flex flex-col">
                           <Select value={initialCoreImageModel} onValueChange={setInitialCoreImageModel}>

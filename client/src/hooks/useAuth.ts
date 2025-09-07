@@ -12,6 +12,7 @@ interface User {
   replicateApiKey?: string;
   preferredImageProvider?: string;
   preferredReplicateModel?: string;
+  replicateModelTemplates?: any[];
 }
 
 interface AuthState {

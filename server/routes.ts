@@ -207,6 +207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           replicateApiKey: user.replicateApiKey,
           preferredImageProvider: user.preferredImageProvider,
           preferredReplicateModel: user.preferredReplicateModel,
+          replicateModelTemplates: user.replicateModelTemplates,
         }
       });
     } catch (error) {
