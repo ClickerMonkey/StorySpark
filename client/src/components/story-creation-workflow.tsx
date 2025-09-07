@@ -260,12 +260,19 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
   const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
   const [useCurrentImageAsReference, setUseCurrentImageAsReference] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("");
   const [isRegenerating, setIsRegenerating] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Get current user to access replicate model templates
+  const { data: user } = useQuery({
+    queryKey: ["/api/auth/user"],
+    retry: false,
+  });
+
   const regenerateMutation = useMutation({
-    mutationFn: async (data: { customPrompt: string; useCurrentImageAsReference: boolean }) => {
+    mutationFn: async (data: { customPrompt: string; useCurrentImageAsReference: boolean; customModel?: string }) => {
       const response = await apiRequest("POST", `/api/stories/${storyId}/regenerate-core-image`, data);
       return response.json();
     },
@@ -274,6 +281,7 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
       setShowRegenerateDialog(false);
       setCustomPrompt("");
       setUseCurrentImageAsReference(false);
+      setSelectedModel("");
       toast({
         title: "Success",
         description: "Core image regenerated successfully!",
@@ -318,6 +326,7 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
     regenerateMutation.mutate({
       customPrompt: customPrompt.trim(),
       useCurrentImageAsReference,
+      ...(selectedModel && { customModel: selectedModel }),
     });
   };
 
@@ -420,6 +429,26 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
                 data-testid="textarea-core-prompt"
               />
             </div>
+
+            {/* Model Selection - show if user has multiple replicate models and is using replicate */}
+            {user?.preferredImageProvider === "replicate" && user?.replicateModelTemplates && user.replicateModelTemplates.length > 1 && (
+              <div>
+                <Label htmlFor="core-model-select">AI Model (Optional)</Label>
+                <Select value={selectedModel} onValueChange={setSelectedModel}>
+                  <SelectTrigger data-testid="select-core-model">
+                    <SelectValue placeholder="Use default model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Use default model</SelectItem>
+                    {user.replicateModelTemplates.map((template: any) => (
+                      <SelectItem key={template.modelId} value={template.modelId}>
+                        {template.displayName || template.modelId}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             
             {imageUrl && (
               <div className="flex items-center space-x-2">
