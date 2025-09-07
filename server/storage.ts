@@ -458,7 +458,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserStories(userId: string): Promise<Story[]> {
-    return await db.select().from(stories).where(eq(stories.userId, userId)).orderBy(stories.createdAt);
+    return await db.select().from(stories).where(eq(stories.userId, userId)).orderBy(desc(stories.createdAt));
   }
 
   async toggleStoryBookmark(id: string): Promise<Story | undefined> {
