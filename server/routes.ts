@@ -580,7 +580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const coreImageUrl = await generateCoreImage(
         story.expandedSetting || story.setting,
         story.extractedCharacters || [],
-        req.user.openaiApiKey,
+        req.user.openaiApiKey!,
         req.user.openaiBaseUrl
       );
       
@@ -593,7 +593,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const characterImageUrl = await generateCharacterImage(
             character,
             story.expandedSetting || story.setting,
-            req.user.openaiApiKey,
+            req.user.openaiApiKey!,
             req.user.openaiBaseUrl
           );
           characterImages[character.name] = characterImageUrl;
