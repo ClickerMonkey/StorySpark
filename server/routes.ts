@@ -602,8 +602,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateStoryStatus(story.id, "generating_images");
 
-      // Generate core image using preferred provider
+      // Initialize image storage service
+      const imageStorage = new ImageStorageService();
+
+      // Generate core image using preferred provider and store as file
       let coreImageUrl: string;
+      let coreImageFileId: string;
       
       if (preferredProvider === "replicate") {
         // Use Replicate for core image generation
@@ -651,9 +655,19 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
         );
       }
       
+      // Download and store the core image as a file
+      coreImageFileId = await imageStorage.downloadAndStore(
+        coreImageUrl,
+        story.id,
+        'core',
+        'core_image'
+      );
+      
+      // Update story with both URL (for backward compatibility) and file ID
       await storage.updateStoryCoreImage(story.id, coreImageUrl);
+      await storage.updateStoryCoreImageFileId(story.id, coreImageFileId);
 
-      // Generate character images using preferred provider
+      // Generate character images using preferred provider and store as files
       if (story.extractedCharacters && story.extractedCharacters.length > 0) {
         const characterImages: Record<string, string> = {};
         for (const character of story.extractedCharacters) {
@@ -704,8 +718,17 @@ Style requirements:
             );
           }
           
+          // Download and store character image as file
+          const characterImageFileId = await imageStorage.downloadAndStore(
+            characterImageUrl,
+            story.id,
+            'character',
+            `${character.name.toLowerCase().replace(/\s+/g, '_')}_character`
+          );
+          
           characterImages[character.name] = characterImageUrl;
           await storage.updateCharacterImage(story.id, character.name, characterImageUrl);
+          await storage.updateCharacterImageFileId(story.id, character.name, characterImageFileId);
         }
       }
 
@@ -770,7 +793,18 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
           );
         }
         
-        updatedPages[i] = { ...page, imageUrl };
+        // Download and store page image as file
+        const pageImageFileId = await imageStorage.downloadAndStore(
+          imageUrl,
+          story.id,
+          'page',
+          `page_${page.pageNumber}`
+        );
+
+        updatedPages[i] = { ...page, imageUrl, imageFileId: pageImageFileId };
+        
+        // Update the page with file ID
+        await storage.updateStoryPageImageFileId(story.id, page.pageNumber, pageImageFileId);
       }
 
       const finalStory = await storage.updateStory(story.id, {

@@ -31,10 +31,13 @@ export interface IStorage {
   updateStoryPages(id: string, pages: StoryPage[]): Promise<Story | undefined>;
   updateStoryStatus(id: string, status: string): Promise<Story | undefined>;
   updateStoryCoreImage(id: string, coreImageUrl: string): Promise<Story | undefined>;
+  updateStoryCoreImageFileId(id: string, fileId: string): Promise<Story | undefined>;
   updateStoryPageImage(id: string, pageNumber: number, imageUrl: string): Promise<Story | undefined>;
   updateStoryExpandedSetting(id: string, expandedSetting: string): Promise<Story | undefined>;
   updateStoryExtractedCharacters(id: string, characters: Character[]): Promise<Story | undefined>;
   updateCharacterImage(id: string, characterName: string, imageUrl: string): Promise<Story | undefined>;
+  updateCharacterImageFileId(id: string, characterName: string, fileId: string): Promise<Story | undefined>;
+  updateStoryPageImageFileId(id: string, pageNumber: number, fileId: string): Promise<Story | undefined>;
   
   // Revision methods
   createRevision(revision: InsertStoryRevision): Promise<StoryRevision>;
@@ -564,6 +567,34 @@ export class DatabaseStorage implements IStorage {
       };
     }
     return undefined;
+  }
+  // File ID update methods
+  async updateStoryCoreImageFileId(id: string, fileId: string): Promise<Story | undefined> {
+    return this.updateStory(id, { coreImageFileId: fileId });
+  }
+
+  async updateCharacterImageFileId(id: string, characterName: string, fileId: string): Promise<Story | undefined> {
+    const story = await this.getStory(id);
+    if (!story) return undefined;
+
+    // Update the character's imageFileId
+    const updatedCharacters = story.extractedCharacters?.map(char => 
+      char.name === characterName ? { ...char, imageFileId: fileId } : char
+    ) || [];
+
+    return this.updateStory(id, { extractedCharacters: updatedCharacters });
+  }
+
+  async updateStoryPageImageFileId(id: string, pageNumber: number, fileId: string): Promise<Story | undefined> {
+    const story = await this.getStory(id);
+    if (!story) return undefined;
+
+    // Update the specific page's imageFileId
+    const updatedPages = story.pages.map(page =>
+      page.pageNumber === pageNumber ? { ...page, imageFileId: fileId } : page
+    );
+
+    return this.updateStory(id, { pages: updatedPages });
   }
 }
 
