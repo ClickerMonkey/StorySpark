@@ -127,10 +127,6 @@ export class ReplicateService {
       imageInput?: string; // Base64 or URL
     } = {}
   ): Promise<string> {
-    console.log('=== REPLICATE GENERATION START ===');
-    console.log('Model ID:', modelId);
-    console.log('Prompt length:', prompt.length);
-    console.log('Options:', options);
     
     try {
       const input: any = {
@@ -169,50 +165,29 @@ export class ReplicateService {
         }
       }
 
-      console.log('Final input being sent to Replicate:', JSON.stringify(input, null, 2));
-      console.log('About to call replicate.run...');
-      
       const output = await this.replicate.run(modelId, { input });
-      
-      console.log('Replicate.run completed successfully');
-      
-      console.log('Replicate output type:', typeof output);
-      console.log('Replicate raw output:', output);
       
       // Handle different output formats
       if (Array.isArray(output)) {
-        console.log('Replicate returned array, using first item:', output[0]);
         const firstItem = output[0];
         
         // Handle FileOutput objects (new Replicate behavior)
-        console.log('First item type:', typeof firstItem);
-        console.log('First item constructor:', firstItem?.constructor?.name);
-        console.log('Has url method:', typeof firstItem?.url === 'function');
-        
         if (firstItem && typeof firstItem === 'object' && typeof firstItem.url === 'function') {
-          console.log('Getting URL from FileOutput object...');
           try {
             const url = firstItem.url();
-            console.log('Extracted URL from FileOutput:', url);
-            return url;
+            return url.toString();
           } catch (urlError) {
             console.error('Error getting URL from FileOutput:', urlError);
-            // Fallback: try to convert the object directly
-            console.log('Trying fallback conversion...');
             return String(firstItem);
           }
         }
         
         return firstItem as string;
       } else if (typeof output === 'string') {
-        console.log('Replicate returned string:', output);
         return output;
       } else if (output && typeof output === 'object' && 'url' in output) {
-        console.log('Replicate returned object with URL:', (output as any).url);
         return (output as any).url;
       }
-      
-      console.error('Unexpected Replicate output format:', output);
       throw new Error('Unexpected output format from Replicate');
     } catch (error) {
       console.error('Error generating image with Replicate:', error);

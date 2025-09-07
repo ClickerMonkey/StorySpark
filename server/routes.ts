@@ -642,7 +642,8 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
             width: 1024,
             height: 1024,
             numSteps: 50,
-            guidanceScale: 7.5
+            guidanceScale: 7.5,
+            imageInput: story.coreImageUrl || undefined // Pass reference image for visual consistency
           });
         } else {
           // Use OpenAI for image generation
@@ -772,7 +773,8 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
           width: 1024,
           height: 1024,
           numSteps: 50,
-          guidanceScale: 7.5
+          guidanceScale: 7.5,
+          imageInput: story.coreImageUrl // Pass reference image for visual consistency
         });
       } else {
         // Use OpenAI for image generation
