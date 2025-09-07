@@ -1211,11 +1211,11 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
       
       console.log('Page regeneration - Downloaded and stored as fileId:', pageImageFileId);
       
-      // Update story with both URL (for backward compatibility) and file ID
-      const updatedStory = await storage.updateStoryPageImage(storyId, pageNumber, imageUrl, finalCustomPrompt);
+      // Update story with file ID only (no URL storage)
       await storage.updateStoryPageImageFileId(story.id, pageNumber, pageImageFileId);
       
-      res.json({ imageUrl, story: updatedStory });
+      const updatedStory = await storage.getStory(storyId);
+      res.json({ story: updatedStory });
     } catch (error) {
       console.error("Error regenerating page image:", error);
       if (error instanceof z.ZodError) {
@@ -1242,8 +1242,20 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
         return res.status(403).json({ message: "Access denied" });
       }
 
-      const updatedStory = await storage.updateStoryPageImage(storyId, pageNumber, imageUrl, prompt);
-      res.json({ imageUrl, story: updatedStory });
+      // Download and store the image URL if it's a URL (for restoring from history)
+      const imageStorage = new ImageStorageService();
+      const pageImageFileId = await imageStorage.downloadAndStore(
+        imageUrl,
+        story.id,
+        'page',
+        `page_${pageNumber}_restored`
+      );
+      
+      // Update story with file ID only (no URL storage)
+      await storage.updateStoryPageImageFileId(story.id, pageNumber, pageImageFileId);
+      
+      const updatedStory = await storage.getStory(storyId);
+      res.json({ story: updatedStory });
     } catch (error) {
       console.error("Error restoring image version:", error);
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to restore image version" });
@@ -1381,12 +1393,11 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
         'core_image_regenerated'
       );
       
-      // Update story with both URL (for backward compatibility) and file ID
-      await storage.updateStoryCoreImage(storyId, imageUrl);
+      // Update story with file ID only (no URL storage)
       await storage.updateStoryCoreImageFileId(storyId, coreImageFileId);
       
       const updatedStory = await storage.getStory(storyId);
-      res.json({ imageUrl, story: updatedStory });
+      res.json({ story: updatedStory });
     } catch (error) {
       console.error("Error regenerating core image:", error);
       if (error instanceof z.ZodError) {
