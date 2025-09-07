@@ -20,7 +20,14 @@ export class ReplicateService {
 
   async searchModels(query: string = "", limit: number = 20): Promise<ReplicateModel[]> {
     try {
+      console.log('=== REPLICATE MODELS.LIST CALL ===');
+      console.log('Query:', query);
+      console.log('Limit:', limit);
+      console.log('===================================');
+      
       const models = await this.replicate.models.list();
+      
+      console.log('Found', models.results?.length || 0, 'models from Replicate API');
       
       // Filter for image generation models
       const imageModels = models.results
@@ -117,8 +124,19 @@ export class ReplicateService {
 
   async getModelSchema(modelId: string): Promise<any> {
     try {
+      console.log('=== REPLICATE MODELS.GET CALL ===');
+      console.log('Model ID:', modelId);
+      console.log('Owner:', modelId.split('/')[0]);
+      console.log('Name:', modelId.split('/')[1]);
+      console.log('==================================');
+      
       // Get the model information including input/output schema
       const model = await this.replicate.models.get(modelId.split('/')[0], modelId.split('/')[1]);
+      
+      console.log('Model retrieved successfully:');
+      console.log('- Name:', model.name);
+      console.log('- Description:', model.description);
+      console.log('- Has latest version:', !!model.latest_version);
       
       if (!model.latest_version) {
         throw new Error('Model has no available versions');
@@ -152,6 +170,12 @@ export class ReplicateService {
     } = {}
   ): Promise<string> {
     try {
+      console.log('generateImageWithTemplate called with:');
+      console.log('- modelId:', template.modelId);
+      console.log('- prompt:', prompt);
+      console.log('- options:', JSON.stringify(options, null, 2));
+      console.log('- template imageArrayFields:', template.imageArrayFields);
+      
       const input: any = {};
       
       // Apply user's configured values from template
@@ -255,6 +279,11 @@ export class ReplicateService {
         }
       }
       
+      console.log('=== REPLICATE TEMPLATE CALL ===');
+      console.log('Model ID:', template.modelId);
+      console.log('Input Object:', JSON.stringify(input, null, 2));
+      console.log('================================');
+      
       const output = await this.replicate.run(template.modelId as `${string}/${string}`, { input });
       
       // Handle different output formats
@@ -338,6 +367,11 @@ export class ReplicateService {
   ): Promise<string> {
     
     try {
+      console.log('generateImage called with:');
+      console.log('- modelId:', modelId);
+      console.log('- prompt:', prompt);
+      console.log('- options:', JSON.stringify(options, null, 2));
+      
       const input: any = {
         prompt,
       };
@@ -381,6 +415,11 @@ export class ReplicateService {
         }
       }
 
+      console.log('=== REPLICATE DIRECT CALL ===');
+      console.log('Model ID:', modelId);
+      console.log('Input Object:', JSON.stringify(input, null, 2));
+      console.log('==============================');
+      
       const output = await this.replicate.run(modelId as `${string}/${string}`, { input });
       
       console.log('generateImage - Raw Replicate output:', output);
