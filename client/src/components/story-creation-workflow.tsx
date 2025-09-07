@@ -1670,7 +1670,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                     <Palette className="text-indigo-600 mr-2" size={20} />
                     Core Character & Setting Image
                   </h3>
-                  {generatedStory.coreImageUrl ? (
+                  {getCoreImageUrl(generatedStory) ? (
                     <div className="flex items-center text-emerald-600">
                       <Check className="mr-2" size={16} />
                       <span className="font-medium">Complete</span>
@@ -1704,9 +1704,9 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                   )}
                 </div>
                 
-                {generatedStory.coreImageUrl ? (
+                {getCoreImageUrl(generatedStory) ? (
                   <CoreImageDisplay 
-                    imageUrl={generatedStory.coreImageUrl}
+                    imageUrl={getCoreImageUrl(generatedStory) || ""}
                     storyId={generatedStory.id}
                     onImageRegenerated={(updatedStory) => setGeneratedStory(updatedStory)}
                   />
@@ -1802,7 +1802,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                   Story Artwork
                 </h3>
                 <CoreImageDisplay 
-                  imageUrl={generatedStory.coreImageUrl || ""}
+                  imageUrl={getCoreImageUrl(generatedStory) || ""}
                   storyId={generatedStory.id}
                   onImageRegenerated={(updatedStory) => setGeneratedStory(updatedStory)}
                 />
