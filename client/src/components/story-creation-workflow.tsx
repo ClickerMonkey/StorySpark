@@ -41,11 +41,18 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
   const [showCustomPrompt, setShowCustomPrompt] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
   const [useCurrentImageAsReference, setUseCurrentImageAsReference] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("");
   const [showImageDialog, setShowImageDialog] = useState(false);
   const { toast } = useToast();
 
+  // Get current user to access replicate model templates
+  const { data: user } = useQuery({
+    queryKey: ["/api/auth/user"],
+    retry: false,
+  });
+
   const regenerateImageMutation = useMutation({
-    mutationFn: async ({ prompt, useReference }: { prompt: string; useReference: boolean }) => {
+    mutationFn: async ({ prompt, useReference, customModel }: { prompt: string; useReference: boolean; customModel?: string }) => {
       const requestBody: any = {
         customPrompt: prompt,
       };
@@ -53,6 +60,11 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
       // Add current image reference if checkbox is checked and image exists
       if (useReference && hasImage) {
         requestBody.currentImageUrl = hasImage;
+      }
+      
+      // Add custom model if provided
+      if (customModel) {
+        requestBody.customModel = customModel;
       }
       
       const response = await apiRequest("POST", `/api/stories/${storyId}/pages/${page.pageNumber}/regenerate-image`, requestBody);
@@ -64,6 +76,7 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
       setShowCustomPrompt(false);
       setCustomPrompt("");
       setUseCurrentImageAsReference(false);
+      setSelectedModel("");
       toast({
         title: "Image Regenerated!",
         description: "Your page image has been updated with the new prompt.",
@@ -84,7 +97,8 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
     // Use custom prompt if provided, otherwise send empty string for default behavior
     regenerateImageMutation.mutate({ 
       prompt: customPrompt.trim(), 
-      useReference: useCurrentImageAsReference 
+      useReference: useCurrentImageAsReference,
+      ...(selectedModel && { customModel: selectedModel }),
     });
   };
 
@@ -185,6 +199,26 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
                   data-testid={`input-custom-prompt-${page.pageNumber}`}
                 />
                 
+                {/* Model Selection - show if user has multiple replicate models and is using replicate */}
+                {user?.preferredImageProvider === "replicate" && user?.replicateModelTemplates && user.replicateModelTemplates.length > 1 && (
+                  <div>
+                    <Label htmlFor={`page-model-select-${page.pageNumber}`}>AI Model (Optional)</Label>
+                    <Select value={selectedModel} onValueChange={setSelectedModel}>
+                      <SelectTrigger data-testid={`select-page-model-${page.pageNumber}`}>
+                        <SelectValue placeholder="Use default model" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Use default model</SelectItem>
+                        {user.replicateModelTemplates.map((template: any) => (
+                          <SelectItem key={template.modelId} value={template.modelId}>
+                            {template.displayName || template.modelId}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
                 {/* Use Current Image as Reference Checkbox - Only show for regeneration */}
                 {hasImage && (
                   <div className="flex items-center space-x-2">
@@ -224,6 +258,7 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
                       setShowCustomPrompt(false);
                       setCustomPrompt("");
                       setUseCurrentImageAsReference(false);
+                      setSelectedModel("");
                     }}
                     data-testid={`button-cancel-prompt-${page.pageNumber}`}
                   >

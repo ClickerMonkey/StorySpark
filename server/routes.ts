@@ -988,7 +988,7 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
   // Regenerate page image with custom prompt
   app.post("/api/stories/:id/pages/:pageNumber/regenerate-image", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { storyId, pageNumber, customPrompt, currentImageUrl } = regenerateImageSchema.parse({
+      const { storyId, pageNumber, customPrompt, currentImageUrl, customModel } = regenerateImageSchema.parse({
         storyId: req.params.id,
         pageNumber: parseInt(req.params.pageNumber),
         ...req.body
@@ -1078,8 +1078,8 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
         // Add text exclusion instruction for all Replicate prompts
         replicatePrompt += `\n\nIMPORTANT: Do not include any text, words, letters, or written language in the image unless specifically requested in the ${finalCustomPrompt ? 'custom modifications' : 'page guidance'} above.`;
 
-        // Use the user's preferred model or a default working FLUX model
-        let modelId = fullUser.preferredReplicateModel || "black-forest-labs/flux-schnell";
+        // Use custom model if provided, otherwise use user's preferred model or default
+        let modelId = customModel || fullUser.preferredReplicateModel || "black-forest-labs/flux-schnell";
         // Fallback to working model if user has invalid model set
         if (modelId === "prunaai/flux-kontext-dev") {
           modelId = "black-forest-labs/flux-schnell";

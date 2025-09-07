@@ -114,6 +114,7 @@ export const regenerateImageSchema = z.object({
   pageNumber: z.number(),
   customPrompt: z.string(),
   currentImageUrl: z.string().optional(),
+  customModel: z.string().optional(), // Optional custom replicate model to use
 });
 
 export const regenerateCoreImageSchema = z.object({
