@@ -214,22 +214,48 @@ export class ReplicateService {
         if (firstItem && typeof firstItem === 'object' && typeof firstItem.url === 'function') {
           try {
             const url = firstItem.url();
+            console.log('Successfully extracted URL from FileOutput.url():', url);
             return url.toString();
           } catch (urlError) {
-            console.error('Error getting URL from FileOutput:', urlError);
-            // Try to extract URL from object properties instead of stringifying
+            console.error('Error getting URL from FileOutput.url():', urlError);
+            console.log('FileOutput object keys:', Object.keys(firstItem));
+            console.log('FileOutput object:', JSON.stringify(firstItem, null, 2));
+            
+            // Try to extract URL from object properties
+            if (firstItem.href && typeof firstItem.href === 'string') {
+              console.log('Found URL in href property:', firstItem.href);
+              return firstItem.href;
+            }
+            if (firstItem.src && typeof firstItem.src === 'string') {
+              console.log('Found URL in src property:', firstItem.src);
+              return firstItem.src;
+            }
+            if (firstItem.path && typeof firstItem.path === 'string' && firstItem.path.startsWith('http')) {
+              console.log('Found URL in path property:', firstItem.path);
+              return firstItem.path;
+            }
+            
+            // Check for direct URL property
+            if (firstItem.url && typeof firstItem.url === 'string') {
+              console.log('Found URL as string property:', firstItem.url);
+              return firstItem.url;
+            }
+            
+            // Try custom toString only if it's a URL string
             if (firstItem.toString && firstItem.toString !== Object.prototype.toString) {
-              const urlString = firstItem.toString();
-              if (urlString.startsWith('http')) {
-                return urlString;
+              try {
+                const urlString = firstItem.toString();
+                console.log('toString result:', urlString);
+                if (urlString && typeof urlString === 'string' && urlString.startsWith('http') && !urlString.includes('function')) {
+                  console.log('Using toString result as URL:', urlString);
+                  return urlString;
+                }
+              } catch (toStringError) {
+                console.error('Error calling toString on FileOutput:', toStringError);
               }
             }
-            // Last resort: check for URL-like properties
-            if (firstItem.href) return firstItem.href;
-            if (firstItem.src) return firstItem.src;
-            if (firstItem.path && firstItem.path.startsWith('http')) return firstItem.path;
             
-            throw new Error('Could not extract valid URL from FileOutput object');
+            throw new Error(`Could not extract valid URL from FileOutput object. Available properties: ${Object.keys(firstItem).join(', ')}`);
           }
         }
         
@@ -306,22 +332,48 @@ export class ReplicateService {
         if (firstItem && typeof firstItem === 'object' && typeof firstItem.url === 'function') {
           try {
             const url = firstItem.url();
+            console.log('Successfully extracted URL from FileOutput.url():', url);
             return url.toString();
           } catch (urlError) {
-            console.error('Error getting URL from FileOutput:', urlError);
-            // Try to extract URL from object properties instead of stringifying
+            console.error('Error getting URL from FileOutput.url():', urlError);
+            console.log('FileOutput object keys:', Object.keys(firstItem));
+            console.log('FileOutput object:', JSON.stringify(firstItem, null, 2));
+            
+            // Try to extract URL from object properties
+            if (firstItem.href && typeof firstItem.href === 'string') {
+              console.log('Found URL in href property:', firstItem.href);
+              return firstItem.href;
+            }
+            if (firstItem.src && typeof firstItem.src === 'string') {
+              console.log('Found URL in src property:', firstItem.src);
+              return firstItem.src;
+            }
+            if (firstItem.path && typeof firstItem.path === 'string' && firstItem.path.startsWith('http')) {
+              console.log('Found URL in path property:', firstItem.path);
+              return firstItem.path;
+            }
+            
+            // Check for direct URL property
+            if (firstItem.url && typeof firstItem.url === 'string') {
+              console.log('Found URL as string property:', firstItem.url);
+              return firstItem.url;
+            }
+            
+            // Try custom toString only if it's a URL string
             if (firstItem.toString && firstItem.toString !== Object.prototype.toString) {
-              const urlString = firstItem.toString();
-              if (urlString.startsWith('http')) {
-                return urlString;
+              try {
+                const urlString = firstItem.toString();
+                console.log('toString result:', urlString);
+                if (urlString && typeof urlString === 'string' && urlString.startsWith('http') && !urlString.includes('function')) {
+                  console.log('Using toString result as URL:', urlString);
+                  return urlString;
+                }
+              } catch (toStringError) {
+                console.error('Error calling toString on FileOutput:', toStringError);
               }
             }
-            // Last resort: check for URL-like properties
-            if (firstItem.href) return firstItem.href;
-            if (firstItem.src) return firstItem.src;
-            if (firstItem.path && firstItem.path.startsWith('http')) return firstItem.path;
             
-            throw new Error('Could not extract valid URL from FileOutput object');
+            throw new Error(`Could not extract valid URL from FileOutput object. Available properties: ${Object.keys(firstItem).join(', ')}`);
           }
         }
         
