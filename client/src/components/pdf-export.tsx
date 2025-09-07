@@ -184,7 +184,7 @@ export function PDFExport({ story, className }: PDFExportProps) {
     <Button
       onClick={generatePDF}
       disabled={isGenerating}
-      className={className}
+      className={`${className} text-black hover:text-gray-700`}
       data-testid="button-export-pdf"
     >
       {isGenerating ? (
