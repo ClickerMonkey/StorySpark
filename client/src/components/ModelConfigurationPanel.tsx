@@ -66,10 +66,10 @@ export function ModelConfigurationPanel({ className = '' }: ModelConfigurationPa
       const response = await apiRequest(`/api/replicate/analyze-model`, 'POST', { modelId });
       return response;
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       setCurrentTemplate(data.template);
       toast({
-        title: "Model Analyzed Successfully",
+        title: "Model Analyzed Successfully", 
         description: `Found ${Object.keys(data.template.inputSchema.properties || {}).length} input properties`,
       });
     },
