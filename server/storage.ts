@@ -14,6 +14,7 @@ import {
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { encryptApiKey, decryptApiKey } from "./utils/encryption";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -294,7 +295,14 @@ export class DatabaseStorage implements IStorage {
   }
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
+    if (!user) return undefined;
+    
+    // Decrypt API keys before returning to client
+    return {
+      ...user,
+      openaiApiKey: decryptApiKey(user.openaiApiKey),
+      replicateApiKey: decryptApiKey(user.replicateApiKey),
+    };
   }
 
   async createUser(insertUser: Omit<InsertUser, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
@@ -504,16 +512,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserOpenAI(userId: string, openaiApiKey: string, openaiBaseUrl?: string): Promise<User | undefined> {
+    const encryptedApiKey = encryptApiKey(openaiApiKey);
+    
     const [updatedUser] = await db
       .update(users)
       .set({
-        openaiApiKey,
+        openaiApiKey: encryptedApiKey,
         openaiBaseUrl: openaiBaseUrl || "https://api.openai.com/v1",
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId))
       .returning();
-    return updatedUser || undefined;
+    
+    if (updatedUser) {
+      // Decrypt API keys before returning to client
+      return {
+        ...updatedUser,
+        openaiApiKey: decryptApiKey(updatedUser.openaiApiKey),
+        replicateApiKey: decryptApiKey(updatedUser.replicateApiKey),
+      };
+    }
+    return undefined;
   }
 
   async updateUserProfile(userId: string, profileData: { replicateApiKey?: string; preferredImageProvider?: string; preferredReplicateModel?: string }): Promise<User | undefined> {
@@ -521,7 +540,7 @@ export class DatabaseStorage implements IStorage {
     const updateData: any = { updatedAt: new Date() };
     
     if (profileData.replicateApiKey !== undefined) {
-      updateData.replicateApiKey = profileData.replicateApiKey || null;
+      updateData.replicateApiKey = profileData.replicateApiKey ? encryptApiKey(profileData.replicateApiKey) : null;
     }
     if (profileData.preferredImageProvider !== undefined) {
       updateData.preferredImageProvider = profileData.preferredImageProvider;
@@ -535,7 +554,16 @@ export class DatabaseStorage implements IStorage {
       .set(updateData)
       .where(eq(users.id, userId))
       .returning();
-    return updatedUser || undefined;
+    
+    if (updatedUser) {
+      // Decrypt API keys before returning to client
+      return {
+        ...updatedUser,
+        openaiApiKey: decryptApiKey(updatedUser.openaiApiKey),
+        replicateApiKey: decryptApiKey(updatedUser.replicateApiKey),
+      };
+    }
+    return undefined;
   }
 }
 
