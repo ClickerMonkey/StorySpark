@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ImageViewerDialog } from "@/components/image-viewer-dialog";
+import { getCoreImageUrl, getPageImageUrl, getCharacterImageUrl } from "@/utils/imageUrl";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
 import { RevisionPanel } from "@/components/revision-panel";

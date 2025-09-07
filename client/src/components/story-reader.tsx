@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageViewerDialog } from "@/components/image-viewer-dialog";
 import { ImageHistoryDialog } from "@/components/image-history-dialog";
+import { getCoreImageUrl, getPageImageUrl } from "@/utils/imageUrl";
 import { PDFExport } from "@/components/pdf-export";
 import { ChevronLeft, ChevronRight, Volume2, Bookmark, Share, Download, Edit, Save, BookOpen, Users, Clock, RefreshCw, Loader2, FileText, History } from "lucide-react";
 
@@ -186,7 +187,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
             <Button variant="ghost" size="sm" data-testid="button-read-aloud">
               <Volume2 className="h-4 w-4" />
             </Button>
-            {currentPage?.imageUrl && (
+            {getPageImageUrl(currentPage) && (
               <>
                 <Dialog open={isRegenerateDialogOpen} onOpenChange={setIsRegenerateDialogOpen}>
                   <DialogTrigger asChild>
@@ -300,14 +301,14 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
             {/* Story Image */}
             <div className="order-2 lg:order-1">
-              {currentPage?.imageUrl ? (
+              {getPageImageUrl(currentPage) ? (
                 <div
                   className="cursor-pointer transform hover:scale-105 transition-transform"
-                  onClick={() => setZoomedImage({ url: currentPage.imageUrl!, title: `Page ${currentPage.pageNumber} Illustration` })}
+                  onClick={() => setZoomedImage({ url: getPageImageUrl(currentPage)!, title: `Page ${currentPage.pageNumber} Illustration` })}
                   data-testid="page-image-container"
                 >
                   <img 
-                    src={currentPage.imageUrl}
+                    src={getPageImageUrl(currentPage)}
                     alt={`Story illustration for page ${currentPage.pageNumber}`}
                     className="w-full rounded-xl shadow-lg"
                     data-testid="page-image"

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImageViewerDialog } from "@/components/image-viewer-dialog";
+import { getCoreImageUrl } from "@/utils/imageUrl";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -174,14 +175,14 @@ export default function StoryLibrary() {
             <Card key={story.id} className="overflow-hidden hover:shadow-xl transition-shadow cursor-pointer">
               {/* Story Cover Image */}
               <div className="w-full h-48 bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
-                {story.coreImageUrl ? (
+                {getCoreImageUrl(story) ? (
                   <img 
-                    src={story.coreImageUrl}
+                    src={getCoreImageUrl(story)}
                     alt={`${story.title} cover`}
                     className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" 
                     onClick={(e) => {
                       e.stopPropagation();
-                      setZoomedImage({ url: story.coreImageUrl!, title: `${story.title} Cover Image` });
+                      setZoomedImage({ url: getCoreImageUrl(story)!, title: `${story.title} Cover Image` });
                     }}
                   />
                 ) : (
