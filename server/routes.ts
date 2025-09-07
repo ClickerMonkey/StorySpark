@@ -1198,7 +1198,23 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
         );
       }
       
+      console.log('Page regeneration - About to downloadAndStore imageUrl:', truncateForLog(imageUrl));
+      
+      // Download and store the regenerated page image as a file
+      const imageStorage = new ImageStorageService();
+      const pageImageFileId = await imageStorage.downloadAndStore(
+        imageUrl,
+        story.id,
+        'page',
+        `page_${pageNumber}_regenerated`
+      );
+      
+      console.log('Page regeneration - Downloaded and stored as fileId:', pageImageFileId);
+      
+      // Update story with both URL (for backward compatibility) and file ID
       const updatedStory = await storage.updateStoryPageImage(storyId, pageNumber, imageUrl, finalCustomPrompt);
+      await storage.updateStoryPageImageFileId(story.id, pageNumber, pageImageFileId);
+      
       res.json({ imageUrl, story: updatedStory });
     } catch (error) {
       console.error("Error regenerating page image:", error);
