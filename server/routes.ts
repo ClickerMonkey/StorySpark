@@ -1214,7 +1214,17 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
       }
       
       console.log('About to call downloadAndStore with imageUrl:', imageUrl);
-      console.log('imageUrl validation - starts with http:', imageUrl && imageUrl.startsWith('http'));
+      console.log('imageUrl type:', typeof imageUrl);
+      console.log('imageUrl is string?', typeof imageUrl === 'string');
+      if (typeof imageUrl === 'string') {
+        console.log('imageUrl validation - starts with http:', imageUrl.startsWith('http'));
+        console.log('imageUrl length:', imageUrl.length);
+      } else {
+        console.error('ERROR: imageUrl is not a string! Received type:', typeof imageUrl);
+        console.error('imageUrl value:', imageUrl);
+        console.error('imageUrl keys (if object):', imageUrl && typeof imageUrl === 'object' ? Object.keys(imageUrl) : 'N/A');
+        throw new Error(`Invalid imageUrl type. Expected string, got ${typeof imageUrl}. Value: ${JSON.stringify(imageUrl)}`);
+      }
       
       // Download and store the regenerated core image as a file
       coreImageFileId = await imageStorage.downloadAndStore(
