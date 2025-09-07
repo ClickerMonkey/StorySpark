@@ -631,8 +631,13 @@ ${characterDescriptions}Setting: ${settingDescription}${storyGuidanceText}${page
 
 Style: Bright, vibrant colors suitable for children, cartoonish and friendly illustration style, high quality digital illustration, safe and wholesome content only`;
 
-          // Use the user's preferred model or a default
-          const modelId = req.user.preferredReplicateModel || "stability-ai/sdxl";
+          // Use the user's preferred model or a default working FLUX model
+          let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
+          
+          // Fallback to working model if user has invalid model set
+          if (modelId === "prunaai/flux-kontext-dev") {
+            modelId = "black-forest-labs/flux-schnell";
+          }
           
           imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
             width: 1024,
@@ -761,8 +766,13 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
           replicatePrompt += `\n\nCustom modifications: ${finalCustomPrompt}`;
         }
 
-        // Use the user's preferred model or a default
-        const modelId = req.user.preferredReplicateModel || "stability-ai/sdxl";
+        // Use the user's preferred model or a default working FLUX model
+        let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
+        
+        // Fallback to working model if user has invalid model set
+        if (modelId === "prunaai/flux-kontext-dev") {
+          modelId = "black-forest-labs/flux-schnell";
+        }
         
         imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
           width: 1024,
