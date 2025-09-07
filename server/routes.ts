@@ -561,8 +561,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      if (!req.user?.openaiApiKey) {
-        return res.status(400).json({ message: "OpenAI API key required" });
+      // Check API keys based on preferred provider
+      const preferredProvider = req.user?.preferredImageProvider || "openai";
+      
+      if (preferredProvider === "replicate") {
+        if (!req.user?.replicateApiKey) {
+          return res.status(400).json({ message: "Replicate API key required" });
+        }
+      } else {
+        if (!req.user?.openaiApiKey) {
+          return res.status(400).json({ message: "OpenAI API key required" });
+        }
       }
 
       await storage.updateStoryStatus(story.id, "generating_images");
@@ -601,19 +610,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const page = story.pages[i];
         const previousPageImageUrl = i > 0 ? updatedPages[i - 1].imageUrl : undefined;
 
-        const imageUrl = await generatePageImage(
-          page.text,
-          coreImageUrl,
-          previousPageImageUrl,
-          story.expandedSetting || story.setting,
-          story.extractedCharacters || undefined,
-          req.user.openaiApiKey,
-          req.user.openaiBaseUrl,
-          undefined, // customPrompt
-          storyContext, // full story context
-          story.storyGuidance || undefined, // story-wide guidance
-          page.imageGuidance || undefined // page-specific image guidance
-        );
+        let imageUrl: string;
+
+        if (preferredProvider === "replicate") {
+          // Use Replicate for image generation
+          const replicateService = new ReplicateService(req.user.replicateApiKey!);
+          
+          // Build comprehensive prompt for Replicate
+          const characterDescriptions = story.extractedCharacters && story.extractedCharacters.length > 0
+            ? `Characters: ${story.extractedCharacters.map(c => `${c.name} - ${c.description}`).join(', ')}\n`
+            : "";
+          
+          const settingDescription = story.expandedSetting || story.setting;
+          const pageImageGuidance = page.imageGuidance ? `\nPage guidance: ${page.imageGuidance}` : "";
+          const storyGuidanceText = story.storyGuidance ? `\nStory guidance: ${story.storyGuidance}` : "";
+          
+          const replicatePrompt = `Create a beautiful children's book illustration for: ${page.text}
+
+${characterDescriptions}Setting: ${settingDescription}${storyGuidanceText}${pageImageGuidance}
+
+Style: Bright, vibrant colors suitable for children, cartoonish and friendly illustration style, high quality digital illustration, safe and wholesome content only`;
+
+          // Use the user's preferred model or a default
+          const modelId = req.user.preferredReplicateModel || "stability-ai/sdxl";
+          
+          imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
+            width: 1024,
+            height: 1024,
+            numSteps: 50,
+            guidanceScale: 7.5
+          });
+        } else {
+          // Use OpenAI for image generation
+          imageUrl = await generatePageImage(
+            page.text,
+            coreImageUrl,
+            previousPageImageUrl,
+            story.expandedSetting || story.setting,
+            story.extractedCharacters || undefined,
+            req.user.openaiApiKey!,
+            req.user.openaiBaseUrl,
+            undefined, // customPrompt
+            storyContext, // full story context
+            story.storyGuidance || undefined, // story-wide guidance
+            page.imageGuidance || undefined // page-specific image guidance
+          );
+        }
         
         updatedPages[i] = { ...page, imageUrl };
       }
@@ -649,8 +691,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      if (!req.user?.openaiApiKey) {
-        return res.status(400).json({ message: "OpenAI API key required" });
+      // Check API keys based on preferred provider
+      const preferredProvider = req.user?.preferredImageProvider || "openai";
+      
+      if (preferredProvider === "replicate") {
+        if (!req.user?.replicateApiKey) {
+          return res.status(400).json({ message: "Replicate API key required" });
+        }
+      } else {
+        if (!req.user?.openaiApiKey) {
+          return res.status(400).json({ message: "OpenAI API key required" });
+        }
       }
 
       const page = story.pages.find(p => p.pageNumber === pageNumber);
@@ -681,19 +732,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Build full story context for regeneration
       const storyContext = story.pages.map(p => `Page ${p.pageNumber}: ${p.text}`).join('\n\n');
 
-      const imageUrl = await generatePageImage(
-        page.text,
-        story.coreImageUrl || "",
-        previousPageImageUrl,
-        story.expandedSetting || story.setting,
-        story.extractedCharacters || undefined,
-        req.user.openaiApiKey,
-        req.user.openaiBaseUrl,
-        finalCustomPrompt,
-        storyContext, // full story context
-        story.storyGuidance || undefined, // story-wide guidance
-        page.imageGuidance || undefined // page-specific image guidance
-      );
+      let imageUrl: string;
+
+      if (preferredProvider === "replicate") {
+        // Use Replicate for image generation
+        const replicateService = new ReplicateService(req.user.replicateApiKey!);
+        
+        // Build comprehensive prompt for Replicate
+        const characterDescriptions = story.extractedCharacters && story.extractedCharacters.length > 0
+          ? `Characters: ${story.extractedCharacters.map(c => `${c.name} - ${c.description}`).join(', ')}\n`
+          : "";
+        
+        const settingDescription = story.expandedSetting || story.setting;
+        const pageImageGuidance = page.imageGuidance ? `\nPage guidance: ${page.imageGuidance}` : "";
+        const storyGuidanceText = story.storyGuidance ? `\nStory guidance: ${story.storyGuidance}` : "";
+        
+        let replicatePrompt = `Create a beautiful children's book illustration for: ${page.text}
+
+${characterDescriptions}Setting: ${settingDescription}${storyGuidanceText}${pageImageGuidance}
+
+Style: Bright, vibrant colors suitable for children, cartoonish and friendly illustration style, high quality digital illustration, safe and wholesome content only`;
+
+        if (finalCustomPrompt) {
+          replicatePrompt += `\n\nCustom modifications: ${finalCustomPrompt}`;
+        }
+
+        // Use the user's preferred model or a default
+        const modelId = req.user.preferredReplicateModel || "stability-ai/sdxl";
+        
+        imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
+          width: 1024,
+          height: 1024,
+          numSteps: 50,
+          guidanceScale: 7.5
+        });
+      } else {
+        // Use OpenAI for image generation
+        imageUrl = await generatePageImage(
+          page.text,
+          story.coreImageUrl || "",
+          previousPageImageUrl,
+          story.expandedSetting || story.setting,
+          story.extractedCharacters || undefined,
+          req.user.openaiApiKey!,
+          req.user.openaiBaseUrl,
+          finalCustomPrompt,
+          storyContext, // full story context
+          story.storyGuidance || undefined, // story-wide guidance
+          page.imageGuidance || undefined // page-specific image guidance
+        );
+      }
       
       const updatedStory = await storage.updateStoryPageImage(storyId, pageNumber, imageUrl, finalCustomPrompt);
       res.json({ imageUrl, story: updatedStory });
