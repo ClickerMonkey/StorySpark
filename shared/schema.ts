@@ -158,6 +158,7 @@ export type ReplicateModelInputProperty = {
   maximum?: number;
   isPromptField?: boolean; // Identified by LLM as receiving prompt text
   isImageField?: boolean;  // Identified by LLM as receiving image URLs
+  imageFieldType?: 'primary' | 'reference' | 'style' | 'mask' | 'conditioning' | 'other';
 };
 
 export type ReplicateModelTemplate = {
@@ -174,6 +175,7 @@ export type ReplicateModelTemplate = {
   };
   promptField?: string;   // Main prompt property name (identified by LLM)
   imageFields?: string[]; // Image input property names (identified by LLM) 
+  imageFieldTypes?: Record<string, 'primary' | 'reference' | 'style' | 'mask' | 'conditioning' | 'other'>; // Type of each image field
   userValues: Record<string, any>; // User-configured values for non-prompt/image fields
   lastAnalyzed: string; // ISO date when LLM analyzed this schema
 };

@@ -1024,7 +1024,7 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
         if (template) {
           // Use intelligent template-based generation with reference image
           imageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt, {
-            imageInput: story.coreImageUrl || undefined
+            referenceImage: story.coreImageUrl || undefined
           });
         } else {
           // Fall back to legacy hardcoded generation
@@ -1163,7 +1163,7 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
         if (template) {
           // Use intelligent template-based generation with optional reference image
           imageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt, {
-            imageInput: useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined,
+            referenceImage: useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined,
             additionalPrompt: customPromptText
           });
         } else {

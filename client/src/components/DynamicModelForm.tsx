@@ -261,22 +261,58 @@ export function DynamicModelForm({ template, onTemplateUpdate, className = '' }:
       {imageFields.length > 0 && (
         <FieldGroup
           title="Image Handling"
-          description="These fields receive reference images automatically"
+          description="These fields receive reference images automatically based on their type"
           icon={<Image className="w-4 h-4 text-green-500" />}
           badge="Auto-managed"
         >
           <div className="space-y-2">
-            {imageFields.map(([fieldName, property]) => (
-              <div key={fieldName} className="flex items-center justify-between p-2 bg-muted/50 rounded">
-                <div>
-                  <span className="font-medium text-sm">{fieldName}</span>
-                  {property.description && (
-                    <p className="text-xs text-muted-foreground">{property.description}</p>
-                  )}
+            {imageFields.map(([fieldName, property]) => {
+              const imageType = property.imageFieldType || 'other';
+              const typeColors = {
+                primary: 'bg-blue-100 text-blue-700 border-blue-200',
+                reference: 'bg-green-100 text-green-700 border-green-200',
+                style: 'bg-purple-100 text-purple-700 border-purple-200',
+                mask: 'bg-orange-100 text-orange-700 border-orange-200',
+                conditioning: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+                other: 'bg-gray-100 text-gray-700 border-gray-200'
+              };
+              
+              return (
+                <div key={fieldName} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-sm">{fieldName}</span>
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs ${typeColors[imageType as keyof typeof typeColors]}`}
+                      >
+                        {imageType} image
+                      </Badge>
+                    </div>
+                    {property.description && (
+                      <p className="text-xs text-muted-foreground">{property.description}</p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <Badge variant="secondary" className="text-xs">
+                      Auto-filled
+                    </Badge>
+                  </div>
                 </div>
-                <Badge variant="outline">Image URL</Badge>
+              );
+            })}
+            
+            {/* Image usage explanation */}
+            <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+              <h5 className="text-xs font-medium text-blue-900 mb-2">How Images Are Used:</h5>
+              <div className="text-xs text-blue-700 space-y-1">
+                <div><span className="font-medium">Primary:</span> Main input image for generation</div>
+                <div><span className="font-medium">Reference:</span> Style and composition guidance</div>
+                <div><span className="font-medium">Style:</span> Artistic style transfer</div>
+                <div><span className="font-medium">Conditioning:</span> Additional control signals</div>
+                <div><span className="font-medium">Mask:</span> Region control for editing</div>
               </div>
-            ))}
+            </div>
           </div>
         </FieldGroup>
       )}

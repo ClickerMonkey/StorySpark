@@ -144,7 +144,10 @@ export class ReplicateService {
     template: any, 
     prompt: string, 
     options: {
-      imageInput?: string;
+      primaryImage?: string;
+      referenceImage?: string;
+      styleImage?: string;
+      additionalImages?: Record<string, string>; // Additional images by field name
       additionalPrompt?: string;
     } = {}
   ): Promise<string> {
@@ -163,9 +166,42 @@ export class ReplicateService {
         input[template.promptField] = finalPrompt;
       }
       
-      // Apply image input to the first identified image field
-      if (options.imageInput && template.imageFields && template.imageFields.length > 0) {
-        input[template.imageFields[0]] = options.imageInput;
+      // Apply images to their appropriate fields based on type
+      if (template.imageFields && template.imageFieldTypes) {
+        for (const imageField of template.imageFields) {
+          const fieldType = template.imageFieldTypes[imageField];
+          let imageUrl: string | undefined;
+          
+          // Map image inputs to field types
+          switch (fieldType) {
+            case 'primary':
+              imageUrl = options.primaryImage;
+              break;
+            case 'reference':
+              imageUrl = options.referenceImage;
+              break;
+            case 'style':
+              imageUrl = options.styleImage;
+              break;
+            default:
+              // Check additional images for this specific field
+              imageUrl = options.additionalImages?.[imageField];
+              break;
+          }
+          
+          // Apply the image if we have one
+          if (imageUrl) {
+            input[imageField] = imageUrl;
+          }
+        }
+      }
+      
+      // Fallback: If no typed fields, use the first image field for primary image
+      if (!template.imageFieldTypes && template.imageFields && template.imageFields.length > 0) {
+        const primaryImageUrl = options.primaryImage || options.referenceImage;
+        if (primaryImageUrl) {
+          input[template.imageFields[0]] = primaryImageUrl;
+        }
       }
       
       const output = await this.replicate.run(template.modelId as `${string}/${string}`, { input });

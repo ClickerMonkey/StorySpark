@@ -22,8 +22,15 @@ export class ModelSchemaAnalyzer {
       // Create prompt for LLM analysis
       const analysisPrompt = `You are an expert at analyzing Replicate model input schemas. Analyze this model schema and identify:
 1. Which property is the MAIN PROMPT field (receives text descriptions/instructions)
-2. Which properties are IMAGE INPUT fields (receive image URLs or base64 data)
+2. Which properties are IMAGE INPUT fields (receive image URLs or base64 data) - FIND ALL OF THEM
 3. All other properties and their purposes
+
+IMPORTANT: Many models accept multiple images for different purposes:
+- Primary input image
+- Reference/style images
+- Conditioning images
+- Image masks
+- Previous generation images
 
 Model: ${modelId}
 Name: ${name || 'Unknown'}
@@ -37,21 +44,28 @@ Required fields: ${JSON.stringify(required)}
 Please respond with a JSON object in this exact format:
 {
   "promptField": "property_name_that_receives_main_prompt_text",
-  "imageFields": ["property1", "property2"],
+  "imageFields": ["property1", "property2", "..."],
+  "imageFieldTypes": {
+    "property1": "primary|reference|style|mask|conditioning|other",
+    "property2": "primary|reference|style|mask|conditioning|other"
+  },
   "analysis": {
     "property_name": {
       "purpose": "brief description of what this property does",
       "isPromptField": true/false,
-      "isImageField": true/false
+      "isImageField": true/false,
+      "imageFieldType": "primary|reference|style|mask|conditioning|other (if isImageField=true)"
     }
   }
 }
 
 Rules:
 - promptField should be the ONE main text prompt property (usually "prompt", "text", "instruction", etc.)
-- imageFields should be properties that accept image URLs or base64 data
+- imageFields should include ALL properties that accept image URLs or base64 data
+- imageFieldTypes should categorize each image field by its purpose
 - Mark isPromptField=true for only the main prompt property
-- Mark isImageField=true for image input properties
+- Mark isImageField=true for ALL image input properties
+- Be thorough - don't miss any image fields
 - Be accurate and conservative in your analysis`;
 
       const response = await this.openai.chat.completions.create({
@@ -89,7 +103,8 @@ Rules:
           minimum: prop.minimum,
           maximum: prop.maximum,
           isPromptField: analysis.isPromptField === true,
-          isImageField: analysis.isImageField === true
+          isImageField: analysis.isImageField === true,
+          imageFieldType: analysis.imageFieldType || undefined
         };
       }
 
@@ -104,6 +119,7 @@ Rules:
         outputSchema,
         promptField: analysisResult.promptField,
         imageFields: analysisResult.imageFields || [],
+        imageFieldTypes: analysisResult.imageFieldTypes || {},
         userValues: {}, // Empty initially, user will configure
         lastAnalyzed: new Date().toISOString()
       };
