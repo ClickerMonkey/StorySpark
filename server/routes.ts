@@ -1178,12 +1178,16 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
         
         if (template) {
           // Use intelligent template-based generation with optional reference image
+          console.log('Using template-based generation with template:', JSON.stringify(template, null, 2));
           imageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt, {
             referenceImage: useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined,
             additionalPrompt: customPromptText
           });
+          console.log('Template-based generation returned imageUrl:', imageUrl);
+          console.log('Template-based generation imageUrl type:', typeof imageUrl);
         } else {
           // Fall back to legacy hardcoded generation
+          console.log('Using legacy hardcoded generation with modelId:', modelId);
           imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
             width: 1024,
             height: 1024,
@@ -1191,6 +1195,8 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
             guidanceScale: 7.5,
             imageInput: useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined
           });
+          console.log('Legacy generation returned imageUrl:', imageUrl);
+          console.log('Legacy generation imageUrl type:', typeof imageUrl);
         }
       } else {
         // Use OpenAI for core image regeneration
@@ -1203,7 +1209,12 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
           req.user.openaiBaseUrl,
           useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined
         );
+        console.log('OpenAI generation returned imageUrl:', imageUrl);
+        console.log('OpenAI generation imageUrl type:', typeof imageUrl);
       }
+      
+      console.log('About to call downloadAndStore with imageUrl:', imageUrl);
+      console.log('imageUrl validation - starts with http:', imageUrl && imageUrl.startsWith('http'));
       
       // Download and store the regenerated core image as a file
       coreImageFileId = await imageStorage.downloadAndStore(

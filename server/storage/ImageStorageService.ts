@@ -18,6 +18,20 @@ export class ImageStorageService {
     customFilename?: string
   ): Promise<string> {
     try {
+      console.log('ImageStorageService.downloadAndStore - Received imageUrl:', imageUrl);
+      console.log('ImageStorageService.downloadAndStore - imageUrl type:', typeof imageUrl);
+      console.log('ImageStorageService.downloadAndStore - imageUrl length:', imageUrl.length);
+      
+      // Validate URL before attempting to fetch
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        throw new Error('Invalid imageUrl: must be a non-empty string');
+      }
+      
+      if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+        console.error('Invalid URL format. Expected HTTP/HTTPS URL, got:', imageUrl);
+        throw new Error(`Invalid URL format. Expected HTTP/HTTPS URL, got: ${imageUrl.substring(0, 100)}...`);
+      }
+      
       // Download the image
       const response = await fetch(imageUrl);
       if (!response.ok) {
