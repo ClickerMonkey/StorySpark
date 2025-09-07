@@ -217,7 +217,19 @@ export class ReplicateService {
             return url.toString();
           } catch (urlError) {
             console.error('Error getting URL from FileOutput:', urlError);
-            return String(firstItem);
+            // Try to extract URL from object properties instead of stringifying
+            if (firstItem.toString && firstItem.toString !== Object.prototype.toString) {
+              const urlString = firstItem.toString();
+              if (urlString.startsWith('http')) {
+                return urlString;
+              }
+            }
+            // Last resort: check for URL-like properties
+            if (firstItem.href) return firstItem.href;
+            if (firstItem.src) return firstItem.src;
+            if (firstItem.path && firstItem.path.startsWith('http')) return firstItem.path;
+            
+            throw new Error('Could not extract valid URL from FileOutput object');
           }
         }
         
@@ -297,7 +309,19 @@ export class ReplicateService {
             return url.toString();
           } catch (urlError) {
             console.error('Error getting URL from FileOutput:', urlError);
-            return String(firstItem);
+            // Try to extract URL from object properties instead of stringifying
+            if (firstItem.toString && firstItem.toString !== Object.prototype.toString) {
+              const urlString = firstItem.toString();
+              if (urlString.startsWith('http')) {
+                return urlString;
+              }
+            }
+            // Last resort: check for URL-like properties
+            if (firstItem.href) return firstItem.href;
+            if (firstItem.src) return firstItem.src;
+            if (firstItem.path && firstItem.path.startsWith('http')) return firstItem.path;
+            
+            throw new Error('Could not extract valid URL from FileOutput object');
           }
         }
         
