@@ -429,14 +429,14 @@ export default function Profile() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => selectModel(model.name)}
+                                    onClick={() => selectModel(model.id || model.name)}
                                     className="text-xs h-7 px-2"
                                   >
                                     Select
                                   </Button>
                                   <Button
                                     size="sm"
-                                    onClick={() => configureModel(model.name)}
+                                    onClick={() => configureModel(model.id || model.name)}
                                     className="text-xs h-7 px-2 bg-indigo-600 hover:bg-indigo-700"
                                   >
                                     <Settings className="h-3 w-3" />
@@ -469,14 +469,14 @@ export default function Profile() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => selectModel(model.name)}
+                                    onClick={() => selectModel(model.id || model.name)}
                                     className="text-xs h-8"
                                   >
                                     Quick Select
                                   </Button>
                                   <Button
                                     size="sm"
-                                    onClick={() => configureModel(model.name)}
+                                    onClick={() => configureModel(model.id || model.name)}
                                     className="text-xs h-8 bg-indigo-600 hover:bg-indigo-700"
                                   >
                                     <Settings className="h-3 w-3 mr-1" />
