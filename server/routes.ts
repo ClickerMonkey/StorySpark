@@ -775,7 +775,11 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
         }
         
         // Check if user has a template for this model
-        const userTemplates = req.user.replicateModelTemplates || [];
+        const fullUser = await storage.getUser(req.user!.id);
+        if (!fullUser) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        const userTemplates = fullUser.replicateModelTemplates || [];
         const template = userTemplates.find((t: any) => t.modelId === modelId);
         
         if (template) {
@@ -848,7 +852,11 @@ Style requirements:
             }
             
             // Check if user has a template for this model
-            const userTemplates = req.user.replicateModelTemplates || [];
+            const fullUser = await storage.getUser(req.user!.id);
+            if (!fullUser) {
+              return res.status(404).json({ message: "User not found" });
+            }
+            const userTemplates = fullUser.replicateModelTemplates || [];
             const template = userTemplates.find((t: any) => t.modelId === modelId);
             
             if (template) {
@@ -1332,7 +1340,11 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
         }
         
         // Check if user has a template for this model
-        const userTemplates = req.user.replicateModelTemplates || [];
+        const fullUser = await storage.getUser(req.user!.id);
+        if (!fullUser) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        const userTemplates = fullUser.replicateModelTemplates || [];
         const template = userTemplates.find((t: any) => t.modelId === modelId);
         
         if (template) {
