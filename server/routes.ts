@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateStoryText, generateCoreImage, generatePageImage, expandSetting, extractCharacters, generateCharacterImage, regenerateCoreImage } from "./services/openai";
+import { generateStoryText, generateCoreImage, generatePageImage, expandSetting, extractCharacters, generateCharacterImage, regenerateCoreImage, generateStoryIdea } from "./services/openai";
 import { ReplicateService } from "./services/replicate";
 import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema, regenerateCoreImageSchema, createRevisionSchema, updateUserProfileSchema } from "@shared/schema";
 import { verifyGoogleToken, generateJWT, requireAuth, optionalAuth, type AuthenticatedRequest } from "./auth";
@@ -262,6 +262,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Search models error:", error);
       res.status(500).json({ message: "Failed to search models" });
+    }
+  });
+
+  // Generate story idea
+  app.post("/api/generate-story-idea", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { ageGroup } = req.body;
+      
+      if (!req.user?.openaiApiKey) {
+        return res.status(400).json({ message: "OpenAI API key required. Please configure it in your settings." });
+      }
+
+      const storyIdea = await generateStoryIdea(
+        ageGroup,
+        req.user.openaiApiKey,
+        req.user.openaiBaseUrl
+      );
+
+      res.json(storyIdea);
+    } catch (error) {
+      console.error("Error generating story idea:", error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to generate story idea" });
     }
   });
 
