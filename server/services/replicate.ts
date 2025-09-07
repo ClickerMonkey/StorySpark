@@ -130,18 +130,38 @@ export class ReplicateService {
     try {
       const input: any = {
         prompt,
-        width: options.width || 1024,
-        height: options.height || 1024,
-        num_inference_steps: options.numSteps || 50,
-        guidance_scale: options.guidanceScale || 7.5,
       };
 
-      if (options.seed) {
-        input.seed = options.seed;
-      }
+      // Handle FLUX models which have different parameter formats
+      if (modelId.includes('flux')) {
+        // FLUX models use aspect_ratio and have limited parameters
+        input.aspect_ratio = "1:1"; // Default to square, FLUX supports 1:1, 16:9, 21:9, 2:3, 3:2, 4:5, 5:4, 9:16, 9:21
+        
+        if (options.seed) {
+          input.seed = options.seed;
+        }
+        
+        // Only flux-dev and flux-pro support num_inference_steps, flux-schnell doesn't
+        if (modelId.includes('flux-dev') || modelId.includes('flux-pro')) {
+          input.num_inference_steps = options.numSteps || 50;
+        }
+        
+        // FLUX models don't use guidance_scale
+        // FLUX models don't use width/height directly
+      } else {
+        // Standard Stable Diffusion style parameters for other models
+        input.width = options.width || 1024;
+        input.height = options.height || 1024;
+        input.num_inference_steps = options.numSteps || 50;
+        input.guidance_scale = options.guidanceScale || 7.5;
+        
+        if (options.seed) {
+          input.seed = options.seed;
+        }
 
-      if (options.imageInput) {
-        input.image = options.imageInput;
+        if (options.imageInput) {
+          input.image = options.imageInput;
+        }
       }
 
       const output = await this.replicate.run(modelId, { input });
