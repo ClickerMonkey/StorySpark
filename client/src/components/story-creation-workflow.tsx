@@ -283,7 +283,7 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
         onImageRegenerated(data.story);
       }
       // Invalidate queries to refresh story data
-      queryClient.invalidateQueries({ queryKey: ['/api/stories', storyId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/stories/${storyId}`] });
     },
     onError: (error: Error) => {
       setIsRegenerating(false);
@@ -899,7 +899,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
         title: "Core Image Generated!",
         description: "Your core character and setting image has been created.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/stories', generatedStory.id] });
+      queryClient.invalidateQueries({ queryKey: [`/api/stories/${generatedStory.id}`] });
     },
     onError: (error) => {
       toast({
