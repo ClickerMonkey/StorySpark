@@ -170,37 +170,88 @@ export class ReplicateService {
       if (template.imageFields && template.imageFieldTypes) {
         for (const imageField of template.imageFields) {
           const fieldType = template.imageFieldTypes[imageField];
-          let imageUrl: string | undefined;
+          const isArrayField = template.imageArrayFields?.includes(imageField);
           
-          // Map image inputs to field types
-          switch (fieldType) {
-            case 'primary':
-              imageUrl = options.primaryImage;
-              break;
-            case 'reference':
-              imageUrl = options.referenceImage;
-              break;
-            case 'style':
-              imageUrl = options.styleImage;
-              break;
-            default:
-              // Check additional images for this specific field
-              imageUrl = options.additionalImages?.[imageField];
-              break;
-          }
-          
-          // Apply the image if we have one
-          if (imageUrl) {
-            input[imageField] = imageUrl;
+          if (isArrayField) {
+            // For array fields, collect all available images into an array
+            const imageArray: string[] = [];
+            
+            // Add images based on priority order
+            if (options.primaryImage) imageArray.push(options.primaryImage);
+            if (options.referenceImage && options.referenceImage !== options.primaryImage) {
+              imageArray.push(options.referenceImage);
+            }
+            if (options.styleImage && !imageArray.includes(options.styleImage)) {
+              imageArray.push(options.styleImage);
+            }
+            
+            // Add any additional images that aren't already included
+            if (options.additionalImages) {
+              for (const additionalImage of Object.values(options.additionalImages)) {
+                if (!imageArray.includes(additionalImage)) {
+                  imageArray.push(additionalImage);
+                }
+              }
+            }
+            
+            // Only set the array if we have images
+            if (imageArray.length > 0) {
+              console.log(`Setting array field '${imageField}' with ${imageArray.length} images:`, imageArray);
+              input[imageField] = imageArray;
+            }
+          } else {
+            // For single image fields, use the standard logic
+            let imageUrl: string | undefined;
+            
+            // Map image inputs to field types
+            switch (fieldType) {
+              case 'primary':
+                imageUrl = options.primaryImage;
+                break;
+              case 'reference':
+                imageUrl = options.referenceImage;
+                break;
+              case 'style':
+                imageUrl = options.styleImage;
+                break;
+              default:
+                // Check additional images for this specific field
+                imageUrl = options.additionalImages?.[imageField];
+                break;
+            }
+            
+            // Apply the image if we have one
+            if (imageUrl) {
+              console.log(`Setting single image field '${imageField}' with:`, imageUrl);
+              input[imageField] = imageUrl;
+            }
           }
         }
       }
       
       // Fallback: If no typed fields, use the first image field for primary image
       if (!template.imageFieldTypes && template.imageFields && template.imageFields.length > 0) {
-        const primaryImageUrl = options.primaryImage || options.referenceImage;
-        if (primaryImageUrl) {
-          input[template.imageFields[0]] = primaryImageUrl;
+        const firstImageField = template.imageFields[0];
+        const isArrayField = template.imageArrayFields?.includes(firstImageField);
+        
+        if (isArrayField) {
+          // For array fallback, collect available images
+          const imageArray: string[] = [];
+          if (options.primaryImage) imageArray.push(options.primaryImage);
+          if (options.referenceImage && options.referenceImage !== options.primaryImage) {
+            imageArray.push(options.referenceImage);
+          }
+          if (imageArray.length > 0) {
+            console.log(`Fallback: Setting array field '${firstImageField}' with ${imageArray.length} images`);
+            input[firstImageField] = imageArray;
+          }
+        } else {
+          // For single image fallback
+          const primaryImageUrl = options.primaryImage || options.referenceImage;
+          if (primaryImageUrl) {
+            console.log(`Fallback: Setting single image field '${firstImageField}'`);
+            input[firstImageField] = primaryImageUrl;
+          }
         }
       }
       
