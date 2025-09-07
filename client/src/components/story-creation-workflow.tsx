@@ -623,6 +623,40 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
     },
   });
 
+  // Generate story idea mutation
+  const generateStoryIdeaMutation = useMutation({
+    mutationFn: async (ageGroup?: string) => {
+      const response = await apiRequest("POST", "/api/generate-story-idea", { ageGroup });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Populate the form with the generated idea
+      form.setValue("title", data.title);
+      form.setValue("setting", data.setting);
+      form.setValue("characters", data.characters);
+      form.setValue("plot", data.plot);
+      form.setValue("ageGroup", data.ageGroup);
+      form.setValue("totalPages", data.totalPages);
+      
+      toast({
+        title: "Story Idea Generated!",
+        description: "I've filled in your form with a creative story idea. Feel free to edit any details.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate story idea",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleGenerateStoryIdea = () => {
+    const currentAgeGroup = form.getValues("ageGroup");
+    generateStoryIdeaMutation.mutate(currentAgeGroup);
+  };
+
   const generateAllImages = async (storyId: string) => {
     try {
       console.log("Starting image generation for story:", storyId);
@@ -1138,7 +1172,31 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                       />
                     </div>
 
-                    <div className="flex justify-center mt-6 sm:mt-8">
+                    {/* Generate Story Idea Button */}
+                    <div className="flex justify-center mt-4 sm:mt-6">
+                      <Button
+                        type="button"
+                        onClick={handleGenerateStoryIdea}
+                        disabled={generateStoryIdeaMutation.isPending}
+                        variant="outline"
+                        className="w-full sm:w-auto border-2 border-purple-300 hover:border-purple-400 text-purple-700 hover:text-purple-800 px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-sm sm:text-base font-medium shadow-md hover:shadow-lg transition-all"
+                        data-testid="button-generate-idea"
+                      >
+                        {generateStoryIdeaMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Generating Idea...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            Generate Story Idea for Me
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    <div className="flex justify-center mt-4 sm:mt-6">
                       <Button
                         type="submit"
                         disabled={createStoryMutation.isPending}
