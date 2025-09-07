@@ -341,18 +341,26 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
             {/* Story Image */}
             <div className="order-2 lg:order-1">
-              {getPageImageUrl(currentPage) ? (
+              {getPageImageUrl(currentPage) || getCoreImageUrl(story) ? (
                 <div
                   className="cursor-pointer transform hover:scale-105 transition-transform"
-                  onClick={() => setZoomedImage({ url: getPageImageUrl(currentPage)!, title: `Page ${currentPage.pageNumber} Illustration` })}
+                  onClick={() => setZoomedImage({ 
+                    url: getPageImageUrl(currentPage) || getCoreImageUrl(story)!, 
+                    title: getPageImageUrl(currentPage) ? `Page ${currentPage.pageNumber} Illustration` : `${story.title} Core Image`
+                  })}
                   data-testid="page-image-container"
                 >
                   <img 
-                    src={getPageImageUrl(currentPage)}
-                    alt={`Story illustration for page ${currentPage.pageNumber}`}
+                    src={getPageImageUrl(currentPage) || getCoreImageUrl(story)}
+                    alt={getPageImageUrl(currentPage) ? `Story illustration for page ${currentPage.pageNumber}` : `${story.title} core image`}
                     className="w-full rounded-xl shadow-lg"
                     data-testid="page-image"
                   />
+                  {!getPageImageUrl(currentPage) && getCoreImageUrl(story) && (
+                    <div className="mt-2 text-xs text-gray-500 text-center">
+                      Core Image (Page image not generated)
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="w-full h-64 bg-gray-200 rounded-xl flex items-center justify-center">
