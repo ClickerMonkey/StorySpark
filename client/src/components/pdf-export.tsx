@@ -188,15 +188,9 @@ export function PDFExport({ story, className }: PDFExportProps) {
       data-testid="button-export-pdf"
     >
       {isGenerating ? (
-        <>
-          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          Generating PDF...
-        </>
+        <Loader2 className="w-4 h-4 animate-spin" />
       ) : (
-        <>
-          <FileText className="w-4 h-4 mr-2" />
-          Export PDF
-        </>
+        <FileText className="w-4 h-4" />
       )}
     </Button>
   );
