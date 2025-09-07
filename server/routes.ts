@@ -57,6 +57,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Serve stored files by file ID  
+  app.get("/api/files/:fileId", async (req, res) => {
+    try {
+      const imageStorage = new ImageStorageService();
+      const fileData = await imageStorage.retrieve(req.params.fileId);
+      
+      if (!fileData) {
+        return res.status(404).json({ message: "File not found" });
+      }
+      
+      res.set({
+        'Content-Type': fileData.mimeType,
+        'Content-Length': fileData.buffer.length.toString(),
+        'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+      });
+      
+      res.send(fileData.buffer);
+    } catch (error) {
+      console.error("Error serving file:", error);
+      res.status(500).json({ message: "Failed to serve file" });
+    }
+  });
+
   // Google OAuth callback route
   app.get("/api/auth/google/callback", async (req, res) => {
     try {
@@ -1068,20 +1091,36 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
             additionalPrompt: finalCustomPrompt
           };
           
+          // Convert file IDs to local URLs instead of using external Replicate URLs
+          const getImageUrl = (url: string | undefined, fileId: string | undefined): string | undefined => {
+            if (fileId) {
+              // Use stored file reference instead of external URL
+              const protocol = req.protocol;
+              const host = req.get('host');
+              return `${protocol}://${host}/api/files/${fileId}`;
+            }
+            return url; // Fallback to original URL if no fileId
+          };
+
           // Set primary image (current page image takes priority)
-          if (currentImageUrl) {
-            imageOptions.primaryImage = currentImageUrl;
+          const primaryImageUrl = getImageUrl(currentImageUrl, page.imageFileId);
+          if (primaryImageUrl) {
+            imageOptions.primaryImage = primaryImageUrl;
           }
           
           // Set reference image (story core image for visual consistency)
-          if (story.coreImageUrl && story.coreImageUrl !== currentImageUrl) {
-            imageOptions.referenceImage = story.coreImageUrl;
+          const referenceImageUrl = getImageUrl(story.coreImageUrl, story.coreImageFileId);
+          if (referenceImageUrl && referenceImageUrl !== primaryImageUrl) {
+            imageOptions.referenceImage = referenceImageUrl;
           }
           
           // Set additional images for models that support extra image inputs
           const additionalImages: { [key: string]: string } = {};
-          if (previousPageImageUrl && previousPageImageUrl !== currentImageUrl && previousPageImageUrl !== story.coreImageUrl) {
-            additionalImages.previous_page = previousPageImageUrl;
+          if (previousPage?.imageFileId) {
+            const prevImageUrl = getImageUrl(previousPageImageUrl, previousPage.imageFileId);
+            if (prevImageUrl && prevImageUrl !== primaryImageUrl && prevImageUrl !== referenceImageUrl) {
+              additionalImages.previous_page = prevImageUrl;
+            }
           }
           
           if (Object.keys(additionalImages).length > 0) {
@@ -1091,26 +1130,44 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
           console.log('Page regeneration - Using multiple images:', {
             primaryImage: !!imageOptions.primaryImage,
             referenceImage: !!imageOptions.referenceImage,
-            additionalImages: Object.keys(additionalImages)
+            additionalImages: Object.keys(additionalImages),
+            primaryImageUrl: imageOptions.primaryImage,
+            referenceImageUrl: imageOptions.referenceImage
           });
           
           imageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt, imageOptions);
         } else {
           // Fall back to legacy hardcoded generation with primary reference image
+          const legacyImageUrl = getImageUrl(currentImageUrl, page.imageFileId) || 
+                                 getImageUrl(previousPageImageUrl, previousPage?.imageFileId) || 
+                                 getImageUrl(story.coreImageUrl, story.coreImageFileId);
+          
           imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
             width: 1024,
             height: 1024,
             numSteps: 50,
             guidanceScale: 7.5,
-            imageInput: currentImageUrl || previousPageImageUrl || story.coreImageUrl || undefined
+            imageInput: legacyImageUrl
           });
         }
       } else {
-        // Use OpenAI for image generation
+        // Use OpenAI for image generation with stored file references
+        const protocol = req.protocol;
+        const host = req.get('host');
+        const getImageUrl = (url: string | undefined, fileId: string | undefined): string | undefined => {
+          if (fileId) {
+            return `${protocol}://${host}/api/files/${fileId}`;
+          }
+          return url;
+        };
+
+        const openaiCoreImageUrl = getImageUrl(story.coreImageUrl, story.coreImageFileId) || "";
+        const openaiPreviousImageUrl = getImageUrl(previousPageImageUrl, previousPage?.imageFileId);
+        
         imageUrl = await generatePageImage(
           page.text,
-          story.coreImageUrl || "",
-          previousPageImageUrl,
+          openaiCoreImageUrl,
+          openaiPreviousImageUrl,
           story.expandedSetting || story.setting,
           story.extractedCharacters || undefined,
           fullUser.openaiApiKey!,
