@@ -732,7 +732,9 @@ This image will serve as the visual foundation for the entire story. Create a sc
 - The magical or special elements of this world
 - A composition that could serve as a book cover
 
-Style: Bright, vibrant colors suitable for children, cartoonish and friendly illustration style, high quality digital illustration, safe and wholesome content only`;
+Style: Bright, vibrant colors suitable for children, cartoonish and friendly illustration style, high quality digital illustration, safe and wholesome content only
+
+IMPORTANT: Do not include any text, words, letters, or written language in the image unless specifically requested in the story guidance above.`;
 
         // Use the user's preferred model or a default working FLUX model
         let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
@@ -882,7 +884,9 @@ Style requirements:
 
 ${characterDescriptions}Setting: ${settingDescription}${storyGuidanceText}${pageImageGuidance}
 
-Style: Bright, vibrant colors suitable for children, cartoonish and friendly illustration style, high quality digital illustration, safe and wholesome content only`;
+Style: Bright, vibrant colors suitable for children, cartoonish and friendly illustration style, high quality digital illustration, safe and wholesome content only
+
+IMPORTANT: Do not include any text, words, letters, or written language in the image unless specifically requested in the page guidance above.`;
 
           // Use the user's preferred model or a default working FLUX model
           let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
@@ -1163,7 +1167,9 @@ This image will serve as the visual foundation for the entire story. Create a sc
 - The magical or special elements of this world
 - A composition that could serve as a book cover
 
-Style: Bright, vibrant colors suitable for children, cartoonish and friendly illustration style, high quality digital illustration, safe and wholesome content only`;
+Style: Bright, vibrant colors suitable for children, cartoonish and friendly illustration style, high quality digital illustration, safe and wholesome content only
+
+IMPORTANT: Do not include any text, words, letters, or written language in the image unless specifically requested in the custom instructions above.`;
 
         // Use the user's preferred model or a default working FLUX model
         let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
