@@ -598,26 +598,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateStoryStatus(story.id, "generating_images");
 
-      // Generate core image
-      const coreImageUrl = await generateCoreImage(
-        story.expandedSetting || story.setting,
-        story.extractedCharacters || [],
-        req.user.openaiApiKey!,
-        req.user.openaiBaseUrl
-      );
+      // Generate core image using preferred provider
+      let coreImageUrl: string;
+      
+      if (preferredProvider === "replicate") {
+        // Use Replicate for core image generation
+        const replicateService = new ReplicateService(req.user.replicateApiKey!);
+        
+        const characterDescriptions = story.extractedCharacters && story.extractedCharacters.length > 0
+          ? `Characters: ${story.extractedCharacters.map(c => `${c.name} - ${c.description}`).join(', ')}\n`
+          : "";
+        
+        const settingDescription = story.expandedSetting || story.setting;
+        const storyGuidanceText = story.storyGuidance ? `\nStory guidance: ${story.storyGuidance}` : "";
+        
+        const replicatePrompt = `Create a beautiful core reference image for a children's storybook:
+
+${characterDescriptions}Setting: ${settingDescription}${storyGuidanceText}
+
+This image will serve as the visual foundation for the entire story. Create a scene that captures:
+- The overall mood and atmosphere of the setting
+- Key characters in a natural, welcoming scene
+- The magical or special elements of this world
+- A composition that could serve as a book cover
+
+Style: Bright, vibrant colors suitable for children, cartoonish and friendly illustration style, high quality digital illustration, safe and wholesome content only`;
+
+        // Use the user's preferred model or a default working FLUX model
+        let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
+        // Fallback to working model if user has invalid model set
+        if (modelId === "prunaai/flux-kontext-dev") {
+          modelId = "black-forest-labs/flux-schnell";
+        }
+        
+        coreImageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
+          width: 1024,
+          height: 1024,
+          numSteps: 50,
+          guidanceScale: 7.5,
+        });
+      } else {
+        // Use OpenAI for core image generation
+        coreImageUrl = await generateCoreImage(
+          story.expandedSetting || story.setting,
+          story.extractedCharacters || [],
+          req.user.openaiApiKey!,
+          req.user.openaiBaseUrl
+        );
+      }
       
       await storage.updateStoryCoreImage(story.id, coreImageUrl);
 
-      // Generate character images
+      // Generate character images using preferred provider
       if (story.extractedCharacters && story.extractedCharacters.length > 0) {
         const characterImages: Record<string, string> = {};
         for (const character of story.extractedCharacters) {
-          const characterImageUrl = await generateCharacterImage(
-            character,
-            story.expandedSetting || story.setting,
-            req.user.openaiApiKey!,
-            req.user.openaiBaseUrl
-          );
+          let characterImageUrl: string;
+          
+          if (preferredProvider === "replicate") {
+            // Use Replicate for character image generation
+            const replicateService = new ReplicateService(req.user.replicateApiKey!);
+            
+            const settingDescription = story.expandedSetting || story.setting;
+            const storyGuidanceText = story.storyGuidance ? `\nStory guidance: ${story.storyGuidance}` : "";
+            
+            const characterPrompt = `Create a beautiful character portrait for a children's storybook:
+
+Character: ${character.name}
+Description: ${character.description}
+Setting context: ${settingDescription}${storyGuidanceText}
+
+Style requirements:
+- Child-friendly, cartoonish illustration style
+- Bright, vibrant colors
+- Clear character design suitable for children's books
+- Show the character's personality through expression and pose
+- High quality digital illustration
+- No text or words in the image
+- Safe and wholesome content only`;
+
+            // Use the user's preferred model or a default working FLUX model
+            let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
+            // Fallback to working model if user has invalid model set
+            if (modelId === "prunaai/flux-kontext-dev") {
+              modelId = "black-forest-labs/flux-schnell";
+            }
+            
+            characterImageUrl = await replicateService.generateImage(modelId, characterPrompt, {
+              width: 1024,
+              height: 1024,
+              numSteps: 50,
+              guidanceScale: 7.5,
+            });
+          } else {
+            // Use OpenAI for character image generation
+            characterImageUrl = await generateCharacterImage(
+              character,
+              story.expandedSetting || story.setting,
+              req.user.openaiApiKey!,
+              req.user.openaiBaseUrl
+            );
+          }
+          
           characterImages[character.name] = characterImageUrl;
           await storage.updateCharacterImage(story.id, character.name, characterImageUrl);
         }
