@@ -1273,7 +1273,7 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
   // Regenerate core image with custom prompt
   app.post("/api/stories/:id/regenerate-core-image", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { storyId, customPrompt, useCurrentImageAsReference } = regenerateCoreImageSchema.parse({
+      const { storyId, customPrompt, useCurrentImageAsReference, customModel } = regenerateCoreImageSchema.parse({
         storyId: req.params.id,
         ...req.body
       });
@@ -1332,8 +1332,8 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
 
 IMPORTANT: Do not include any text, words, letters, or written language in the image unless specifically requested in the custom instructions above.`;
 
-        // Use the user's preferred model or a default working FLUX model
-        let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
+        // Use custom model if provided, otherwise use user's preferred model or default
+        let modelId = customModel || req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
         // Fallback to working model if user has invalid model set
         if (modelId === "prunaai/flux-kontext-dev") {
           modelId = "black-forest-labs/flux-schnell";

@@ -120,6 +120,7 @@ export const regenerateCoreImageSchema = z.object({
   storyId: z.string(),
   customPrompt: z.string(),
   useCurrentImageAsReference: z.boolean().default(false),
+  customModel: z.string().optional(), // Optional custom replicate model to use
 });
 
 export const createRevisionSchema = z.object({
