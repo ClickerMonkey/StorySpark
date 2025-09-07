@@ -159,6 +159,7 @@ export type ReplicateModelInputProperty = {
   isPromptField?: boolean; // Identified by LLM as receiving prompt text
   isImageField?: boolean;  // Identified by LLM as receiving image URLs
   imageFieldType?: 'primary' | 'reference' | 'style' | 'mask' | 'conditioning' | 'other';
+  acceptsArray?: boolean; // Whether this field accepts an array of images instead of single image
 };
 
 export type ReplicateModelTemplate = {
@@ -176,6 +177,7 @@ export type ReplicateModelTemplate = {
   promptField?: string;   // Main prompt property name (identified by LLM)
   imageFields?: string[]; // Image input property names (identified by LLM) 
   imageFieldTypes?: Record<string, 'primary' | 'reference' | 'style' | 'mask' | 'conditioning' | 'other'>; // Type of each image field
+  imageArrayFields?: string[]; // Image fields that accept arrays of images instead of single images
   userValues: Record<string, any>; // User-configured values for non-prompt/image fields
   lastAnalyzed: string; // ISO date when LLM analyzed this schema
 };
