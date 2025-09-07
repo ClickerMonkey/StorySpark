@@ -60,29 +60,8 @@ export class ReplicateService {
       
       console.log('Found', models.results?.length || 0, 'models from Replicate API');
       
-      // Filter for image generation models and map to our interface
-      const imageModels = models.results
-        .filter(model => {
-          const name = model.name.toLowerCase();
-          const description = model.description?.toLowerCase() || '';
-          
-          // Look for image generation keywords
-          const isImageModel = 
-            name.includes('image') || 
-            name.includes('img') || 
-            name.includes('draw') || 
-            name.includes('art') || 
-            name.includes('picture') || 
-            name.includes('generate') || 
-            name.includes('create') ||
-            description.includes('image') || 
-            description.includes('generate') ||
-            description.includes('create') ||
-            description.includes('art') ||
-            description.includes('picture');
-          
-          return isImageModel;
-        })
+      // Map all models to our interface without filtering
+      const allModels = models.results
         .slice(0, limit)
         .map(model => ({
           id: `${model.owner}/${model.name}`,
@@ -93,7 +72,7 @@ export class ReplicateService {
           category: this.categorizeModel(model.name, model.description || '')
         }));
 
-      return imageModels;
+      return allModels;
     } catch (error) {
       console.error('Error searching Replicate models:', error);
       throw new Error('Failed to search models');
