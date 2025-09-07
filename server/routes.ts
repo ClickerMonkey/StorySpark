@@ -964,15 +964,21 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
         return res.status(403).json({ message: "Access denied" });
       }
 
+      // Get complete user data from database (req.user only has basic auth info)
+      const fullUser = await storage.getUser(req.user!.id);
+      if (!fullUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
       // Check API keys based on preferred provider
-      const preferredProvider = req.user?.preferredImageProvider || "openai";
+      const preferredProvider = fullUser.preferredImageProvider || "openai";
       
       if (preferredProvider === "replicate") {
-        if (!req.user?.replicateApiKey) {
+        if (!fullUser.replicateApiKey) {
           return res.status(400).json({ message: "Replicate API key required" });
         }
       } else {
-        if (!req.user?.openaiApiKey) {
+        if (!fullUser.openaiApiKey) {
           return res.status(400).json({ message: "OpenAI API key required" });
         }
       }
@@ -1009,7 +1015,7 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
 
       if (preferredProvider === "replicate") {
         // Use Replicate for image generation
-        const replicateService = new ReplicateService(req.user.replicateApiKey!);
+        const replicateService = new ReplicateService(fullUser.replicateApiKey!);
         
         // Build comprehensive prompt for Replicate
         const characterDescriptions = story.extractedCharacters && story.extractedCharacters.length > 0
@@ -1034,14 +1040,14 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
         replicatePrompt += `\n\nIMPORTANT: Do not include any text, words, letters, or written language in the image unless specifically requested in the ${finalCustomPrompt ? 'custom modifications' : 'page guidance'} above.`;
 
         // Use the user's preferred model or a default working FLUX model
-        let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
+        let modelId = fullUser.preferredReplicateModel || "black-forest-labs/flux-schnell";
         // Fallback to working model if user has invalid model set
         if (modelId === "prunaai/flux-kontext-dev") {
           modelId = "black-forest-labs/flux-schnell";
         }
         
         // Check if user has a template for this model
-        const userTemplates = req.user.replicateModelTemplates || [];
+        const userTemplates = fullUser.replicateModelTemplates || [];
         console.log('Page regeneration - Debug template lookup:');
         console.log('- Looking for modelId:', modelId);
         console.log('- User templates count:', userTemplates.length);
@@ -1107,8 +1113,8 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
           previousPageImageUrl,
           story.expandedSetting || story.setting,
           story.extractedCharacters || undefined,
-          req.user.openaiApiKey!,
-          req.user.openaiBaseUrl,
+          fullUser.openaiApiKey!,
+          fullUser.openaiBaseUrl,
           finalCustomPrompt,
           storyContext, // full story context
           story.storyGuidance || undefined, // story-wide guidance
