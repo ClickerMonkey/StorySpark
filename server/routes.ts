@@ -1,13 +1,17 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import imageRoutes from './routes/images';
 import { storage } from "./storage";
 import { generateStoryText, generateCoreImage, generatePageImage, expandSetting, extractCharacters, generateCharacterImage, regenerateCoreImage, generateStoryIdea } from "./services/openai";
 import { ReplicateService } from "./services/replicate";
+import { ImageStorageService } from "./storage/ImageStorageService";
 import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema, regenerateCoreImageSchema, createRevisionSchema, updateUserProfileSchema } from "@shared/schema";
 import { verifyGoogleToken, generateJWT, requireAuth, optionalAuth, type AuthenticatedRequest } from "./auth";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Register image serving routes
+  app.use('/images', imageRoutes);
   
   // Get client configuration
   app.get("/api/config", (req, res) => {

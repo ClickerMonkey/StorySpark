@@ -31,6 +31,7 @@ export const stories = pgTable("stories", {
   totalPages: integer("total_pages").notNull(),
   pages: jsonb("pages").$type<StoryPage[]>().notNull().default([]),
   coreImageUrl: text("core_image_url"),
+  coreImageFileId: text("core_image_file_id"), // UUID reference to file storage
   storyGuidance: text("story_guidance"), // Optional guidance for tone, perspective, lessons learned
   status: text("status").notNull().default("draft"), // draft, setting_expansion, characters_extracted, text_approved, generating_images, completed
   isBookmarked: integer("is_bookmarked").default(0),
@@ -53,6 +54,7 @@ export const storyRevisions = pgTable("story_revisions", {
   totalPages: integer("total_pages").notNull(),
   pages: jsonb("pages").$type<StoryPage[]>().notNull().default([]),
   coreImageUrl: text("core_image_url"),
+  coreImageFileId: text("core_image_file_id"), // UUID reference to file storage
   storyGuidance: text("story_guidance"), // Optional guidance for tone, perspective, lessons learned
   status: text("status").notNull(),
   stepCompleted: text("step_completed").notNull(), // details, setting, characters, review, images, complete
@@ -141,6 +143,7 @@ export type Character = {
   name: string;
   description: string;
   imageUrl?: string;
+  imageFileId?: string; // UUID reference to file storage
 };
 
 export type ImageVersion = {
@@ -154,6 +157,7 @@ export type StoryPage = {
   pageNumber: number;
   text: string;
   imageUrl?: string;
+  imageFileId?: string; // UUID reference to file storage
   imagePrompt?: string;
   imageGuidance?: string; // Optional guidance for this page's image generation
   imageHistory?: ImageVersion[];
