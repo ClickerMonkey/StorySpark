@@ -282,6 +282,7 @@ export class ReplicateService {
       numSteps?: number;
       guidanceScale?: number;
       imageInput?: string; // Base64 or URL
+      additionalImages?: { [key: string]: string }; // Additional image inputs for multi-image models
     } = {}
   ): Promise<string> {
     
@@ -319,6 +320,13 @@ export class ReplicateService {
 
         if (options.imageInput) {
           input.image = options.imageInput;
+        }
+
+        // Handle additional images for multi-image models
+        if (options.additionalImages) {
+          Object.entries(options.additionalImages).forEach(([key, value]) => {
+            input[key] = value;
+          });
         }
       }
 

@@ -1029,6 +1029,9 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
         if (finalCustomPrompt) {
           replicatePrompt += `\n\nCustom modifications: ${finalCustomPrompt}`;
         }
+        
+        // Add text exclusion instruction for all Replicate prompts
+        replicatePrompt += `\n\nIMPORTANT: Do not include any text, words, letters, or written language in the image unless specifically requested in the ${finalCustomPrompt ? 'custom modifications' : 'page guidance'} above.`;
 
         // Use the user's preferred model or a default working FLUX model
         let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
@@ -1042,18 +1045,49 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
         const template = userTemplates.find((t: any) => t.modelId === modelId);
         
         if (template) {
-          // Use intelligent template-based generation with reference image
-          imageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt, {
-            referenceImage: story.coreImageUrl || undefined
+          // Use intelligent template-based generation with multi-image support
+          console.log('Using template-based page regeneration with template:', JSON.stringify(template, null, 2));
+          
+          // Prepare multi-image inputs for models that support them
+          const imageOptions: any = {
+            additionalPrompt: finalCustomPrompt
+          };
+          
+          // Set primary image (current page image takes priority)
+          if (currentImageUrl) {
+            imageOptions.primaryImage = currentImageUrl;
+          }
+          
+          // Set reference image (story core image for visual consistency)
+          if (story.coreImageUrl && story.coreImageUrl !== currentImageUrl) {
+            imageOptions.referenceImage = story.coreImageUrl;
+          }
+          
+          // Set additional images for models that support extra image inputs
+          const additionalImages: { [key: string]: string } = {};
+          if (previousPageImageUrl && previousPageImageUrl !== currentImageUrl && previousPageImageUrl !== story.coreImageUrl) {
+            additionalImages.previous_page = previousPageImageUrl;
+          }
+          
+          if (Object.keys(additionalImages).length > 0) {
+            imageOptions.additionalImages = additionalImages;
+          }
+          
+          console.log('Page regeneration - Using multiple images:', {
+            primaryImage: !!imageOptions.primaryImage,
+            referenceImage: !!imageOptions.referenceImage,
+            additionalImages: Object.keys(additionalImages)
           });
+          
+          imageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt, imageOptions);
         } else {
-          // Fall back to legacy hardcoded generation
+          // Fall back to legacy hardcoded generation with primary reference image
           imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
             width: 1024,
             height: 1024,
             numSteps: 50,
             guidanceScale: 7.5,
-            imageInput: story.coreImageUrl || undefined
+            imageInput: currentImageUrl || previousPageImageUrl || story.coreImageUrl || undefined
           });
         }
       } else {
