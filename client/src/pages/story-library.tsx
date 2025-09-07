@@ -113,7 +113,7 @@ export default function StoryLibrary() {
             </Link>
             
             <div className="flex items-center space-x-4">
-              <Link href="/">
+              <Link href="/?new=true">
                 <Button className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-2 sm:px-4" data-testid="button-create-new">
                   <Plus className="h-4 w-4 sm:mr-2" />
                   <span className="hidden sm:inline">Create New Story</span>
@@ -159,7 +159,7 @@ export default function StoryLibrary() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">My Story Library</h2>
-          <Link href="/">
+          <Link href="/?new=true">
             <Button className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium w-full sm:w-auto" data-testid="button-create-story">
               <Plus className="mr-2 h-4 w-4" />
               Create New Story
@@ -251,7 +251,7 @@ export default function StoryLibrary() {
             <p className="text-gray-600 mb-8 max-w-md mx-auto">
               You haven't created any stories yet. Start your first magical adventure today!
             </p>
-            <Link href="/">
+            <Link href="/?new=true">
               <Button className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-8 py-3">
                 <Plus className="mr-2 h-5 w-5" />
                 Create Your First Story
