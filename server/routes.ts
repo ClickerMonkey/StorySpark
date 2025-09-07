@@ -725,12 +725,22 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
           modelId = "black-forest-labs/flux-schnell";
         }
         
-        coreImageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
-          width: 1024,
-          height: 1024,
-          numSteps: 50,
-          guidanceScale: 7.5,
-        });
+        // Check if user has a template for this model
+        const userTemplates = req.user.replicateModelTemplates || [];
+        const template = userTemplates.find((t: any) => t.modelId === modelId);
+        
+        if (template) {
+          // Use intelligent template-based generation
+          coreImageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt);
+        } else {
+          // Fall back to legacy hardcoded generation
+          coreImageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
+            width: 1024,
+            height: 1024,
+            numSteps: 50,
+            guidanceScale: 7.5,
+          });
+        }
       } else {
         // Use OpenAI for core image generation
         coreImageUrl = await generateCoreImage(
@@ -788,12 +798,22 @@ Style requirements:
               modelId = "black-forest-labs/flux-schnell";
             }
             
-            characterImageUrl = await replicateService.generateImage(modelId, characterPrompt, {
-              width: 1024,
-              height: 1024,
-              numSteps: 50,
-              guidanceScale: 7.5,
-            });
+            // Check if user has a template for this model
+            const userTemplates = req.user.replicateModelTemplates || [];
+            const template = userTemplates.find((t: any) => t.modelId === modelId);
+            
+            if (template) {
+              // Use intelligent template-based generation
+              characterImageUrl = await replicateService.generateImageWithTemplate(template, characterPrompt);
+            } else {
+              // Fall back to legacy hardcoded generation
+              characterImageUrl = await replicateService.generateImage(modelId, characterPrompt, {
+                width: 1024,
+                height: 1024,
+                numSteps: 50,
+                guidanceScale: 7.5,
+              });
+            }
           } else {
             // Use OpenAI for character image generation
             characterImageUrl = await generateCharacterImage(
@@ -997,13 +1017,25 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
           modelId = "black-forest-labs/flux-schnell";
         }
         
-        imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
-          width: 1024,
-          height: 1024,
-          numSteps: 50,
-          guidanceScale: 7.5,
-          imageInput: story.coreImageUrl || undefined // Pass reference image for visual consistency
-        });
+        // Check if user has a template for this model
+        const userTemplates = req.user.replicateModelTemplates || [];
+        const template = userTemplates.find((t: any) => t.modelId === modelId);
+        
+        if (template) {
+          // Use intelligent template-based generation with reference image
+          imageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt, {
+            imageInput: story.coreImageUrl || undefined
+          });
+        } else {
+          // Fall back to legacy hardcoded generation
+          imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
+            width: 1024,
+            height: 1024,
+            numSteps: 50,
+            guidanceScale: 7.5,
+            imageInput: story.coreImageUrl || undefined
+          });
+        }
       } else {
         // Use OpenAI for image generation
         imageUrl = await generatePageImage(
@@ -1124,13 +1156,26 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
           modelId = "black-forest-labs/flux-schnell";
         }
         
-        imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
-          width: 1024,
-          height: 1024,
-          numSteps: 50,
-          guidanceScale: 7.5,
-          imageInput: useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined
-        });
+        // Check if user has a template for this model
+        const userTemplates = req.user.replicateModelTemplates || [];
+        const template = userTemplates.find((t: any) => t.modelId === modelId);
+        
+        if (template) {
+          // Use intelligent template-based generation with optional reference image
+          imageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt, {
+            imageInput: useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined,
+            additionalPrompt: customPromptText
+          });
+        } else {
+          // Fall back to legacy hardcoded generation
+          imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
+            width: 1024,
+            height: 1024,
+            numSteps: 50,
+            guidanceScale: 7.5,
+            imageInput: useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined
+          });
+        }
       } else {
         // Use OpenAI for core image regeneration
         imageUrl = await regenerateCoreImage(

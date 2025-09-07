@@ -140,6 +140,64 @@ export class ReplicateService {
     }
   }
 
+  async generateImageWithTemplate(
+    template: any, 
+    prompt: string, 
+    options: {
+      imageInput?: string;
+      additionalPrompt?: string;
+    } = {}
+  ): Promise<string> {
+    try {
+      const input: any = {};
+      
+      // Apply user's configured values from template
+      Object.assign(input, template.userValues || {});
+      
+      // Apply prompt to the identified prompt field
+      if (template.promptField) {
+        let finalPrompt = prompt;
+        if (options.additionalPrompt) {
+          finalPrompt = `${prompt}\n\n${options.additionalPrompt}`;
+        }
+        input[template.promptField] = finalPrompt;
+      }
+      
+      // Apply image input to the first identified image field
+      if (options.imageInput && template.imageFields && template.imageFields.length > 0) {
+        input[template.imageFields[0]] = options.imageInput;
+      }
+      
+      const output = await this.replicate.run(template.modelId as `${string}/${string}`, { input });
+      
+      // Handle different output formats
+      if (Array.isArray(output)) {
+        const firstItem = output[0];
+        
+        // Handle FileOutput objects (new Replicate behavior)
+        if (firstItem && typeof firstItem === 'object' && typeof firstItem.url === 'function') {
+          try {
+            const url = firstItem.url();
+            return url.toString();
+          } catch (urlError) {
+            console.error('Error getting URL from FileOutput:', urlError);
+            return String(firstItem);
+          }
+        }
+        
+        return firstItem as string;
+      } else if (typeof output === 'string') {
+        return output;
+      } else if (output && typeof output === 'object' && 'url' in output) {
+        return (output as any).url;
+      }
+      throw new Error('Unexpected output format from Replicate');
+    } catch (error) {
+      console.error('Error generating image with template:', error);
+      throw new Error(`Failed to generate image with ${template.modelId}`);
+    }
+  }
+
   async generateImage(
     modelId: string,
     prompt: string,
