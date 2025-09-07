@@ -529,6 +529,8 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
 }
 
 export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreationWorkflowProps) {
+  const { user } = useAuth();
+  
   // Determine initial step based on story completion status
   const getInitialStep = (): WorkflowStep => {
     if (!existingStory) return "details";
