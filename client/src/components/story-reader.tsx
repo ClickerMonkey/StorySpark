@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type Story } from "@shared/schema";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type Story, type ReplicateModelTemplate } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -12,7 +15,7 @@ import { ImageViewerDialog } from "@/components/image-viewer-dialog";
 import { ImageHistoryDialog } from "@/components/image-history-dialog";
 import { getCoreImageUrl, getPageImageUrl } from "@/utils/imageUrl";
 import { PDFExport } from "@/components/pdf-export";
-import { ChevronLeft, ChevronRight, Volume2, Bookmark, Share, Download, Edit, Save, BookOpen, Users, Clock, RefreshCw, Loader2, FileText, History } from "lucide-react";
+import { ChevronLeft, ChevronRight, Volume2, Bookmark, Share, Download, Edit, Save, BookOpen, Users, Clock, RefreshCw, Loader2, FileText, History, Settings } from "lucide-react";
 
 interface StoryReaderProps {
   story: Story;
@@ -23,11 +26,18 @@ interface StoryReaderProps {
 export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [customPrompt, setCustomPrompt] = useState("");
+  const [overrideModelId, setOverrideModelId] = useState<string>("");
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Query for user's saved templates for model override
+  const { data: userTemplates = [] } = useQuery<ReplicateModelTemplate[]>({
+    queryKey: ['/api/replicate/templates'],
+    select: (data) => Array.isArray(data) ? data : [],
+  });
 
   const bookmarkMutation = useMutation({
     mutationFn: async () => {
@@ -117,6 +127,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
     mutationFn: async () => {
       const response = await apiRequest("POST", `/api/stories/${story.id}/pages/${currentPage.pageNumber}/regenerate-image`, {
         customPrompt,
+        overrideModelId: overrideModelId || undefined,
       });
       return response.json();
     },
@@ -128,6 +139,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
       });
       setIsRegenerateDialogOpen(false);
       setCustomPrompt("");
+      setOverrideModelId("");
     },
     onError: (error) => {
       toast({
@@ -201,9 +213,9 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
                   </DialogHeader>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-2">
+                      <Label className="text-sm font-medium text-gray-900">
                         Custom Image Prompt
-                      </label>
+                      </Label>
                       <Textarea
                         value={customPrompt}
                         onChange={(e) => setCustomPrompt(e.target.value)}
@@ -215,12 +227,40 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
                         Current page: "{currentPage.text.slice(0, 100)}..."
                       </p>
                     </div>
+
+                    {userTemplates.length > 0 && (
+                      <div>
+                        <Label className="text-sm font-medium text-gray-900">
+                          Override Model (Optional)
+                        </Label>
+                        <Select value={overrideModelId} onValueChange={setOverrideModelId}>
+                          <SelectTrigger className="mt-2">
+                            <SelectValue placeholder="Use default preferred model" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">Use default preferred model</SelectItem>
+                            {userTemplates.map((template) => (
+                              <SelectItem key={template.modelId} value={template.modelId}>
+                                <div className="flex items-center gap-2">
+                                  <span>{template.modelName || template.modelId}</span>
+                                  <Badge variant="outline" className="text-xs">{template.modelId}</Badge>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Override your default model preference for this regeneration
+                        </p>
+                      </div>
+                    )}
                     <div className="flex flex-wrap gap-2 justify-end">
                       <Button
                         variant="outline"
                         onClick={() => {
                           setIsRegenerateDialogOpen(false);
                           setCustomPrompt("");
+                          setOverrideModelId("");
                         }}
                         data-testid="button-cancel-regenerate"
                       >
