@@ -115,6 +115,31 @@ export class ReplicateService {
     return popularModels;
   }
 
+  async getModelSchema(modelId: string): Promise<any> {
+    try {
+      // Get the model information including input/output schema
+      const model = await this.replicate.models.get(modelId.split('/')[0], modelId.split('/')[1]);
+      
+      if (!model.latest_version) {
+        throw new Error('Model has no available versions');
+      }
+      
+      const schema = model.latest_version.openapi_schema as any;
+      
+      return {
+        modelId,
+        name: model.name,
+        description: model.description,
+        inputSchema: schema?.components?.schemas?.Input || {},
+        outputSchema: schema?.components?.schemas?.Output || {},
+        version: model.latest_version.id
+      };
+    } catch (error) {
+      console.error('Error fetching model schema:', error);
+      throw new Error(`Failed to fetch schema for model ${modelId}`);
+    }
+  }
+
   async generateImage(
     modelId: string,
     prompt: string,

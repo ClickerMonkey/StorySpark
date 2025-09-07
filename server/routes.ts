@@ -269,6 +269,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Analyze Replicate model schema with LLM
+  app.post("/api/replicate/analyze-model", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { modelId } = req.body;
+      
+      if (!modelId || typeof modelId !== 'string') {
+        return res.status(400).json({ message: "Model ID is required" });
+      }
+
+      if (!req.user?.replicateApiKey) {
+        return res.status(400).json({ message: "Replicate API key required" });
+      }
+
+      if (!req.user?.openaiApiKey) {
+        return res.status(400).json({ message: "OpenAI API key required for schema analysis" });
+      }
+
+      // Get model schema from Replicate
+      const replicateService = new ReplicateService(req.user.replicateApiKey);
+      const modelSchema = await replicateService.getModelSchema(modelId);
+
+      // Analyze schema with LLM
+      const { ModelSchemaAnalyzer } = await import('./services/ModelSchemaAnalyzer');
+      const analyzer = new ModelSchemaAnalyzer(req.user.openaiApiKey, req.user.openaiBaseUrl);
+      const template = await analyzer.analyzeModelSchema(modelSchema);
+
+      res.json({ template });
+    } catch (error) {
+      console.error("Model schema analysis error:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to analyze model schema" 
+      });
+    }
+  });
+
+  // Save Replicate model template
+  app.post("/api/replicate/save-template", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { template } = req.body;
+      
+      if (!template || !template.modelId) {
+        return res.status(400).json({ message: "Valid template is required" });
+      }
+
+      // Get current user templates
+      const user = await storage.getUserById(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const templates = user.replicateModelTemplates || [];
+      const existingIndex = templates.findIndex(t => t.modelId === template.modelId);
+
+      if (existingIndex >= 0) {
+        // Update existing template
+        templates[existingIndex] = template;
+      } else {
+        // Add new template
+        templates.push(template);
+      }
+
+      // Update user with new templates
+      await storage.updateUser(req.user!.id, { replicateModelTemplates: templates });
+
+      res.json({ template, message: "Template saved successfully" });
+    } catch (error) {
+      console.error("Save template error:", error);
+      res.status(500).json({ message: "Failed to save template" });
+    }
+  });
+
+  // Get user's Replicate model templates
+  app.get("/api/replicate/templates", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const user = await storage.getUserById(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({ templates: user.replicateModelTemplates || [] });
+    } catch (error) {
+      console.error("Get templates error:", error);
+      res.status(500).json({ message: "Failed to get templates" });
+    }
+  });
+
   // Generate story idea
   app.post("/api/generate-story-idea", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
