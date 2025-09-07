@@ -266,14 +266,7 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
 
   const regenerateMutation = useMutation({
     mutationFn: async (data: { customPrompt: string; useCurrentImageAsReference: boolean }) => {
-      const response = await apiRequest(`/api/stories/${storyId}/regenerate-core-image`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to regenerate core image');
-      }
+      const response = await apiRequest("POST", `/api/stories/${storyId}/regenerate-core-image`, data);
       return response.json();
     },
     onSuccess: (data) => {
