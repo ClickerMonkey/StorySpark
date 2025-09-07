@@ -1749,6 +1749,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                       </div>
                       
                       {/* Model Selection for initial generation - show if user has multiple replicate models */}
+                      {console.log('Debug - user data:', { preferredImageProvider: user?.preferredImageProvider, replicateModelTemplates: user?.replicateModelTemplates, count: user?.replicateModelTemplates?.length })}
                       {user?.preferredImageProvider === "replicate" && user?.replicateModelTemplates && user.replicateModelTemplates.length > 1 && (
                         <div className="flex flex-col">
                           <Select value={initialCoreImageModel} onValueChange={setInitialCoreImageModel}>
