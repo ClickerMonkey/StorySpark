@@ -71,6 +71,7 @@ export function ModelConfigurationPanel({
   // Fetch user's existing templates
   const { data: userTemplates = [], isLoading: templatesLoading } = useQuery<ReplicateModelTemplate[]>({
     queryKey: ['/api/replicate/templates'],
+    select: (data) => Array.isArray(data) ? data : [], // Ensure it's always an array
   });
 
   // Analyze model schema

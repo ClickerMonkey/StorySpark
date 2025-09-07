@@ -337,12 +337,28 @@ export default function Profile() {
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="preferred-model">Preferred Replicate Model</Label>
-                    <Input
-                      id="preferred-model"
-                      value={formData.preferredReplicateModel}
-                      onChange={(e) => setFormData(prev => ({...prev, preferredReplicateModel: e.target.value}))}
-                      placeholder="e.g., stability-ai/stable-diffusion"
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        id="preferred-model"
+                        value={formData.preferredReplicateModel}
+                        onChange={(e) => setFormData(prev => ({...prev, preferredReplicateModel: e.target.value}))}
+                        placeholder="e.g., stability-ai/stable-diffusion"
+                        className="flex-1"
+                      />
+                      {formData.preferredReplicateModel && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => configureModel(formData.preferredReplicateModel)}
+                          className="shrink-0"
+                          data-testid="button-configure-preferred-model"
+                        >
+                          <Settings className="h-4 w-4 mr-1" />
+                          Configure
+                        </Button>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-500 mt-1">
                       Leave empty to choose during story creation
                     </p>
@@ -382,19 +398,20 @@ export default function Profile() {
                   {replicateModels?.models && replicateModels.models.length > 0 && (
                     <div>
                       <Label>Search Results</Label>
-                      <div className="grid gap-2 mt-2 max-h-60 overflow-y-auto">
+                      <div className="space-y-2 mt-2 max-h-60 overflow-y-auto">
                         {replicateModels.models.map((model: any) => (
                           <div
                             key={model.name}
                             className="p-3 border rounded-lg hover:bg-gray-50 transition-colors"
                             data-testid={`model-option-${model.name}`}
                           >
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <p className="font-medium">{model.name}</p>
-                                <p className="text-sm text-gray-500 truncate">{model.description}</p>
+                            {/* Mobile Layout */}
+                            <div className="block sm:hidden space-y-3">
+                              <div>
+                                <p className="font-medium text-sm">{model.name}</p>
+                                <p className="text-xs text-gray-500 mt-1">{model.description}</p>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center justify-between">
                                 <div className="flex gap-1 flex-wrap">
                                   {model.supportsImageInput && (
                                     <Badge variant="secondary" className="text-xs">
@@ -412,20 +429,54 @@ export default function Profile() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      selectModel(model.name);
-                                    }}
+                                    onClick={() => selectModel(model.name)}
+                                    className="text-xs h-7 px-2"
+                                  >
+                                    Select
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => configureModel(model.name)}
+                                    className="text-xs h-7 px-2 bg-indigo-600 hover:bg-indigo-700"
+                                  >
+                                    <Settings className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Desktop Layout */}
+                            <div className="hidden sm:flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium">{model.name}</p>
+                                <p className="text-sm text-gray-500 truncate">{model.description}</p>
+                              </div>
+                              <div className="flex items-center gap-2 ml-4">
+                                <div className="flex gap-1 flex-wrap">
+                                  {model.supportsImageInput && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      Image Input
+                                    </Badge>
+                                  )}
+                                  <Badge variant="outline" className="text-xs">
+                                    {model.latestVersion?.created_at ? 
+                                      new Date(model.latestVersion.created_at).getFullYear() : 
+                                      'Latest'
+                                    }
+                                  </Badge>
+                                </div>
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => selectModel(model.name)}
                                     className="text-xs h-8"
                                   >
                                     Quick Select
                                   </Button>
                                   <Button
                                     size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      configureModel(model.name);
-                                    }}
+                                    onClick={() => configureModel(model.name)}
                                     className="text-xs h-8 bg-indigo-600 hover:bg-indigo-700"
                                   >
                                     <Settings className="h-3 w-3 mr-1" />
