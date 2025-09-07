@@ -313,7 +313,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Valid template is required" });
       }
 
-      // Get current user templates
+      // Handle delete operation
+      if (template.delete) {
+        const user = await storage.getUserById(req.user!.id);
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        const templates = user.replicateModelTemplates || [];
+        const filteredTemplates = templates.filter((t: any) => t.modelId !== template.modelId);
+        
+        await storage.updateUser(req.user!.id, { replicateModelTemplates: filteredTemplates });
+        return res.json({ message: "Template deleted successfully" });
+      }
+
+      // Get current user templates for save/update
       const user = await storage.getUserById(req.user!.id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -332,6 +346,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update user with new templates
       await storage.updateUser(req.user!.id, { replicateModelTemplates: templates });
+      
+      console.log(`Template saved for user ${req.user!.id}: ${template.modelId}`, { templateCount: templates.length });
 
       res.json({ template, message: "Template saved successfully" });
     } catch (error) {
@@ -348,7 +364,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      res.json({ templates: user.replicateModelTemplates || [] });
+      res.json(user.replicateModelTemplates || []);
     } catch (error) {
       console.error("Get templates error:", error);
       res.status(500).json({ message: "Failed to get templates" });
