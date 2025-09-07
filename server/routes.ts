@@ -320,7 +320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const templates = user.replicateModelTemplates || [];
-      const existingIndex = templates.findIndex(t => t.modelId === template.modelId);
+      const existingIndex = templates.findIndex((t: any) => t.modelId === template.modelId);
 
       if (existingIndex >= 0) {
         // Update existing template

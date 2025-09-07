@@ -23,6 +23,8 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   upsertUser(user: any): Promise<User>;
   updateUserOpenAI(userId: string, apiKey: string, baseUrl?: string): Promise<User | undefined>;
+  updateUser(userId: string, data: Partial<User>): Promise<User | undefined>;
+  getUserById(id: string): Promise<User | undefined>;
   
   createStory(story: InsertStory): Promise<Story>;
   getStory(id: string): Promise<Story | undefined>;
@@ -524,6 +526,43 @@ export class DatabaseStorage implements IStorage {
         openaiBaseUrl: openaiBaseUrl || "https://api.openai.com/v1",
         updatedAt: new Date(),
       })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    if (updatedUser) {
+      // Decrypt API keys before returning to client
+      return {
+        ...updatedUser,
+        openaiApiKey: decryptApiKey(updatedUser.openaiApiKey),
+        replicateApiKey: decryptApiKey(updatedUser.replicateApiKey),
+      };
+    }
+    return undefined;
+  }
+
+  async getUserById(id: string): Promise<User | undefined> {
+    return this.getUser(id);
+  }
+
+  async updateUser(userId: string, data: Partial<User>): Promise<User | undefined> {
+    // Prepare update data with encryption for sensitive fields
+    const updateData: any = { ...data, updatedAt: new Date() };
+    
+    // Encrypt API keys if present
+    if (data.openaiApiKey !== undefined) {
+      updateData.openaiApiKey = data.openaiApiKey ? encryptApiKey(data.openaiApiKey) : null;
+    }
+    if (data.replicateApiKey !== undefined) {
+      updateData.replicateApiKey = data.replicateApiKey ? encryptApiKey(data.replicateApiKey) : null;
+    }
+    
+    // Remove fields that shouldn't be updated directly
+    delete updateData.id;
+    delete updateData.createdAt;
+
+    const [updatedUser] = await db
+      .update(users)
+      .set(updateData)
       .where(eq(users.id, userId))
       .returning();
     
