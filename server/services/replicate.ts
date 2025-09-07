@@ -49,16 +49,18 @@ export class ReplicateService {
 
   async searchModels(query: string = "", limit: number = 20): Promise<ReplicateModel[]> {
     try {
-      console.log('=== REPLICATE MODELS.LIST CALL ===');
-      console.log('Query:', query);
+      console.log('=== REPLICATE MODELS.SEARCH CALL ===');
+      console.log('Query:', query || 'image generation');
       console.log('Limit:', limit);
       console.log('===================================');
       
-      const models = await this.replicate.models.list();
+      // Use search with image generation terms if no query provided
+      const searchQuery = query || 'image generation art picture create';
+      const models = await this.replicate.models.search(searchQuery);
       
       console.log('Found', models.results?.length || 0, 'models from Replicate API');
       
-      // Filter for image generation models
+      // Filter for image generation models and map to our interface
       const imageModels = models.results
         .filter(model => {
           const name = model.name.toLowerCase();
@@ -79,12 +81,7 @@ export class ReplicateService {
             description.includes('art') ||
             description.includes('picture');
           
-          // Filter by search query if provided
-          const matchesQuery = !query || 
-            name.includes(query.toLowerCase()) || 
-            description.includes(query.toLowerCase());
-          
-          return isImageModel && matchesQuery;
+          return isImageModel;
         })
         .slice(0, limit)
         .map(model => ({
