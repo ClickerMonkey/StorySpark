@@ -184,35 +184,20 @@ export class ReplicateService {
         console.log('Replicate returned array, using first item:', output[0]);
         const firstItem = output[0];
         
-        // Handle ReadableStream (common with FLUX models)
+        // Handle FileOutput objects (new Replicate behavior)
         console.log('First item type:', typeof firstItem);
         console.log('First item constructor:', firstItem?.constructor?.name);
-        console.log('Has getReader method:', typeof firstItem?.getReader === 'function');
+        console.log('Has url method:', typeof firstItem?.url === 'function');
         
-        if (firstItem && typeof firstItem === 'object' && typeof firstItem.getReader === 'function') {
-          console.log('Converting ReadableStream to string...');
+        if (firstItem && typeof firstItem === 'object' && typeof firstItem.url === 'function') {
+          console.log('Getting URL from FileOutput object...');
           try {
-            // For ReadableStreams from Replicate, we need to read the stream
-            const reader = firstItem.getReader();
-            const chunks = [];
-            let done = false;
-            
-            while (!done) {
-              const { value, done: streamDone } = await reader.read();
-              done = streamDone;
-              if (value) {
-                chunks.push(value);
-              }
-            }
-            
-            // Convert chunks to string (should be the URL)
-            const decoder = new TextDecoder();
-            const url = decoder.decode(new Uint8Array(chunks.flat()));
-            console.log('Extracted URL from stream:', url);
-            return url.trim();
-          } catch (streamError) {
-            console.error('Error reading stream:', streamError);
-            // Fallback: try to convert the stream object directly
+            const url = firstItem.url();
+            console.log('Extracted URL from FileOutput:', url);
+            return url;
+          } catch (urlError) {
+            console.error('Error getting URL from FileOutput:', urlError);
+            // Fallback: try to convert the object directly
             console.log('Trying fallback conversion...');
             return String(firstItem);
           }
