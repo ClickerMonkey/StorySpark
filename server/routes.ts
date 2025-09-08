@@ -748,26 +748,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Use Replicate for core image generation
         const replicateService = new ReplicateService(req.user.replicateApiKey!);
         
-        const characterDescriptions = story.extractedCharacters && story.extractedCharacters.length > 0
-          ? `Characters: ${story.extractedCharacters.map(c => `${c.name} - ${c.description}`).join(', ')}\n`
-          : "";
-        
-        const settingDescription = story.expandedSetting || story.setting;
-        const storyGuidanceText = story.storyGuidance ? `\nStory guidance: ${story.storyGuidance}` : "";
-        
-        const replicatePrompt = `Create a beautiful core reference image for a children's storybook:
-
-${characterDescriptions}Setting: ${settingDescription}${storyGuidanceText}
-
-This image will serve as the visual foundation for the entire story. Create a scene that captures:
-- The overall mood and atmosphere of the setting
-- Key characters in a natural, welcoming scene
-- The magical or special elements of this world
-- A composition that could serve as a book cover
-
-Style: Bright, vibrant colors suitable for children, cartoonish and friendly illustration style, high quality digital illustration, safe and wholesome content only
-
-IMPORTANT: Do not include any text, words, letters, or written language in the image unless specifically requested in the story guidance above.`;
+        // Generate optimized core image prompt using LLM
+        const promptGenerator = new ImagePromptGenerator(req.user.openaiApiKey!, req.user.openaiBaseUrl);
+        const replicatePrompt = await promptGenerator.generateCoreImagePrompt(story);
 
         // Use the user's preferred model or a default working FLUX model
         let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
@@ -797,9 +780,13 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
           });
         }
       } else {
-        // Use OpenAI for core image generation
+        // Generate optimized core image prompt using LLM for OpenAI too
+        const promptGenerator = new ImagePromptGenerator(req.user.openaiApiKey!, req.user.openaiBaseUrl);
+        const optimizedPrompt = await promptGenerator.generateCoreImagePrompt(story);
+        
+        // Use OpenAI for core image generation with optimized prompt
         coreImageUrl = await generateCoreImage(
-          story.expandedSetting || story.setting,
+          optimizedPrompt, // Use LLM-generated prompt instead of raw setting
           story.extractedCharacters || [],
           req.user.openaiApiKey!,
           req.user.openaiBaseUrl
@@ -1314,27 +1301,9 @@ Style requirements:
         // Use Replicate for core image regeneration
         const replicateService = new ReplicateService(req.user.replicateApiKey!);
         
-        const characterDescriptions = story.extractedCharacters && story.extractedCharacters.length > 0
-          ? `Characters: ${story.extractedCharacters.map(c => `${c.name} - ${c.description}`).join(', ')}\n`
-          : "";
-        
-        const settingDescription = story.expandedSetting || story.setting;
-        const storyGuidanceText = story.storyGuidance ? `\nStory guidance: ${story.storyGuidance}` : "";
-        const customPromptText = customPrompt ? `\nCustom instructions: ${customPrompt}` : "";
-        
-        const replicatePrompt = `Create a beautiful core reference image for a children's storybook:
-
-${characterDescriptions}Setting: ${settingDescription}${storyGuidanceText}${customPromptText}
-
-This image will serve as the visual foundation for the entire story. Create a scene that captures:
-- The overall mood and atmosphere of the setting
-- Key characters in a natural, welcoming scene
-- The magical or special elements of this world
-- A composition that could serve as a book cover
-
-Style: Bright, vibrant colors suitable for children, cartoonish and friendly illustration style, high quality digital illustration, safe and wholesome content only
-
-IMPORTANT: Do not include any text, words, letters, or written language in the image unless specifically requested in the custom instructions above.`;
+        // Generate optimized core image prompt using LLM
+        const promptGenerator = new ImagePromptGenerator(req.user.openaiApiKey!, req.user.openaiBaseUrl);
+        let replicatePrompt = await promptGenerator.generateCoreImagePrompt(story, customPrompt);
 
         // Use custom model if provided, otherwise use user's preferred model or default
         let modelId = customModel || req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
@@ -1356,7 +1325,7 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
           console.log('Using template-based generation with template:', JSON.stringify(template, null, 2));
           imageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt, {
             referenceImage: useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined,
-            additionalPrompt: customPromptText
+            additionalPrompt: customPrompt
           });
           console.log('Template-based generation returned imageUrl:', truncateForLog(imageUrl));
           console.log('Template-based generation imageUrl type:', typeof imageUrl);
@@ -1374,11 +1343,15 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
           console.log('Legacy generation imageUrl type:', typeof imageUrl);
         }
       } else {
-        // Use OpenAI for core image regeneration
+        // Generate optimized core image prompt using LLM for OpenAI regeneration too
+        const promptGenerator = new ImagePromptGenerator(req.user.openaiApiKey!, req.user.openaiBaseUrl);
+        const optimizedPrompt = await promptGenerator.generateCoreImagePrompt(story, customPrompt);
+        
+        // Use OpenAI for core image regeneration with optimized prompt
         imageUrl = await regenerateCoreImage(
-          story.expandedSetting || story.setting,
+          optimizedPrompt, // Use LLM-generated prompt instead of raw setting
           story.extractedCharacters || [],
-          customPrompt,
+          undefined, // custom prompt already included in optimizedPrompt
           useCurrentImageAsReference,
           req.user.openaiApiKey!,
           req.user.openaiBaseUrl,
