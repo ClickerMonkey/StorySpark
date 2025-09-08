@@ -509,24 +509,14 @@ export default function Profile() {
                                     }
                                   </Badge>
                                 </div>
-                                <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => selectModel(model.id || model.name)}
-                                    className="text-xs h-8"
-                                  >
-                                    Quick Select
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => configureNewModel(model.id || model.name)}
-                                    className="text-xs h-8 bg-indigo-600 hover:bg-indigo-700"
-                                  >
-                                    <Settings className="h-3 w-3 mr-1" />
-                                    Configure
-                                  </Button>
-                                </div>
+                                <Button
+                                  size="sm"
+                                  onClick={() => configureNewModel(model.id || model.name)}
+                                  className="text-xs h-8 bg-indigo-600 hover:bg-indigo-700"
+                                >
+                                  <Settings className="h-3 w-3 mr-1" />
+                                  Configure
+                                </Button>
                               </div>
                             </div>
                           </div>
