@@ -4,6 +4,7 @@ import imageRoutes from './routes/images';
 import { storage } from "./storage";
 import { generateStoryText, generateCoreImage, generatePageImage, expandSetting, extractCharacters, generateCharacterImage, regenerateCoreImage, generateStoryIdea } from "./services/openai";
 import { ReplicateService } from "./services/replicate";
+import { ImagePromptGenerator } from "./services/imagePromptGenerator";
 import { ImageStorageService } from "./storage/ImageStorageService";
 import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema, regenerateCoreImageSchema, createRevisionSchema, updateUserProfileSchema } from "@shared/schema";
 import { verifyGoogleToken, generateJWT, requireAuth, optionalAuth, type AuthenticatedRequest } from "./auth";
@@ -911,22 +912,10 @@ Style requirements:
           // Use Replicate for image generation
           const replicateService = new ReplicateService(req.user.replicateApiKey!);
           
-          // Build comprehensive prompt for Replicate
-          const characterDescriptions = story.extractedCharacters && story.extractedCharacters.length > 0
-            ? `Characters: ${story.extractedCharacters.map(c => `${c.name} - ${c.description}`).join(', ')}\n`
-            : "";
-          
-          const settingDescription = story.expandedSetting || story.setting;
-          const pageImageGuidance = page.imageGuidance ? `\nPage guidance: ${page.imageGuidance}` : "";
-          const storyGuidanceText = story.storyGuidance ? `\nStory guidance: ${story.storyGuidance}` : "";
-          
-          const replicatePrompt = `Create a beautiful children's book illustration for: ${page.text}
-
-${characterDescriptions}Setting: ${settingDescription}${storyGuidanceText}${pageImageGuidance}
-
-Style: Bright, vibrant colors suitable for children, cartoonish and friendly illustration style, high quality digital illustration, safe and wholesome content only
-
-IMPORTANT: Do not include any text, words, letters, or written language in the image unless specifically requested in the page guidance above.`;
+          // Generate optimized image prompt using LLM
+          const promptGenerator = new ImagePromptGenerator(req.user.openaiApiKey!, req.user.openaiBaseUrl);
+          const previousPages = story.pages.slice(0, i); // Get pages before current one
+          const replicatePrompt = await promptGenerator.generateImagePrompt(story, page, previousPages);
 
           // Use the user's preferred model or a default working FLUX model
           let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
@@ -943,9 +932,14 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
             imageInput: story.coreImageUrl || undefined // Pass reference image for visual consistency
           });
         } else {
-          // Use OpenAI for image generation
+          // Generate optimized image prompt using LLM for OpenAI too
+          const promptGenerator = new ImagePromptGenerator(req.user.openaiApiKey!, req.user.openaiBaseUrl);
+          const previousPages = story.pages.slice(0, i); // Get pages before current one
+          const optimizedPrompt = await promptGenerator.generateImagePrompt(story, page, previousPages);
+          
+          // Use OpenAI for image generation with optimized prompt
           imageUrl = await generatePageImage(
-            page.text,
+            optimizedPrompt, // Use LLM-generated prompt instead of page.text
             coreImageUrl,
             previousPageImageUrl,
             story.expandedSetting || story.setting,
@@ -953,9 +947,9 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
             req.user.openaiApiKey!,
             req.user.openaiBaseUrl,
             undefined, // customPrompt
-            storyContext, // full story context
-            story.storyGuidance || undefined, // story-wide guidance
-            page.imageGuidance || undefined // page-specific image guidance
+            "", // no additional story context needed (already in optimized prompt)
+            undefined, // story guidance already incorporated in prompt
+            undefined // page guidance already incorporated in prompt
           );
         }
         
