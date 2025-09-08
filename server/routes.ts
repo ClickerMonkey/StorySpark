@@ -1131,7 +1131,9 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
           }
           
           // Set reference image (story core image for visual consistency)
-          const referenceImageBase64 = await getImageBase64(story.coreImageUrl, story.coreImageFileId);
+          // Get fresh story data to ensure we have the latest core image
+          const freshStory = await storage.getStory(storyId);
+          const referenceImageBase64 = await getImageBase64(freshStory?.coreImageUrl, freshStory?.coreImageFileId);
           if (referenceImageBase64 && referenceImageBase64 !== primaryImageBase64) {
             imageOptions.referenceImage = referenceImageBase64;
           }
