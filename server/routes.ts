@@ -6,6 +6,7 @@ import { generateStoryText, generateCoreImage, generatePageImage, expandSetting,
 import { ReplicateService } from "./services/replicate";
 import { ImagePromptGenerator } from "./services/imagePromptGenerator";
 import { ImageStorageService } from "./storage/ImageStorageService";
+import { ImageGenerationService } from "./services/imageGeneration";
 import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema, regenerateCoreImageSchema, createRevisionSchema, updateUserProfileSchema, type Story, type User } from "@shared/schema";
 import { verifyGoogleToken, generateJWT, requireAuth, optionalAuth, type AuthenticatedRequest } from "./auth";
 import { z } from "zod";
@@ -731,7 +732,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Start image generation asynchronously  
       if (updatedStory) {
-        generateImagesAsync(updatedStory, fullUser);
+        const imageService = new ImageGenerationService();
+        imageService.generateStoryImages(updatedStory, fullUser);
       }
 
       res.json({ story: updatedStory });
@@ -931,7 +933,8 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
       }
 
       // Start page image regeneration asynchronously (without core image)
-      regeneratePageImagesAsync(updatedStory, fullUser);
+      const imageService = new ImageGenerationService();
+      imageService.regenerateAllPageImages(updatedStory, fullUser);
 
       res.json({ story: updatedStory });
     } catch (error) {

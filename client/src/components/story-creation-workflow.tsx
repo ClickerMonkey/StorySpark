@@ -1123,7 +1123,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
         description: "Your page images are being regenerated. This may take a few minutes.",
       });
       // Start polling for status updates
-      startPolling();
+      startImageGenerationPolling(generatedStory.id);
     },
     onError: (error) => {
       toast({
