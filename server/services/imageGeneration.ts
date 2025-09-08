@@ -433,10 +433,6 @@ export class ImageGenerationService {
 
     // Determine model to use
     let modelId = options.customModel || user.preferredReplicateModel || "black-forest-labs/flux-schnell";
-    // Fallback to working model if user has invalid model set
-    if (modelId === "prunaai/flux-kontext-dev") {
-      modelId = "black-forest-labs/flux-schnell";
-    }
     
     // Check if user has a template for this model
     const userTemplates = user.replicateModelTemplates || [];
@@ -518,10 +514,6 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
 
     // Determine model to use
     let modelId = options.customModel || user.preferredReplicateModel || "black-forest-labs/flux-schnell";
-    // Fallback to working model if user has invalid model set
-    if (modelId === "prunaai/flux-kontext-dev") {
-      modelId = "black-forest-labs/flux-schnell";
-    }
     
     // Check if user has a template for this model
     const userTemplates = user.replicateModelTemplates || [];
