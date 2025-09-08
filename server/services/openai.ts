@@ -17,14 +17,16 @@ function createOpenAIClient(apiKey: string, baseURL?: string) {
   });
 }
 
-export async function expandSetting(setting: string, characters: string, plot: string, ageGroup: string, apiKey: string, baseURL?: string): Promise<string> {
+export async function expandSetting(setting: string, characters: string, plot: string, ageGroup: string, apiKey: string, baseURL?: string, storyGuidance?: string): Promise<string> {
   const openai = createOpenAIClient(apiKey, baseURL);
+
+  const storyGuidanceSection = storyGuidance ? `\nStory Guidance: ${storyGuidance}` : "";
 
   const prompt = `Expand and enrich this story setting for a children's book suitable for ages ${ageGroup}:
 
 Original Setting: ${setting}
 Characters: ${characters}  
-Plot: ${plot}
+Plot: ${plot}${storyGuidanceSection}
 
 Please create a rich, detailed description of the setting that:
 - Maintains the original essence but adds vivid, sensory details
@@ -33,6 +35,7 @@ Please create a rich, detailed description of the setting that:
 - Uses child-friendly language and imagery
 - Is 2-3 paragraphs long
 - Focuses on visual, magical, or wonder-inspiring elements
+${storyGuidance ? `- Incorporates the story guidance and themes: ${storyGuidance}` : ""}
 
 Return only the expanded setting description, no additional text.`;
 
@@ -60,13 +63,15 @@ Return only the expanded setting description, no additional text.`;
   }
 }
 
-export async function extractCharacters(characters: string, setting: string, ageGroup: string, apiKey: string, baseURL?: string): Promise<Character[]> {
+export async function extractCharacters(characters: string, setting: string, ageGroup: string, apiKey: string, baseURL?: string, storyGuidance?: string): Promise<Character[]> {
   const openai = createOpenAIClient(apiKey, baseURL);
+
+  const storyGuidanceSection = storyGuidance ? `\nStory Guidance: ${storyGuidance}` : "";
 
   const prompt = `Extract and expand character details for a children's story suitable for ages ${ageGroup}:
 
 Characters mentioned: ${characters}
-Setting: ${setting}
+Setting: ${setting}${storyGuidanceSection}
 
 Please analyze the characters and create detailed descriptions. Return a JSON response with this exact format:
 {
@@ -84,7 +89,8 @@ Requirements:
 - Each description should be 2-3 sentences
 - Focus on personality traits, appearance, and special abilities
 - Use age-appropriate language
-- Make characters diverse and relatable for children`;
+- Make characters diverse and relatable for children
+${storyGuidance ? `- Incorporate the story guidance and themes: ${storyGuidance}` : ""}`;
 
   try {
     const response = await openai.chat.completions.create({

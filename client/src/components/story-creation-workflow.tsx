@@ -20,7 +20,7 @@ import { getCoreImageUrl, getPageImageUrl, getCharacterImageUrl } from "@/utils/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
 import { RevisionPanel } from "@/components/revision-panel";
-import { Loader2, BookOpen, Users, ScrollText, Palette, Eye, Edit, Check, Plus, History, RefreshCw, Sparkles, ZoomIn, ZoomOut, RotateCcw, X, AlertCircle, Settings } from "lucide-react";
+import { Loader2, BookOpen, Users, ScrollText, Palette, Eye, Edit, Check, Plus, History, RefreshCw, Sparkles, ZoomIn, ZoomOut, RotateCcw, X, AlertCircle, Settings, Trash2 } from "lucide-react";
 
 type WorkflowStep = "details" | "setting" | "characters" | "review" | "images" | "complete";
 
@@ -1550,12 +1550,49 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                       data-testid={`textarea-character-description-${index}`}
                     />
                   </div>
+
+                  {/* Remove Character Button */}
+                  {extractedCharacters && extractedCharacters.length > 1 && (
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const updated = extractedCharacters.filter((_, i) => i !== index);
+                          setExtractedCharacters(updated);
+                        }}
+                        className="text-red-600 border-red-200 hover:bg-red-50"
+                        data-testid={`button-remove-character-${index}`}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Remove Character
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 ))
               )}
 
+              {/* Add Character Button */}
+              {extractedCharacters && extractedCharacters.length > 0 && extractedCharacters.length < 6 && (
+                <div className="mt-6 text-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const newCharacter = { name: "New Character", description: "A wonderful new character for your story." };
+                      setExtractedCharacters([...(extractedCharacters || []), newCharacter]);
+                    }}
+                    className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                    data-testid="button-add-character"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Character
+                  </Button>
+                </div>
+              )}
+
               {extractedCharacters && extractedCharacters.length > 0 && (
-                <div className="flex flex-wrap gap-4 justify-center">
+                <div className="flex flex-wrap gap-4 justify-center mt-8">
                   <Button
                     variant="outline"
                     onClick={() => extractCharactersMutation.mutate()}

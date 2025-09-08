@@ -509,7 +509,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         story.plot,
         story.ageGroup,
         req.user.openaiApiKey,
-        req.user.openaiBaseUrl
+        req.user.openaiBaseUrl,
+        story.storyGuidance || undefined
       );
 
       const updatedStory = await storage.updateStoryExpandedSetting(story.id, expandedSetting);
@@ -572,7 +573,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         story.expandedSetting || story.setting,
         story.ageGroup,
         req.user.openaiApiKey,
-        req.user.openaiBaseUrl
+        req.user.openaiBaseUrl,
+        story.storyGuidance || undefined
       );
 
       const updatedStory = await storage.updateStoryExtractedCharacters(story.id, extractedCharacters);
