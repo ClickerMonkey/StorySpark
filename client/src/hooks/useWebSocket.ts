@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 export interface WebSocketMessage {
   type: 'story_update' | 'image_generation_start' | 'image_generation_progress' | 'image_generation_complete' | 'image_generation_error';
@@ -22,6 +23,7 @@ export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const subscribedStoriesRef = useRef<Set<string>>(new Set());
+  const queryClient = useQueryClient();
 
   const connect = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -99,6 +101,12 @@ export function useWebSocket() {
             error: message.data?.error,
             message: `Error: ${message.data?.error}`
           }]);
+        } else if (message.type === 'story_update') {
+          // Handle story updates by invalidating relevant queries
+          console.log('Received story update via WebSocket:', message.storyId);
+          queryClient.invalidateQueries({ queryKey: [`/api/stories/${message.storyId}`] });
+          queryClient.invalidateQueries({ queryKey: [`/api/stories/${message.storyId}/revisions`] });
+          queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);

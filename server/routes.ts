@@ -516,6 +516,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       const updatedStory = await storage.updateStoryExpandedSetting(story.id, expandedSetting);
+      
+      // Notify WebSocket subscribers of story update
+      const wsService = getWebSocketService();
+      wsService?.notifyStoryUpdate(story.id, updatedStory);
+      
       res.json({ expandedSetting, story: updatedStory });
     } catch (error) {
       console.error("Error expanding setting:", error);
@@ -543,6 +548,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expandedSetting,
         status: "setting_expansion"
       });
+
+      // Notify WebSocket subscribers of story update
+      const wsService = getWebSocketService();
+      wsService?.notifyStoryUpdate(story.id, updatedStory);
 
       res.json({ story: updatedStory });
     } catch (error) {
@@ -580,6 +589,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       const updatedStory = await storage.updateStoryExtractedCharacters(story.id, extractedCharacters);
+      
+      // Notify WebSocket subscribers of story update
+      const wsService = getWebSocketService();
+      wsService?.notifyStoryUpdate(story.id, updatedStory);
+      
       res.json({ characters: extractedCharacters, story: updatedStory });
     } catch (error) {
       console.error("Error extracting characters:", error);
@@ -613,6 +627,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "characters_extracted"
       });
 
+      // Notify WebSocket subscribers of character approval
+      const wsService = getWebSocketService();
+      wsService?.notifyStoryUpdate(story.id, updatedStory);
+
       // Generate story pages
       const storyContent = await generateStoryText(
         {
@@ -636,6 +654,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pages: storyContent.pages,
         status: "text_approved"
       });
+
+      // Notify WebSocket subscribers of story generation completion
+      wsService?.notifyStoryUpdate(story.id, updatedStory);
 
       res.json({ story: updatedStory, storyContent });
     } catch (error) {
@@ -684,6 +705,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pages: storyContent.pages,
         status: "text_approved"
       });
+
+      // Notify WebSocket subscribers of story generation completion
+      const wsService = getWebSocketService();
+      wsService?.notifyStoryUpdate(story.id, updatedStory);
 
       res.json({ story: updatedStory, storyContent });
     } catch (error) {
