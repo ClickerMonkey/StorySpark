@@ -9,6 +9,7 @@ import { ImageStorageService } from "./storage/ImageStorageService";
 import { ImageGenerationService } from "./services/imageGeneration";
 import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema, regenerateCoreImageSchema, createRevisionSchema, updateUserProfileSchema, type Story, type User } from "@shared/schema";
 import { verifyGoogleToken, generateJWT, requireAuth, optionalAuth, type AuthenticatedRequest } from "./auth";
+import { initializeWebSocketService, getWebSocketService } from "./services/websocketService";
 import { z } from "zod";
 
 // Helper function to truncate URLs for logging
@@ -1515,5 +1516,9 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
   });
 
   const httpServer = createServer(app);
+  
+  // Initialize WebSocket service
+  initializeWebSocketService(httpServer);
+  
   return httpServer;
 }
