@@ -116,6 +116,7 @@ export const regenerateImageSchema = z.object({
   currentImageUrl: z.string().optional(),
   useCurrentImageAsReference: z.boolean().optional(),
   customModel: z.string().optional(), // Optional custom replicate model to use
+  customInput: z.record(z.any()).optional(), // Optional custom input object for replicate models
 });
 
 export const regenerateCoreImageSchema = z.object({
@@ -123,6 +124,7 @@ export const regenerateCoreImageSchema = z.object({
   customPrompt: z.string(),
   useCurrentImageAsReference: z.boolean().default(false),
   customModel: z.string().optional(), // Optional custom replicate model to use
+  customInput: z.record(z.any()).optional(), // Optional custom input object for replicate models
 });
 
 export const createRevisionSchema = z.object({

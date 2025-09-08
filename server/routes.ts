@@ -970,7 +970,7 @@ Style requirements:
   // Regenerate page image with custom prompt
   app.post("/api/stories/:id/pages/:pageNumber/regenerate-image", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { storyId, pageNumber, customPrompt, currentImageUrl, useCurrentImageAsReference, customModel } = regenerateImageSchema.parse({
+      const { storyId, pageNumber, customPrompt, currentImageUrl, useCurrentImageAsReference, customModel, customInput } = regenerateImageSchema.parse({
         storyId: req.params.id,
         pageNumber: parseInt(req.params.pageNumber),
         ...req.body
@@ -1091,7 +1091,8 @@ Style requirements:
           
           // Prepare multi-image inputs for models that support them
           const imageOptions: any = {
-            additionalPrompt: finalCustomPrompt
+            additionalPrompt: finalCustomPrompt,
+            customInput: customInput || undefined
           };
 
           // Get fresh story data to ensure we have the latest core image
@@ -1250,7 +1251,7 @@ Style requirements:
   // Regenerate core image with custom prompt
   app.post("/api/stories/:id/regenerate-core-image", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { storyId, customPrompt, useCurrentImageAsReference, customModel } = regenerateCoreImageSchema.parse({
+      const { storyId, customPrompt, useCurrentImageAsReference, customModel, customInput } = regenerateCoreImageSchema.parse({
         storyId: req.params.id,
         ...req.body
       });
@@ -1311,7 +1312,8 @@ Style requirements:
           console.log('Using template-based generation with template:', JSON.stringify(template, null, 2));
           imageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt, {
             referenceImage: useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined,
-            additionalPrompt: customPrompt
+            additionalPrompt: customPrompt,
+            customInput: customInput || undefined
           });
           console.log('Template-based generation returned imageUrl:', truncateForLog(imageUrl));
           console.log('Template-based generation imageUrl type:', typeof imageUrl);

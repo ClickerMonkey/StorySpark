@@ -171,6 +171,7 @@ export class ReplicateService {
       styleImage?: string;
       additionalImages?: Record<string, string>; // Additional images by field name
       additionalPrompt?: string;
+      customInput?: Record<string, any>; // Custom input object to override/add to the template values
     } = {}
   ): Promise<string> {
     try {
@@ -184,6 +185,11 @@ export class ReplicateService {
       
       // Apply user's configured values from template
       Object.assign(input, template.userValues || {});
+      
+      // Apply custom input values if provided (these override template values)
+      if (options.customInput) {
+        Object.assign(input, options.customInput);
+      }
       
       // Apply prompt to the identified prompt field
       if (template.promptField) {
