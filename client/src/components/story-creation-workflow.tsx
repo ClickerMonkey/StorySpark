@@ -1102,7 +1102,9 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
         title: "Core Image Generated!",
         description: "Your core character and setting image has been created.",
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/stories/${generatedStory.id}`] });
+      if (generatedStory?.id) {
+        queryClient.invalidateQueries({ queryKey: [`/api/stories/${generatedStory.id}`] });
+      }
     },
     onError: (error) => {
       toast({
@@ -1129,7 +1131,9 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
         description: "Your page images are being regenerated. This may take a few minutes.",
       });
       // Start polling for status updates
-      startImageGenerationPolling(generatedStory.id);
+      if (generatedStory?.id) {
+        startImageGenerationPolling(generatedStory.id);
+      }
     },
     onError: (error) => {
       toast({
