@@ -377,29 +377,34 @@ export class ImageGenerationService {
       const firstImageField = template.imageFields[0];
       const isArrayField = template.imageArrayFields?.includes(firstImageField);
       
-      // Determine which image to use as reference
-      let imageReference: { imageId: string } | null = null;
+      // Determine which images to use as reference
+      const imageReferences: { imageId: string }[] = [];
       
-      if (useCurrentImageAsReference && page?.imageFileId) {
+      if (isArrayField && useCurrentImageAsReference && page?.imageFileId && story.coreImageFileId) {
+        // For array fields with current image reference: use both core and current page image
+        imageReferences.push({ imageId: story.coreImageFileId });
+        imageReferences.push({ imageId: page.imageFileId });
+      } else if (useCurrentImageAsReference && page?.imageFileId) {
         // Use current page image if explicitly requested and available
-        imageReference = { imageId: page.imageFileId };
+        imageReferences.push({ imageId: page.imageFileId });
       } else if (story.coreImageFileId) {
         // Fall back to core image for consistency
-        imageReference = { imageId: story.coreImageFileId };
+        imageReferences.push({ imageId: story.coreImageFileId });
       }
       
-      // Apply the reference to the template field if we have one
-      if (imageReference) {
+      // Apply the references to the template field if we have any
+      if (imageReferences.length > 0) {
         if (isArrayField) {
-          // Array field - include image in array format
-          // Preserve existing array items and add/replace our reference
+          // Array field - include all images in array format
+          // Preserve existing array items and add our references
           const existingArray = input[firstImageField] || [];
-          input[firstImageField] = [imageReference, ...existingArray.filter((item: any) => 
+          const filteredExisting = existingArray.filter((item: any) => 
             !item.imageId || (item.imageId !== story.coreImageFileId && item.imageId !== page?.imageFileId)
-          )];
+          );
+          input[firstImageField] = [...imageReferences, ...filteredExisting];
         } else {
-          // Single image field - use image as single value
-          input[firstImageField] = imageReference;
+          // Single image field - use first (primary) image reference
+          input[firstImageField] = imageReferences[0];
         }
       }
     }
