@@ -17,12 +17,9 @@ export interface PageImageGenerationOptions {
   useCurrentImageAsReference?: boolean;
   customModel?: string;
   customInput?: Record<string, any>;
-  previousPageImageUrl?: string;
-  coreImageUrl?: string;
 }
 
 export interface ImageGenerationResult {
-  imageUrl: string;
   fileId: string;
 }
 
@@ -57,7 +54,7 @@ export class ImageGenerationService {
     // Store image as file
     const fileId = await this.imageStorage.downloadAndStore(imageUrl, story.id, 'core');
     
-    return { imageUrl, fileId };
+    return { fileId };
   }
 
   /**
@@ -86,7 +83,7 @@ export class ImageGenerationService {
       `page_${page.pageNumber}`
     );
     
-    return { imageUrl, fileId };
+    return { fileId };
   }
 
   /**
@@ -107,17 +104,10 @@ export class ImageGenerationService {
       const pageImagePromises = story.pages.map(async (page, index) => {
         console.log(`Generating image for page ${page.pageNumber}`);
         
-        // Get previous page image URL for continuity if needed
-        const previousPage = index > 0 ? story.pages[index - 1] : null;
-        const previousPageImageUrl = previousPage?.imageUrl;
+        const pageResult = await this.generatePageImage(story, page, user);
         
-        const pageResult = await this.generatePageImage(story, page, user, {
-          previousPageImageUrl,
-          coreImageUrl: coreResult.imageUrl
-        });
-        
-        // Update the specific page with the new image
-        await storage.updateStoryPageImage(story.id, page.pageNumber, pageResult.imageUrl, pageResult.fileId);
+        // Update the specific page with the new file ID only
+        await storage.updateStoryPageImageFileId(story.id, page.pageNumber, pageResult.fileId);
         
         console.log(`Page ${page.pageNumber} image generated and stored`);
         return { pageNumber: page.pageNumber, fileId: pageResult.fileId };
@@ -145,24 +135,14 @@ export class ImageGenerationService {
     try {
       console.log(`Starting page image regeneration for story ${story.id}`);
       
-      // Get existing core image URL for reference
-      const coreImageUrl = story.coreImageUrl || "";
-      
       // Regenerate all page images in parallel for efficiency
       const pageImagePromises = story.pages.map(async (page, index) => {
         console.log(`Regenerating image for page ${page.pageNumber}`);
         
-        // Get previous page image URL for continuity if needed
-        const previousPage = index > 0 ? story.pages[index - 1] : null;
-        const previousPageImageUrl = previousPage?.imageUrl;
+        const pageResult = await this.generatePageImage(story, page, user);
         
-        const pageResult = await this.generatePageImage(story, page, user, {
-          previousPageImageUrl,
-          coreImageUrl
-        });
-        
-        // Update the specific page with the new image
-        await storage.updateStoryPageImage(story.id, page.pageNumber, pageResult.imageUrl, pageResult.fileId);
+        // Update the specific page with the new file ID only
+        await storage.updateStoryPageImageFileId(story.id, page.pageNumber, pageResult.fileId);
         
         console.log(`Page ${page.pageNumber} image regenerated and stored`);
         return { pageNumber: page.pageNumber, fileId: pageResult.fileId };
@@ -205,17 +185,10 @@ export class ImageGenerationService {
       const pageImagePromises = story.pages.map(async (page, index) => {
         console.log(`Generating image for page ${page.pageNumber}`);
         
-        // Get previous page image URL for continuity if needed
-        const previousPage = index > 0 ? story.pages[index - 1] : null;
-        const previousPageImageUrl = previousPage?.imageUrl;
-        
-        const pageResult = await this.generatePageImage(story, page, user, {
-          previousPageImageUrl,
-          coreImageUrl: coreResult.imageUrl
-        });
+        const pageResult = await this.generatePageImage(story, page, user);
         
         console.log(`Page ${page.pageNumber} image generated and stored`);
-        return { pageNumber: page.pageNumber, imageUrl: pageResult.imageUrl, fileId: pageResult.fileId };
+        return { pageNumber: page.pageNumber, fileId: pageResult.fileId };
       });
 
       // Wait for all page images to complete
@@ -295,8 +268,7 @@ export class ImageGenerationService {
         throw new Error("Page not found");
       }
 
-      const previousPage = story.pages.find(p => p.pageNumber === pageNumber - 1);
-      const previousPageImageUrl = previousPage?.imageUrl;
+      // No longer need to track previous page URLs since we're not storing them
 
       // Enhanced prompt for regeneration with strong consistency requirements
       let finalCustomPrompt = options.customPrompt;
@@ -318,9 +290,7 @@ export class ImageGenerationService {
       // Generate the page image with all options
       const pageResult = await this.generatePageImage(story, page, user, {
         ...options,
-        customPrompt: finalCustomPrompt,
-        previousPageImageUrl,
-        coreImageUrl: story.coreImageUrl || ""
+        customPrompt: finalCustomPrompt
       });
 
       // Update the specific page with the new image
@@ -466,8 +436,8 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
     // Use the generatePageImage function which accepts custom prompts
     return await openaiGeneratePageImage(
       page.text,
-      options.coreImageUrl || "",
-      options.previousPageImageUrl || "",
+      "", // No longer storing/using core image URLs
+      "", // No longer storing/using previous page URLs
       story.expandedSetting || story.setting || undefined,
       story.extractedCharacters || [],
       user.openaiApiKey!,
