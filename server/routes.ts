@@ -1092,7 +1092,8 @@ Style requirements:
           // Prepare multi-image inputs for models that support them
           const imageOptions: any = {
             additionalPrompt: finalCustomPrompt,
-            customInput: customInput || undefined
+            customInput: customInput || undefined,
+            storyContext: story // Pass the story context for image ID resolution
           };
 
           // Get fresh story data to ensure we have the latest core image
@@ -1313,7 +1314,8 @@ Style requirements:
           imageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt, {
             referenceImage: useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined,
             additionalPrompt: customPrompt,
-            customInput: customInput || undefined
+            customInput: customInput || undefined,
+            storyContext: story // Pass the story context for image ID resolution
           });
           console.log('Template-based generation returned imageUrl:', truncateForLog(imageUrl));
           console.log('Template-based generation imageUrl type:', typeof imageUrl);

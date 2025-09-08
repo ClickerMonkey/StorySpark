@@ -1,4 +1,5 @@
 import Replicate from "replicate";
+import { ImageStorageService } from '../storage/ImageStorageService';
 
 // Helper function to truncate URLs for logging
 function truncateForLog(value: any): string {
@@ -172,6 +173,7 @@ export class ReplicateService {
       additionalImages?: Record<string, string>; // Additional images by field name
       additionalPrompt?: string;
       customInput?: Record<string, any>; // Custom input object to override/add to the template values
+      storyContext?: any; // Story context for resolving core and page image references
     } = {}
   ): Promise<string> {
     try {
@@ -188,7 +190,11 @@ export class ReplicateService {
       
       // Apply custom input values if provided (these override template values)
       if (options.customInput) {
+        // First apply the custom input as-is
         Object.assign(input, options.customInput);
+        
+        // Then process any image fields that contain imageId references
+        await this.processCustomInputImageIds(input, template, options.storyContext);
       }
       
       // Apply prompt to the identified prompt field
@@ -375,6 +381,87 @@ export class ReplicateService {
     } catch (error) {
       console.error('Error generating image with template:', error);
       throw new Error(`Failed to generate image with ${template.modelId}`);
+    }
+  }
+
+  /**
+   * Process custom input to convert image ID references to base64 images
+   */
+  private async processCustomInputImageIds(input: any, template: any, storyContext?: any): Promise<void> {
+    const imageStorage = new ImageStorageService();
+    
+    // Helper function to convert image ID to base64
+    const convertImageId = async (imageId: string): Promise<string | undefined> => {
+      try {
+        if (imageId === 'core' && storyContext?.coreImageFileId) {
+          // Handle core image
+          const fileData = await imageStorage.retrieve(storyContext.coreImageFileId);
+          if (fileData) {
+            return `data:${fileData.mimeType};base64,${fileData.buffer.toString('base64')}`;
+          }
+        } else if (imageId.startsWith('page_') && storyContext?.pages) {
+          // Handle page images - extract page number from 'page_X' format
+          const pageNumber = parseInt(imageId.replace('page_', ''));
+          const page = storyContext.pages.find((p: any) => p.pageNumber === pageNumber);
+          if (page?.imageFileId) {
+            const fileData = await imageStorage.retrieve(page.imageFileId);
+            if (fileData) {
+              return `data:${fileData.mimeType};base64,${fileData.buffer.toString('base64')}`;
+            }
+          }
+        } else {
+          // Handle file IDs directly
+          const fileData = await imageStorage.retrieve(imageId);
+          if (fileData) {
+            return `data:${fileData.mimeType};base64,${fileData.buffer.toString('base64')}`;
+          }
+        }
+      } catch (error) {
+        console.error(`Error converting image ID ${imageId} to base64:`, error);
+      }
+      return undefined;
+    };
+
+    // Type guard for objects with imageId property
+    const hasImageId = (item: any): item is { imageId: string } => {
+      return item && typeof item === 'object' && typeof item.imageId === 'string';
+    };
+
+    // Process each field in the input
+    for (const [fieldName, value] of Object.entries(input)) {
+      // Check if this field is marked as an image field in the template
+      if (template.imageFields?.includes(fieldName)) {
+        const isArrayField = template.imageArrayFields?.includes(fieldName);
+        
+        if (isArrayField && Array.isArray(value)) {
+          // Handle array image fields
+          const convertedImages: string[] = [];
+          for (const item of value) {
+            if (hasImageId(item)) {
+              const base64Image = await convertImageId(item.imageId);
+              if (base64Image) {
+                convertedImages.push(base64Image);
+              }
+            } else if (typeof item === 'string') {
+              // Already a URL or base64, keep as-is
+              convertedImages.push(item);
+            }
+          }
+          if (convertedImages.length > 0) {
+            input[fieldName] = convertedImages;
+          } else {
+            delete input[fieldName];
+          }
+        } else if (hasImageId(value)) {
+          // Handle single image fields
+          const base64Image = await convertImageId(value.imageId);
+          if (base64Image) {
+            input[fieldName] = base64Image;
+          } else {
+            delete input[fieldName];
+          }
+        }
+      }
     }
   }
 
