@@ -319,12 +319,15 @@ export class ImageGenerationService {
     const replicateService = new ReplicateService(user.replicateApiKey!);
     
     let prompt: string;
+    // Always generate the base story prompt first
+    const promptGenerator = new ImagePromptGenerator(user.openaiApiKey!, user.openaiBaseUrl || undefined);
+    const basePrompt = await promptGenerator.generateCoreImagePrompt(story);
+    
     if (options.customPrompt) {
-      prompt = options.customPrompt;
+      // Make custom prompt additive to the base story context
+      prompt = `${basePrompt}\n\nAdditional style/modification request: ${options.customPrompt}`;
     } else {
-      // Generate optimized core image prompt using LLM
-      const promptGenerator = new ImagePromptGenerator(user.openaiApiKey!, user.openaiBaseUrl || undefined);
-      prompt = await promptGenerator.generateCoreImagePrompt(story);
+      prompt = basePrompt;
     }
 
     // Determine model to use
