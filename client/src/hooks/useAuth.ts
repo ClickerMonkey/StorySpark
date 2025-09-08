@@ -83,6 +83,8 @@ export function useAuth() {
       isAuthenticated: false,
       isLoading: false,
     });
+    // Refresh the page to redirect to login
+    window.location.reload();
   };
 
   const updateUser = (user: User) => {
