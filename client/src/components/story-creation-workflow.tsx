@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { createStorySchema, insertStorySchema, type CreateStory, type Story, type StoryPage, type Character } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -618,6 +619,7 @@ function CoreImageDisplay({ imageUrl, storyId, onImageRegenerated }: CoreImageDi
 
 export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreationWorkflowProps) {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   
   // Determine initial step based on story completion status
   const getInitialStep = (): WorkflowStep => {
@@ -696,6 +698,9 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
     onSuccess: async (story) => {
       setGeneratedStory(story);
       setCurrentStep("setting");
+      
+      // Navigate to edit page with story ID so user won't lose progress on refresh
+      setLocation(`/edit/${story.id}`);
       
       // Create initial revision
       if (story?.id) {
