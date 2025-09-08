@@ -1034,12 +1034,28 @@ Style requirements:
 
       let imageUrl: string;
 
+      // Initialize image storage service and helper function for both providers
+      const imageStorage = new ImageStorageService();
+      const getImageBase64 = async (url: string | undefined, fileId: string | undefined): Promise<string | undefined> => {
+        if (fileId) {
+          try {
+            const fileData = await imageStorage.retrieve(fileId);
+            if (fileData) {
+              return `data:${fileData.mimeType};base64,${fileData.buffer.toString('base64')}`;
+            }
+          } catch (error) {
+            console.error('Error loading image file:', fileId, error);
+          }
+        }
+        return url; // Fallback to original URL if no fileId or error
+      };
+
       if (preferredProvider === "replicate") {
         // Use Replicate for image generation
         const replicateService = new ReplicateService(fullUser.replicateApiKey!);
         
         // Generate optimized image prompt using LLM for page regeneration
-        const promptGenerator = new ImagePromptGenerator(fullUser.openaiApiKey!, fullUser.openaiBaseUrl);
+        const promptGenerator = new ImagePromptGenerator(fullUser.openaiApiKey!, fullUser.openaiBaseUrl || undefined);
         const previousPages = story.pages.filter(p => p.pageNumber < pageNumber); // Get pages before current one
         
         let replicatePrompt = await promptGenerator.generateImagePrompt(story, page, previousPages);
@@ -1077,22 +1093,6 @@ Style requirements:
           const imageOptions: any = {
             additionalPrompt: finalCustomPrompt
           };
-          
-          // Convert file IDs to base64 data instead of using URLs
-          const imageStorage = new ImageStorageService();
-          const getImageBase64 = async (url: string | undefined, fileId: string | undefined): Promise<string | undefined> => {
-            if (fileId) {
-              try {
-                const fileData = await imageStorage.retrieve(fileId);
-                if (fileData) {
-                  return `data:${fileData.mimeType};base64,${fileData.buffer.toString('base64')}`;
-                }
-              } catch (error) {
-                console.error('Error loading image file:', fileId, error);
-              }
-            }
-            return url; // Fallback to original URL if no fileId or error
-          };
 
           // Set primary image only if user wants to use current image as reference
           let primaryImageBase64;
@@ -1106,7 +1106,7 @@ Style requirements:
           // Set reference image (story core image for visual consistency)
           // Get fresh story data to ensure we have the latest core image
           const freshStory = await storage.getStory(storyId);
-          const referenceImageBase64 = await getImageBase64(freshStory?.coreImageUrl, freshStory?.coreImageFileId);
+          const referenceImageBase64 = await getImageBase64(freshStory?.coreImageUrl || undefined, freshStory?.coreImageFileId || undefined);
           if (referenceImageBase64 && referenceImageBase64 !== primaryImageBase64) {
             imageOptions.referenceImage = referenceImageBase64;
           }
@@ -1114,7 +1114,7 @@ Style requirements:
           // Set additional images for models that support extra image inputs
           const additionalImages: { [key: string]: string } = {};
           if (previousPage?.imageFileId) {
-            const prevImageBase64 = await getImageBase64(previousPageImageUrl, previousPage.imageFileId);
+            const prevImageBase64 = await getImageBase64(previousPageImageUrl || undefined, previousPage.imageFileId || undefined);
             if (prevImageBase64 && prevImageBase64 !== primaryImageBase64 && prevImageBase64 !== referenceImageBase64) {
               additionalImages.previous_page = prevImageBase64;
             }
@@ -1137,11 +1137,11 @@ Style requirements:
           // Fall back to legacy hardcoded generation with primary reference image
           let legacyImageBase64;
           if (useCurrentImageAsReference) {
-            legacyImageBase64 = await getImageBase64(currentImageUrl, page.imageFileId);
+            legacyImageBase64 = await getImageBase64(currentImageUrl || undefined, page.imageFileId || undefined);
           }
           if (!legacyImageBase64) {
-            legacyImageBase64 = (await getImageBase64(previousPageImageUrl, previousPage?.imageFileId)) || 
-                               (await getImageBase64(story.coreImageUrl, story.coreImageFileId));
+            legacyImageBase64 = (await getImageBase64(previousPageImageUrl || undefined, previousPage?.imageFileId || undefined)) || 
+                               (await getImageBase64(story.coreImageUrl || undefined, story.coreImageFileId || undefined));
           }
           
           imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
@@ -1154,26 +1154,12 @@ Style requirements:
         }
       } else {
         // Use OpenAI for image generation with base64 encoded files
-        const imageStorage = new ImageStorageService();
-        const getImageBase64 = async (url: string | undefined, fileId: string | undefined): Promise<string | undefined> => {
-          if (fileId) {
-            try {
-              const fileData = await imageStorage.retrieve(fileId);
-              if (fileData) {
-                return `data:${fileData.mimeType};base64,${fileData.buffer.toString('base64')}`;
-              }
-            } catch (error) {
-              console.error('Error loading image file:', fileId, error);
-            }
-          }
-          return url; // Fallback to original URL if no fileId or error
-        };
 
-        const openaiCoreImageUrl = (await getImageBase64(story.coreImageUrl, story.coreImageFileId)) || "";
-        const openaiPreviousImageUrl = await getImageBase64(previousPageImageUrl, previousPage?.imageFileId);
+        const openaiCoreImageUrl = (await getImageBase64(story.coreImageUrl || undefined, story.coreImageFileId || undefined)) || "";
+        const openaiPreviousImageUrl = await getImageBase64(previousPageImageUrl || undefined, previousPage?.imageFileId || undefined);
         
         // Generate optimized image prompt using LLM for OpenAI regeneration too
-        const promptGenerator = new ImagePromptGenerator(fullUser.openaiApiKey!, fullUser.openaiBaseUrl);
+        const promptGenerator = new ImagePromptGenerator(fullUser.openaiApiKey!, fullUser.openaiBaseUrl || undefined);
         const previousPages = story.pages.filter(p => p.pageNumber < pageNumber); // Get pages before current one
         let optimizedPrompt = await promptGenerator.generateImagePrompt(story, page, previousPages);
         
@@ -1189,7 +1175,7 @@ Style requirements:
           story.expandedSetting || story.setting,
           story.extractedCharacters || undefined,
           fullUser.openaiApiKey!,
-          fullUser.openaiBaseUrl,
+          fullUser.openaiBaseUrl || undefined,
           undefined, // custom prompt already included in optimizedPrompt
           "", // story context already included in optimizedPrompt
           undefined, // story guidance already included in optimizedPrompt
@@ -1200,7 +1186,6 @@ Style requirements:
       console.log('Page regeneration - About to downloadAndStore imageUrl:', truncateForLog(imageUrl));
       
       // Download and store the regenerated page image as a file
-      const imageStorage = new ImageStorageService();
       const pageImageFileId = await imageStorage.downloadAndStore(
         imageUrl,
         story.id,
@@ -1344,17 +1329,17 @@ Style requirements:
         }
       } else {
         // Generate optimized core image prompt using LLM for OpenAI regeneration too
-        const promptGenerator = new ImagePromptGenerator(req.user.openaiApiKey!, req.user.openaiBaseUrl);
+        const promptGenerator = new ImagePromptGenerator(req.user.openaiApiKey!, req.user.openaiBaseUrl || undefined);
         const optimizedPrompt = await promptGenerator.generateCoreImagePrompt(story, customPrompt);
         
         // Use OpenAI for core image regeneration with optimized prompt
         imageUrl = await regenerateCoreImage(
           optimizedPrompt, // Use LLM-generated prompt instead of raw setting
           story.extractedCharacters || [],
-          undefined, // custom prompt already included in optimizedPrompt
+          "", // custom prompt already included in optimizedPrompt
           useCurrentImageAsReference,
           req.user.openaiApiKey!,
-          req.user.openaiBaseUrl,
+          req.user.openaiBaseUrl || undefined,
           useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined
         );
         console.log('OpenAI generation returned imageUrl:', truncateForLog(imageUrl));
