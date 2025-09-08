@@ -139,6 +139,9 @@ export class ImageGenerationService {
       await storage.updateStoryCoreImageFileId(story.id, coreResult.fileId);
       console.log(`Core image generated and stored for story ${story.id}`);
 
+      // Update story object with core image file ID so page generation can reference it
+      story.coreImageFileId = coreResult.fileId;
+
       // Generate all page images in parallel for efficiency
       const pageImagePromises = story.pages.map(async (page, index) => {
         console.log(`Generating image for page ${page.pageNumber}`);
