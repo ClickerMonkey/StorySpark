@@ -1111,12 +1111,12 @@ Style requirements:
             }
             
             // Add previous page image for additional context
-            if (previousPage?.imageFileId) {
-              const prevImageBase64 = await getImageBase64(previousPageImageUrl || undefined, previousPage.imageFileId || undefined);
-              if (prevImageBase64 && prevImageBase64 !== primaryImageBase64 && prevImageBase64 !== coreImageBase64) {
-                imageOptions.additionalImages = { previous_page: prevImageBase64 };
-              }
-            }
+            // if (previousPage?.imageFileId) {
+            //   const prevImageBase64 = await getImageBase64(previousPageImageUrl || undefined, previousPage.imageFileId || undefined);
+            //   if (prevImageBase64 && prevImageBase64 !== primaryImageBase64 && prevImageBase64 !== coreImageBase64) {
+            //     imageOptions.additionalImages = { previous_page: prevImageBase64 };
+            //   }
+            // }
           } else {
             // When user doesn't want current image as reference, only send core image
             if (coreImageBase64) {
@@ -1128,7 +1128,7 @@ Style requirements:
           console.log('Page regeneration - Using multiple images:', {
             primaryImage: !!imageOptions.primaryImage,
             referenceImage: !!imageOptions.referenceImage,
-            additionalImages: Object.keys(additionalImages),
+            additionalImages: imageOptions.additionalImages ? Object.keys(imageOptions.additionalImages) : [],
             primaryImageType: truncateForLog(imageOptions.primaryImage),
             referenceImageType: truncateForLog(imageOptions.referenceImage)
           });
