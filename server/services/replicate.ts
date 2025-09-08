@@ -189,12 +189,13 @@ export class ReplicateService {
       Object.assign(input, template.userValues || {});
       
       // Apply custom input values if provided (these override template values)
+      let customImageProcessingOccurred = false;
       if (options.customInput) {
         // First apply the custom input as-is
         Object.assign(input, options.customInput);
         
         // Then process any image fields that contain imageId references
-        await this.processCustomInputImageIds(input, template, options.storyContext);
+        customImageProcessingOccurred = await this.processCustomInputImageIds(input, template, options.storyContext);
       }
       
       // Apply prompt to the identified prompt field
@@ -206,8 +207,8 @@ export class ReplicateService {
         input[template.promptField] = finalPrompt;
       }
       
-      // Apply images to their appropriate fields based on type
-      if (template.imageFields && template.imageFieldTypes) {
+      // Apply images to their appropriate fields based on type (skip if custom input already specified images)
+      if (!customImageProcessingOccurred && template.imageFields && template.imageFieldTypes) {
         for (const imageField of template.imageFields) {
           const fieldType = template.imageFieldTypes[imageField];
           const isArrayField = template.imageArrayFields?.includes(imageField);
@@ -269,8 +270,8 @@ export class ReplicateService {
         }
       }
       
-      // Fallback: If no typed fields, use the first image field for primary image
-      if (!template.imageFieldTypes && template.imageFields && template.imageFields.length > 0) {
+      // Fallback: If no typed fields, use the first image field for primary image (skip if custom input already specified images)
+      if (!customImageProcessingOccurred && !template.imageFieldTypes && template.imageFields && template.imageFields.length > 0) {
         const firstImageField = template.imageFields[0];
         const isArrayField = template.imageArrayFields?.includes(firstImageField);
         
@@ -386,9 +387,11 @@ export class ReplicateService {
 
   /**
    * Process custom input to convert image ID references to base64 images
+   * @returns true if any image replacements were made, false otherwise
    */
-  private async processCustomInputImageIds(input: any, template: any, storyContext?: any): Promise<void> {
+  private async processCustomInputImageIds(input: any, template: any, storyContext?: any): Promise<boolean> {
     const imageStorage = new ImageStorageService();
+    let madeReplacements = false;
     
     // Helper function to convert image ID to base64
     const convertImageId = async (imageId: string): Promise<string | undefined> => {
@@ -397,6 +400,7 @@ export class ReplicateService {
           // Handle core image
           const fileData = await imageStorage.retrieve(storyContext.coreImageFileId);
           if (fileData) {
+            madeReplacements = true;
             return `data:${fileData.mimeType};base64,${fileData.buffer.toString('base64')}`;
           }
         } else if (imageId.startsWith('page_') && storyContext?.pages) {
@@ -406,6 +410,7 @@ export class ReplicateService {
           if (page?.imageFileId) {
             const fileData = await imageStorage.retrieve(page.imageFileId);
             if (fileData) {
+              madeReplacements = true;
               return `data:${fileData.mimeType};base64,${fileData.buffer.toString('base64')}`;
             }
           }
@@ -413,6 +418,7 @@ export class ReplicateService {
           // Handle file IDs directly
           const fileData = await imageStorage.retrieve(imageId);
           if (fileData) {
+            madeReplacements = true;
             return `data:${fileData.mimeType};base64,${fileData.buffer.toString('base64')}`;
           }
         }
@@ -463,6 +469,8 @@ export class ReplicateService {
         }
       }
     }
+    
+    return madeReplacements;
   }
 
   async generateImage(
