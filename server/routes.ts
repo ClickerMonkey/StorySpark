@@ -989,7 +989,7 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
   // Regenerate page image with custom prompt
   app.post("/api/stories/:id/pages/:pageNumber/regenerate-image", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const { storyId, pageNumber, customPrompt, currentImageUrl, customModel } = regenerateImageSchema.parse({
+      const { storyId, pageNumber, customPrompt, currentImageUrl, useCurrentImageAsReference, customModel } = regenerateImageSchema.parse({
         storyId: req.params.id,
         pageNumber: parseInt(req.params.pageNumber),
         ...req.body
@@ -1124,10 +1124,12 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
             return url; // Fallback to original URL if no fileId or error
           };
 
-          // Set primary image (current page image takes priority)
-          const primaryImageBase64 = await getImageBase64(currentImageUrl, page.imageFileId);
-          if (primaryImageBase64) {
-            imageOptions.primaryImage = primaryImageBase64;
+          // Set primary image only if user wants to use current image as reference
+          if (useCurrentImageAsReference) {
+            const primaryImageBase64 = await getImageBase64(currentImageUrl, page.imageFileId);
+            if (primaryImageBase64) {
+              imageOptions.primaryImage = primaryImageBase64;
+            }
           }
           
           // Set reference image (story core image for visual consistency)
@@ -1162,9 +1164,14 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
           imageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt, imageOptions);
         } else {
           // Fall back to legacy hardcoded generation with primary reference image
-          const legacyImageBase64 = (await getImageBase64(currentImageUrl, page.imageFileId)) || 
-                                   (await getImageBase64(previousPageImageUrl, previousPage?.imageFileId)) || 
-                                   (await getImageBase64(story.coreImageUrl, story.coreImageFileId));
+          let legacyImageBase64;
+          if (useCurrentImageAsReference) {
+            legacyImageBase64 = await getImageBase64(currentImageUrl, page.imageFileId);
+          }
+          if (!legacyImageBase64) {
+            legacyImageBase64 = (await getImageBase64(previousPageImageUrl, previousPage?.imageFileId)) || 
+                               (await getImageBase64(story.coreImageUrl, story.coreImageFileId));
+          }
           
           imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
             width: 1024,

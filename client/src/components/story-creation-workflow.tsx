@@ -60,6 +60,9 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
         requestBody.currentImageUrl = hasImage;
       }
       
+      // Always send the useCurrentImageAsReference boolean to backend
+      requestBody.useCurrentImageAsReference = useReference;
+      
       // Add custom model if provided
       if (customModel) {
         requestBody.customModel = customModel;
