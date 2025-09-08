@@ -24,10 +24,10 @@ export class ImagePromptGenerator {
       ? `Previous scenes: ${previousPages.map(p => `Page ${p.pageNumber}: ${p.text.substring(0, 100)}...`).join(' ')}`
       : "";
     
-    // Extract key character info (names and brief descriptions)
+    // Extract detailed character info for visual consistency
     const characters = story.extractedCharacters || [];
     const characterInfo = characters.length > 0
-      ? characters.map(c => `${c.name}: ${c.description.substring(0, 80)}...`).join(', ')
+      ? characters.map(c => `${c.name}: ${c.description}`).join('\n')
       : "";
     
     // Use condensed setting
@@ -40,8 +40,10 @@ STORY CONTEXT:
 Title: ${story.title}
 Age Group: ${story.ageGroup}
 Setting: ${condensedSetting}
-${characterInfo ? `Characters: ${characterInfo}` : ""}
 ${story.storyGuidance ? `Story Theme: ${story.storyGuidance}` : ""}
+
+${characterInfo ? `CHARACTER DESCRIPTIONS (for visual consistency):
+${characterInfo}` : ""}
 
 CURRENT PAGE:
 Page ${currentPage.pageNumber}: ${currentPage.text}
@@ -51,8 +53,9 @@ ${previousContext}
 
 INSTRUCTIONS:
 - Create a focused visual description of what should be illustrated for the current page
+- If characters are mentioned in the current page, use their EXACT visual descriptions provided above
 - Include key visual elements: characters, setting details, actions, mood, lighting
-- Maintain visual consistency with previous scenes mentioned
+- Maintain visual consistency with character descriptions and previous scenes
 - Use vivid, descriptive language suitable for image generation
 - Keep it concise (under 300 words) but visually rich
 - Focus on what can be SEEN, not story narrative
@@ -111,7 +114,7 @@ IMPORTANT: Do not include any text, words, letters, or written language in the i
   async generateCoreImagePrompt(story: Story, customPrompt?: string): Promise<string> {
     const characters = story.extractedCharacters || [];
     const characterInfo = characters.length > 0
-      ? characters.map(c => `${c.name}: ${c.description.substring(0, 80)}...`).join(', ')
+      ? characters.map(c => `${c.name}: ${c.description}`).join('\n')
       : "";
     
     const setting = story.expandedSetting || story.setting || "";
@@ -124,15 +127,17 @@ Title: ${story.title}
 Age Group: ${story.ageGroup}
 Plot: ${story.plot?.substring(0, 300)}...
 Setting: ${condensedSetting}
-${characterInfo ? `Main Characters: ${characterInfo}` : ""}
 ${story.storyGuidance ? `Story Theme: ${story.storyGuidance}` : ""}
+
+${characterInfo ? `CHARACTER DESCRIPTIONS (for visual consistency):
+${characterInfo}` : ""}
 
 ${customPrompt ? `CUSTOM REQUIREMENTS: ${customPrompt}` : ""}
 
 INSTRUCTIONS:
 - Create a captivating visual description for the main story illustration
-- Include the main characters in an iconic scene or setting
-- Capture the story's mood, theme, and adventure
+- Include the main characters using their EXACT visual descriptions provided above
+- Capture the story's mood, theme, and adventure in an iconic scene or setting
 - Use vivid, descriptive language suitable for image generation
 - Include art style: "bright, vibrant colors suitable for children, cartoonish and friendly illustration style"
 - Focus on visual elements that represent the story's essence

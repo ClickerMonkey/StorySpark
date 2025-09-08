@@ -1094,34 +1094,35 @@ Style requirements:
             additionalPrompt: finalCustomPrompt
           };
 
-          // Set primary image only if user wants to use current image as reference
-          let primaryImageBase64;
+          // Get fresh story data to ensure we have the latest core image
+          const freshStory = await storage.getStory(storyId);
+          const coreImageBase64 = await getImageBase64(freshStory?.coreImageUrl || undefined, freshStory?.coreImageFileId || undefined);
+          
           if (useCurrentImageAsReference) {
-            primaryImageBase64 = await getImageBase64(currentImageUrl, page.imageFileId);
+            // When user wants to use current image as reference, send current page + core + previous page
+            const primaryImageBase64 = await getImageBase64(currentImageUrl || undefined, page.imageFileId || undefined);
             if (primaryImageBase64) {
               imageOptions.primaryImage = primaryImageBase64;
             }
-          }
-          
-          // Set reference image (story core image for visual consistency)
-          // Get fresh story data to ensure we have the latest core image
-          const freshStory = await storage.getStory(storyId);
-          const referenceImageBase64 = await getImageBase64(freshStory?.coreImageUrl || undefined, freshStory?.coreImageFileId || undefined);
-          if (referenceImageBase64 && referenceImageBase64 !== primaryImageBase64) {
-            imageOptions.referenceImage = referenceImageBase64;
-          }
-          
-          // Set additional images for models that support extra image inputs
-          const additionalImages: { [key: string]: string } = {};
-          if (previousPage?.imageFileId) {
-            const prevImageBase64 = await getImageBase64(previousPageImageUrl || undefined, previousPage.imageFileId || undefined);
-            if (prevImageBase64 && prevImageBase64 !== primaryImageBase64 && prevImageBase64 !== referenceImageBase64) {
-              additionalImages.previous_page = prevImageBase64;
+            
+            // Add core image as reference for consistency
+            if (coreImageBase64 && coreImageBase64 !== primaryImageBase64) {
+              imageOptions.referenceImage = coreImageBase64;
             }
-          }
-          
-          if (Object.keys(additionalImages).length > 0) {
-            imageOptions.additionalImages = additionalImages;
+            
+            // Add previous page image for additional context
+            if (previousPage?.imageFileId) {
+              const prevImageBase64 = await getImageBase64(previousPageImageUrl || undefined, previousPage.imageFileId || undefined);
+              if (prevImageBase64 && prevImageBase64 !== primaryImageBase64 && prevImageBase64 !== coreImageBase64) {
+                imageOptions.additionalImages = { previous_page: prevImageBase64 };
+              }
+            }
+          } else {
+            // When user doesn't want current image as reference, only send core image
+            if (coreImageBase64) {
+              imageOptions.referenceImage = coreImageBase64;
+            }
+            // No additional images when not using current as reference
           }
           
           console.log('Page regeneration - Using multiple images:', {
