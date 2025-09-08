@@ -429,9 +429,21 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
       });
     } else if (template) {
       // Use intelligent template-based generation with core image for consistency
-      const defaultInput = story.coreImageFileId ? {
-        image_input: [{ imageId: 'core' }]
-      } : {};
+      let defaultInput = {};
+      
+      if (story.coreImageFileId && template.imageFields && template.imageFields.length > 0) {
+        // Use the first image field from the template
+        const firstImageField = template.imageFields[0];
+        const isArrayField = template.imageArrayFields?.includes(firstImageField);
+        
+        if (isArrayField) {
+          // Array field - include core image in array format
+          defaultInput[firstImageField] = [{ imageId: 'core' }];
+        } else {
+          // Single image field - include core image as single value
+          defaultInput[firstImageField] = { imageId: 'core' };
+        }
+      }
       
       return await replicateService.generateImageWithTemplate(template, prompt, {
         customInput: defaultInput,
