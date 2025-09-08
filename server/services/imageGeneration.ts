@@ -343,7 +343,10 @@ export class ImageGenerationService {
     
     if (template && options.customInput) {
       // Use intelligent template-based generation with custom input
-      return await replicateService.generateImageWithTemplate(template, prompt, options.customInput);
+      return await replicateService.generateImageWithTemplate(template, prompt, {
+        customInput: options.customInput,
+        storyContext: story
+      });
     } else if (template) {
       // Use intelligent template-based generation
       return await replicateService.generateImageWithTemplate(template, prompt);
@@ -420,7 +423,10 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
     
     if (template && options.customInput) {
       // Use intelligent template-based generation with custom input
-      return await replicateService.generateImageWithTemplate(template, prompt, options.customInput);
+      return await replicateService.generateImageWithTemplate(template, prompt, {
+        customInput: options.customInput,
+        storyContext: story
+      });
     } else if (template) {
       // Use intelligent template-based generation
       return await replicateService.generateImageWithTemplate(template, prompt);
