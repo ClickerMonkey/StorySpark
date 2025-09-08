@@ -370,6 +370,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
                   data-testid="page-image-container"
                 >
                   <img 
+                    key={currentPage?.imageFileId || story.coreImageFileId}
                     src={getPageImageUrl(currentPage) || getCoreImageUrl(story)}
                     alt={getPageImageUrl(currentPage) ? `Story illustration for page ${currentPage.pageNumber}` : `${story.title} core image`}
                     className="w-full rounded-xl shadow-lg"
