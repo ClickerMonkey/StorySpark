@@ -748,12 +748,12 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
       
       toast({
         title: "Story Approved!",
-        description: "Starting image generation...",
+        description: "Image generation started in the background. We'll update the UI as images are ready!",
       });
       
-      // Start image generation process
+      // Start polling for image generation updates
       if (data.story) {
-        await generateAllImages(data.story.id);
+        startImageGenerationPolling(data.story.id);
       }
     },
     onError: (error) => {
@@ -797,6 +797,49 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
   const handleGenerateStoryIdea = () => {
     const currentAgeGroup = form.getValues("ageGroup");
     generateStoryIdeaMutation.mutate(currentAgeGroup);
+  };
+
+  // Function to start polling for image generation updates
+  const startImageGenerationPolling = (storyId: string) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const storyResponse = await apiRequest("GET", `/api/stories/${storyId}`);
+        const currentStory = await storyResponse.json();
+        
+        // Update the story state with the latest data
+        setGeneratedStory(currentStory);
+        
+        // Check if image generation is complete
+        if (currentStory.status === "completed") {
+          clearInterval(pollInterval);
+          setCurrentStep("complete");
+          toast({
+            title: "Story Complete!",
+            description: "All images have been generated successfully.",
+          });
+          
+          if (onComplete) {
+            onComplete(currentStory);
+          }
+        } else if (currentStory.status === "text_approved") {
+          // Image generation failed, go back to text_approved state
+          clearInterval(pollInterval);
+          toast({
+            title: "Image Generation Failed",
+            description: "There was an error generating images. You can try again.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Error polling for story updates:", error);
+        // Continue polling even if there's an error, unless it's persistent
+      }
+    }, 3000); // Poll every 3 seconds
+
+    // Clear the interval after 10 minutes to prevent infinite polling
+    setTimeout(() => {
+      clearInterval(pollInterval);
+    }, 600000);
   };
 
   const generateAllImages = async (storyId: string) => {

@@ -6,7 +6,7 @@ import { generateStoryText, generateCoreImage, generatePageImage, expandSetting,
 import { ReplicateService } from "./services/replicate";
 import { ImagePromptGenerator } from "./services/imagePromptGenerator";
 import { ImageStorageService } from "./storage/ImageStorageService";
-import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema, regenerateCoreImageSchema, createRevisionSchema, updateUserProfileSchema } from "@shared/schema";
+import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema, regenerateCoreImageSchema, createRevisionSchema, updateUserProfileSchema, type Story, type User } from "@shared/schema";
 import { verifyGoogleToken, generateJWT, requireAuth, optionalAuth, type AuthenticatedRequest } from "./auth";
 import { z } from "zod";
 
@@ -704,10 +704,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
+      // Get complete user data from database to check API keys and preferences
+      const fullUser = await storage.getUser(req.user!.id);
+      if (!fullUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check API keys based on preferred provider for image generation
+      const preferredProvider = fullUser.preferredImageProvider || "openai";
+      
+      if (preferredProvider === "replicate") {
+        if (!fullUser.replicateApiKey) {
+          return res.status(400).json({ message: "Replicate API key required for image generation" });
+        }
+      } else {
+        if (!fullUser.openaiApiKey) {
+          return res.status(400).json({ message: "OpenAI API key required for image generation" });
+        }
+      }
+
+      // Update story with approved pages and status
       const updatedStory = await storage.updateStory(storyId, {
         pages,
-        status: "text_approved"
+        status: "generating_images"
       });
+
+      // Start image generation asynchronously  
+      if (updatedStory) {
+        generateImagesAsync(updatedStory, fullUser);
+      }
 
       res.json({ story: updatedStory });
     } catch (error) {
@@ -719,6 +744,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   });
+
+  // Async function to generate images without blocking the response
+  async function generateImagesAsync(story: Story, user: User) {
+    try {
+      console.log(`Starting async image generation for story ${story.id}`);
+      
+      // Initialize image storage service
+      const imageStorage = new ImageStorageService();
+      
+      // Get user preferences
+      const preferredProvider = user.preferredImageProvider || "openai";
+      
+      // Generate core image using preferred provider and store as file
+      let coreImageUrl: string;
+      let coreImageFileId: string;
+      
+      if (preferredProvider === "replicate") {
+        // Use Replicate for core image generation
+        const replicateService = new ReplicateService(user.replicateApiKey!);
+        
+        // Generate optimized core image prompt using LLM
+        const promptGenerator = new ImagePromptGenerator(user.openaiApiKey!, user.openaiBaseUrl || undefined);
+        const replicatePrompt = await promptGenerator.generateCoreImagePrompt(story);
+
+        // Use the user's preferred model or a default working FLUX model
+        let modelId = user.preferredReplicateModel || "black-forest-labs/flux-schnell";
+        // Fallback to working model if user has invalid model set
+        if (modelId === "prunaai/flux-kontext-dev") {
+          modelId = "black-forest-labs/flux-schnell";
+        }
+        
+        // Check if user has a template for this model
+        const userTemplates = user.replicateModelTemplates || [];
+        const template = userTemplates.find((t: any) => t.modelId === modelId);
+        
+        if (template) {
+          // Use intelligent template-based generation
+          coreImageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt);
+        } else {
+          // Use basic model without template
+          coreImageUrl = await replicateService.generateImage(modelId, replicatePrompt);
+        }
+        
+        // Store core image as file
+        coreImageFileId = await imageStorage.downloadAndStore(coreImageUrl, story.id, 'core');
+        
+      } else {
+        // Use OpenAI for core image generation
+        const coreImagePrompt = `Create a vibrant, child-friendly illustration for this story:
+
+Title: ${story.title}
+Setting: ${story.expandedSetting || story.setting}
+Characters: ${story.extractedCharacters?.map((c: any) => `${c.name}: ${c.description}`).join(', ') || story.characters}
+Age Group: ${story.ageGroup}
+
+Style: Bright, colorful, safe for children, storybook illustration style. Make it magical and engaging for kids aged ${story.ageGroup}.`;
+
+        coreImageUrl = await generateCoreImage(
+          coreImagePrompt,
+          [],
+          user.openaiApiKey!,
+          user.openaiBaseUrl || undefined
+        );
+        
+        // Store core image as file
+        coreImageFileId = await imageStorage.downloadAndStore(coreImageUrl, story.id, 'core');
+      }
+
+      // Update story with core image file ID
+      await storage.updateStoryCoreImageFileId(story.id, coreImageFileId);
+      console.log(`Core image generated and stored for story ${story.id}`);
+
+      // Generate page images
+      const pageImagePromises = story.pages.map(async (page: any, index: number) => {
+        console.log(`Generating image for page ${page.pageNumber}`);
+        
+        let pageImageUrl: string;
+        
+        if (preferredProvider === "replicate") {
+          // Use Replicate for page image generation
+          const replicateService = new ReplicateService(user.replicateApiKey!);
+          
+          // Generate optimized page image prompt using LLM
+          const promptGenerator = new ImagePromptGenerator(user.openaiApiKey!, user.openaiBaseUrl || undefined);
+          const replicatePrompt = await promptGenerator.generateImagePrompt(
+            story, 
+            page
+          );
+
+          // Use the user's preferred model or a default working FLUX model
+          let modelId = user.preferredReplicateModel || "black-forest-labs/flux-schnell";
+          // Fallback to working model if user has invalid model set
+          if (modelId === "prunaai/flux-kontext-dev") {
+            modelId = "black-forest-labs/flux-schnell";
+          }
+          
+          const userTemplates = user.replicateModelTemplates || [];
+          const template = userTemplates.find((t: any) => t.modelId === modelId);
+          
+          if (template) {
+            // Use intelligent template-based generation with reference image
+            pageImageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt);
+          } else {
+            // Use basic model without template
+            pageImageUrl = await replicateService.generateImage(modelId, replicatePrompt);
+          }
+          
+        } else {
+          // Use OpenAI for page image generation
+          const previousPage = index > 0 ? story.pages[index - 1] : null;
+          const previousPageImageUrl = previousPage?.imageUrl;
+
+          pageImageUrl = await generatePageImage(
+            story,
+            page,
+            story.extractedCharacters || [],
+            coreImageUrl,
+            user.openaiApiKey!,
+            user.openaiBaseUrl || undefined,
+            previousPageImageUrl
+          );
+        }
+        
+        // Store page image as file
+        const pageImageFileId = await imageStorage.downloadAndStore(pageImageUrl, story.id, 'page', `page_${page.pageNumber}`);
+        
+        console.log(`Page ${page.pageNumber} image generated and stored`);
+        return { pageNumber: page.pageNumber, fileId: pageImageFileId };
+      });
+
+      const pageResults = await Promise.all(pageImagePromises);
+      
+      // Update all page images in the story
+      for (const result of pageResults) {
+        await storage.updateStoryPageImageFileId(story.id, result.pageNumber, result.fileId);
+      }
+
+      // Update story status to completed
+      await storage.updateStoryStatus(story.id, "completed");
+      console.log(`Image generation completed for story ${story.id}`);
+      
+    } catch (error) {
+      console.error(`Error in async image generation for story ${story.id}:`, error);
+      // Update story status to indicate error
+      await storage.updateStoryStatus(story.id, "text_approved");
+    }
+  }
 
   app.post("/api/stories/:id/generate-images", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
