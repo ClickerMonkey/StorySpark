@@ -428,8 +428,15 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
         storyContext: story
       });
     } else if (template) {
-      // Use intelligent template-based generation
-      return await replicateService.generateImageWithTemplate(template, prompt);
+      // Use intelligent template-based generation with core image for consistency
+      const defaultInput = story.coreImageFileId ? {
+        image_input: [{ imageId: 'core' }]
+      } : {};
+      
+      return await replicateService.generateImageWithTemplate(template, prompt, {
+        customInput: defaultInput,
+        storyContext: story
+      });
     } else {
       // Use basic model without template
       return await replicateService.generateImage(modelId, prompt);

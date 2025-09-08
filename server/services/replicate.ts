@@ -390,14 +390,6 @@ export class ReplicateService {
    * @returns true if any image replacements were made, false otherwise
    */
   private async processCustomInputImageIds(input: any, template: any, storyContext?: any): Promise<boolean> {
-    console.log('=== processCustomInputImageIds DEBUG ===');
-    console.log('Input object:', truncateBase64InObject(input));
-    console.log('Template imageFields:', template.imageFields);
-    console.log('Template imageArrayFields:', template.imageArrayFields);
-    console.log('StoryContext available:', !!storyContext);
-    console.log('StoryContext coreImageFileId:', storyContext?.coreImageFileId);
-    console.log('StoryContext pages count:', storyContext?.pages?.length);
-    
     const imageStorage = new ImageStorageService();
     let madeReplacements = false;
     
