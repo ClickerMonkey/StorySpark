@@ -1051,27 +1051,16 @@ Style requirements:
         // Use Replicate for image generation
         const replicateService = new ReplicateService(fullUser.replicateApiKey!);
         
-        // Build comprehensive prompt for Replicate
-        const characterDescriptions = story.extractedCharacters && story.extractedCharacters.length > 0
-          ? `Characters: ${story.extractedCharacters.map(c => `${c.name} - ${c.description}`).join(', ')}\n`
-          : "";
+        // Generate optimized image prompt using LLM for page regeneration
+        const promptGenerator = new ImagePromptGenerator(fullUser.openaiApiKey!, fullUser.openaiBaseUrl);
+        const previousPages = story.pages.filter(p => p.pageNumber < pageNumber); // Get pages before current one
         
-        const settingDescription = story.expandedSetting || story.setting;
-        const pageImageGuidance = page.imageGuidance ? `\nPage guidance: ${page.imageGuidance}` : "";
-        const storyGuidanceText = story.storyGuidance ? `\nStory guidance: ${story.storyGuidance}` : "";
+        let replicatePrompt = await promptGenerator.generateImagePrompt(story, page, previousPages);
         
-        let replicatePrompt = `Create a beautiful children's book illustration for: ${page.text}
-
-${characterDescriptions}Setting: ${settingDescription}${storyGuidanceText}${pageImageGuidance}
-
-Style: Bright, vibrant colors suitable for children, cartoonish and friendly illustration style, high quality digital illustration, safe and wholesome content only`;
-
+        // Append custom modifications if provided
         if (finalCustomPrompt) {
           replicatePrompt += `\n\nCustom modifications: ${finalCustomPrompt}`;
         }
-        
-        // Add text exclusion instruction for all Replicate prompts
-        replicatePrompt += `\n\nIMPORTANT: Do not include any text, words, letters, or written language in the image unless specifically requested in the ${finalCustomPrompt ? 'custom modifications' : 'page guidance'} above.`;
 
         // Use custom model if provided, otherwise use user's preferred model or default
         let modelId = customModel || fullUser.preferredReplicateModel || "black-forest-labs/flux-schnell";
@@ -1196,18 +1185,28 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
         const openaiCoreImageUrl = (await getImageBase64(story.coreImageUrl, story.coreImageFileId)) || "";
         const openaiPreviousImageUrl = await getImageBase64(previousPageImageUrl, previousPage?.imageFileId);
         
+        // Generate optimized image prompt using LLM for OpenAI regeneration too
+        const promptGenerator = new ImagePromptGenerator(fullUser.openaiApiKey!, fullUser.openaiBaseUrl);
+        const previousPages = story.pages.filter(p => p.pageNumber < pageNumber); // Get pages before current one
+        let optimizedPrompt = await promptGenerator.generateImagePrompt(story, page, previousPages);
+        
+        // Append custom modifications if provided
+        if (finalCustomPrompt) {
+          optimizedPrompt += `\n\nCustom modifications: ${finalCustomPrompt}`;
+        }
+        
         imageUrl = await generatePageImage(
-          page.text,
+          optimizedPrompt, // Use LLM-generated prompt instead of page.text
           openaiCoreImageUrl,
           openaiPreviousImageUrl,
           story.expandedSetting || story.setting,
           story.extractedCharacters || undefined,
           fullUser.openaiApiKey!,
           fullUser.openaiBaseUrl,
-          finalCustomPrompt,
-          storyContext, // full story context
-          story.storyGuidance || undefined, // story-wide guidance
-          page.imageGuidance || undefined // page-specific image guidance
+          undefined, // custom prompt already included in optimizedPrompt
+          "", // story context already included in optimizedPrompt
+          undefined, // story guidance already included in optimizedPrompt
+          undefined // page guidance already included in optimizedPrompt
         );
       }
       
