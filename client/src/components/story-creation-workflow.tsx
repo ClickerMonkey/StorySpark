@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label";
 import { ImageViewerDialog } from "@/components/image-viewer-dialog";
 import { CustomInputModal } from "@/components/custom-input-modal";
+import { ImageGenerationStatus } from "@/components/image-generation-status";
 import { getCoreImageUrl, getPageImageUrl, getCharacterImageUrl } from "@/utils/imageUrl";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
@@ -1922,6 +1923,15 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
               <h2 className="text-3xl font-bold text-gray-900 mb-3">Creating Your Story Images</h2>
               <p className="text-lg text-gray-600">AI is painting beautiful pictures for each page of your story!</p>
             </div>
+
+            {/* Real-time Image Generation Status */}
+            <ImageGenerationStatus 
+              storyId={generatedStory.id}
+              onImageComplete={(imageFileId, pageNumber) => {
+                // Refresh the story data to show the new image
+                queryClient.invalidateQueries({ queryKey: [`/api/stories/${generatedStory.id}`] });
+              }}
+            />
 
             <div className="space-y-6">
               {/* Core Character/Setting Image */}
