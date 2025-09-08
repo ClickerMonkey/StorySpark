@@ -892,6 +892,54 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
     }
   }
 
+  // Regenerate only page images for a story (not core image)
+  app.post("/api/stories/:id/regenerate-page-images", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const story = await storage.getStory(req.params.id);
+      if (!story) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Check API keys based on preferred provider
+      const preferredProvider = req.user?.preferredImageProvider || "openai";
+      
+      if (preferredProvider === "replicate") {
+        if (!req.user?.replicateApiKey) {
+          return res.status(400).json({ message: "Replicate API key required" });
+        }
+      } else {
+        if (!req.user?.openaiApiKey) {
+          return res.status(400).json({ message: "OpenAI API key required" });
+        }
+      }
+
+      const fullUser = await storage.getUser(req.user!.id);
+      if (!fullUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Update story status to generating images
+      await storage.updateStoryStatus(story.id, "generating_images");
+
+      const updatedStory = await storage.getStory(story.id);
+      if (!updatedStory) {
+        return res.status(404).json({ message: "Story not found after update" });
+      }
+
+      // Start page image regeneration asynchronously (without core image)
+      regeneratePageImagesAsync(updatedStory, fullUser);
+
+      res.json({ story: updatedStory });
+    } catch (error) {
+      console.error("Error regenerating page images:", error);
+      res.status(500).json({ message: "Failed to regenerate page images" });
+    }
+  });
+
   app.post("/api/stories/:id/generate-images", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const story = await storage.getStory(req.params.id);

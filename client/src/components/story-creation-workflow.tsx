@@ -1107,6 +1107,33 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
     },
   });
 
+  // Regenerate all page images mutation
+  const regenerateAllPageImagesMutation = useMutation({
+    mutationFn: async () => {
+      if (!generatedStory) throw new Error("No story to regenerate page images for");
+      const response = await apiRequest("POST", `/api/stories/${generatedStory.id}/regenerate-page-images`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.story) {
+        setGeneratedStory(data.story);
+      }
+      toast({
+        title: "Page Image Regeneration Started!",
+        description: "Your page images are being regenerated. This may take a few minutes.",
+      });
+      // Start polling for status updates
+      startPolling();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to regenerate page images",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleTitleEdit = () => {
     setTempTitle(generatedStory?.title || "");
     setIsEditingTitle(true);
@@ -1973,11 +2000,36 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                 </div>
                 
                 {getCoreImageUrl(generatedStory) ? (
-                  <CoreImageDisplay 
-                    imageUrl={getCoreImageUrl(generatedStory) || ""}
-                    storyId={generatedStory.id}
-                    onImageRegenerated={(updatedStory) => setGeneratedStory(updatedStory)}
-                  />
+                  <div>
+                    <CoreImageDisplay 
+                      imageUrl={getCoreImageUrl(generatedStory) || ""}
+                      storyId={generatedStory.id}
+                      onImageRegenerated={(updatedStory) => setGeneratedStory(updatedStory)}
+                    />
+                    
+                    {/* Regenerate All Page Images Button */}
+                    <div className="mt-4 text-center">
+                      <Button
+                        variant="outline"
+                        onClick={() => regenerateAllPageImagesMutation.mutate()}
+                        disabled={regenerateAllPageImagesMutation.isPending || generatedStory.status === "generating_images"}
+                        className="bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+                        data-testid="button-regenerate-all-page-images"
+                      >
+                        {regenerateAllPageImagesMutation.isPending || generatedStory.status === "generating_images" ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Regenerating Page Images...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Regenerate All Page Images
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="bg-white rounded-lg p-8 text-center border-2 border-dashed border-gray-300">
                     <Palette className="h-12 w-12 text-gray-400 mx-auto mb-3" />
