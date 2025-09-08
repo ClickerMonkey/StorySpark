@@ -15,11 +15,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ImageViewerDialog } from "@/components/image-viewer-dialog";
+import { CustomInputModal } from "@/components/custom-input-modal";
 import { getCoreImageUrl, getPageImageUrl, getCharacterImageUrl } from "@/utils/imageUrl";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
 import { RevisionPanel } from "@/components/revision-panel";
-import { Loader2, BookOpen, Users, ScrollText, Palette, Eye, Edit, Check, Plus, History, RefreshCw, Sparkles, ZoomIn, ZoomOut, RotateCcw, X, AlertCircle } from "lucide-react";
+import { Loader2, BookOpen, Users, ScrollText, Palette, Eye, Edit, Check, Plus, History, RefreshCw, Sparkles, ZoomIn, ZoomOut, RotateCcw, X, AlertCircle, Settings } from "lucide-react";
 
 type WorkflowStep = "details" | "setting" | "characters" | "review" | "images" | "complete";
 
@@ -37,6 +38,47 @@ interface PageImageCardProps {
   onImageRegenerated: (story: Story) => void;
 }
 
+interface StoryAwareCustomInputModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  modelId: string;
+  storyId: string;
+  onSubmit: (input: Record<string, any>) => void;
+  title: string;
+}
+
+function StoryAwareCustomInputModal({ open, onOpenChange, modelId, storyId, onSubmit, title }: StoryAwareCustomInputModalProps) {
+  // Fetch story data
+  const { data: story } = useQuery<Story>({
+    queryKey: [`/api/stories/${storyId}`],
+    enabled: open, // Only fetch when modal is open
+  });
+
+  // Fetch user templates
+  const { data: userTemplates = [] } = useQuery<any[]>({
+    queryKey: ['/api/replicate/templates'],
+    select: (data) => Array.isArray(data) ? data : [],
+    enabled: open, // Only fetch when modal is open
+  });
+
+  const template = userTemplates.find(t => t.modelId === modelId);
+
+  if (!story || !template) {
+    return null; // Don't render modal until we have both story and template
+  }
+
+  return (
+    <CustomInputModal
+      open={open}
+      onOpenChange={onOpenChange}
+      template={template}
+      story={story}
+      onSubmit={onSubmit}
+      title={title}
+    />
+  );
+}
+
 function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onImageRegenerated }: PageImageCardProps) {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showCustomPrompt, setShowCustomPrompt] = useState(false);
@@ -44,13 +86,15 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
   const [useCurrentImageAsReference, setUseCurrentImageAsReference] = useState(false);
   const [selectedModel, setSelectedModel] = useState("");
   const [showImageDialog, setShowImageDialog] = useState(false);
+  const [isCustomInputModalOpen, setIsCustomInputModalOpen] = useState(false);
+  const [customInput, setCustomInput] = useState<Record<string, any> | null>(null);
   const { toast } = useToast();
 
   // Get current user to access replicate model templates
   const { user } = useAuth();
 
   const regenerateImageMutation = useMutation({
-    mutationFn: async ({ prompt, useReference, customModel }: { prompt: string; useReference: boolean; customModel?: string }) => {
+    mutationFn: async ({ prompt, useReference, customModel, customInput }: { prompt: string; useReference: boolean; customModel?: string; customInput?: Record<string, any> }) => {
       const requestBody: any = {
         customPrompt: prompt,
       };
@@ -68,6 +112,11 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
         requestBody.customModel = customModel;
       }
       
+      // Add custom input if provided
+      if (customInput) {
+        requestBody.customInput = customInput;
+      }
+      
       const response = await apiRequest("POST", `/api/stories/${storyId}/pages/${page.pageNumber}/regenerate-image`, requestBody);
       return response.json();
     },
@@ -78,6 +127,7 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
       setCustomPrompt("");
       setUseCurrentImageAsReference(false);
       setSelectedModel("");
+      setCustomInput(null);
       toast({
         title: "Image Regenerated!",
         description: "Your page image has been updated with the new prompt.",
@@ -100,6 +150,7 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
       prompt: customPrompt.trim(), 
       useReference: useCurrentImageAsReference,
       ...(selectedModel && selectedModel !== "default" && { customModel: selectedModel }),
+      ...(customInput && { customInput }),
     });
   };
 
@@ -217,6 +268,20 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
                         ))}
                       </SelectContent>
                     </Select>
+                    
+                    {/* Customize button for non-default models */}
+                    {selectedModel && selectedModel !== 'default' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsCustomInputModalOpen(true)}
+                        className="mt-2"
+                        data-testid={`button-customize-page-model-${page.pageNumber}`}
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        Customize Model Input
+                      </Button>
+                    )}
                   </div>
                 )}
                 
@@ -279,6 +344,25 @@ function PageImageCard({ page, storyPage, isGenerating, hasImage, storyId, onIma
         imageUrl={hasImage || ""}
         title={`Page ${page.pageNumber} Image`}
       />
+      
+      {/* Custom Input Modal */}
+      {selectedModel && selectedModel !== 'default' && (
+        <StoryAwareCustomInputModal
+          open={isCustomInputModalOpen}
+          onOpenChange={setIsCustomInputModalOpen}
+          modelId={selectedModel}
+          storyId={storyId}
+          onSubmit={(input) => {
+            setCustomInput(input);
+            setIsCustomInputModalOpen(false);
+            toast({
+              title: "Custom Input Applied",
+              description: "Your custom model settings have been configured for this page regeneration.",
+            });
+          }}
+          title={`Customize Page ${page.pageNumber} Regeneration`}
+        />
+      )}
     </div>
   );
 }
@@ -920,6 +1004,8 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState("");
   const [initialCoreImageModel, setInitialCoreImageModel] = useState("");
+  const [isCoreImageCustomInputModalOpen, setIsCoreImageCustomInputModalOpen] = useState(false);
+  const [coreImageCustomInput, setCoreImageCustomInput] = useState<Record<string, any> | null>(null);
 
   const updateTitleMutation = useMutation({
     mutationFn: async (newTitle: string) => {
@@ -954,6 +1040,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
         customPrompt: "", // No custom prompt for initial generation
         useCurrentImageAsReference: false,
         ...(initialCoreImageModel && initialCoreImageModel !== "default" && { customModel: initialCoreImageModel }),
+        ...(coreImageCustomInput && { customInput: coreImageCustomInput }),
       });
       return response.json();
     },
@@ -961,6 +1048,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
       if (data.story) {
         setGeneratedStory(data.story);
       }
+      setCoreImageCustomInput(null);
       toast({
         title: "Core Image Generated!",
         description: "Your core character and setting image has been created.",
@@ -1764,6 +1852,20 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                               ))}
                             </SelectContent>
                           </Select>
+                          
+                          {/* Customize button for non-default models */}
+                          {initialCoreImageModel && initialCoreImageModel !== 'default' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsCoreImageCustomInputModalOpen(true)}
+                              className="mt-2 w-48 h-8 text-xs"
+                              data-testid="button-customize-core-image-model"
+                            >
+                              <Settings className="h-3 w-3 mr-1" />
+                              Customize Model Input
+                            </Button>
+                          )}
                         </div>
                       )}
                       
@@ -1959,6 +2061,25 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
           </div>
         )}
       </div>
+      
+      {/* Core Image Custom Input Modal */}
+      {initialCoreImageModel && initialCoreImageModel !== 'default' && generatedStory && (
+        <StoryAwareCustomInputModal
+          open={isCoreImageCustomInputModalOpen}
+          onOpenChange={setIsCoreImageCustomInputModalOpen}
+          modelId={initialCoreImageModel}
+          storyId={generatedStory.id}
+          onSubmit={(input) => {
+            setCoreImageCustomInput(input);
+            setIsCoreImageCustomInputModalOpen(false);
+            toast({
+              title: "Custom Input Applied",
+              description: "Your custom model settings have been configured for core image generation.",
+            });
+          }}
+          title="Customize Core Image Generation"
+        />
+      )}
     </div>
   );
 }
