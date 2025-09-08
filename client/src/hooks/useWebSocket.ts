@@ -28,11 +28,24 @@ export function useWebSocket() {
       return;
     }
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    
-    console.log('Connecting to WebSocket:', wsUrl);
-    wsRef.current = new WebSocket(wsUrl);
+    try {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const host = window.location.host || 'localhost:5000'; // Fallback for development
+      const wsUrl = `${protocol}//${host}/ws`;
+      
+      // Validate URL before creating WebSocket
+      if (!host || host.includes('undefined')) {
+        console.warn('Invalid WebSocket host detected, skipping connection');
+        return;
+      }
+      
+      console.log('Connecting to WebSocket:', wsUrl);
+      wsRef.current = new WebSocket(wsUrl);
+    } catch (error) {
+      console.error('Failed to create WebSocket connection:', error);
+      setIsConnected(false);
+      return;
+    }
 
     wsRef.current.onopen = () => {
       console.log('WebSocket connected');

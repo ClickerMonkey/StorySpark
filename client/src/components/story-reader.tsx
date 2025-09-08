@@ -129,6 +129,9 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
 
   const regenerateImageMutation = useMutation({
     mutationFn: async () => {
+      if (!currentPage) {
+        throw new Error("No page selected");
+      }
       const response = await apiRequest("POST", `/api/stories/${story.id}/pages/${currentPage.pageNumber}/regenerate-image`, {
         customPrompt,
         overrideModelId: overrideModelId || undefined,
@@ -205,7 +208,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
             <Button variant="ghost" size="sm" data-testid="button-read-aloud">
               <Volume2 className="h-4 w-4" />
             </Button>
-            {getPageImageUrl(currentPage) && (
+            {currentPage && getPageImageUrl(currentPage) && (
               <>
                 <Dialog open={isRegenerateDialogOpen} onOpenChange={setIsRegenerateDialogOpen}>
                   <DialogTrigger asChild>
@@ -230,7 +233,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
                         data-testid="textarea-custom-prompt"
                       />
                       <p className="text-sm text-gray-500 mt-2">
-                        Current page: "{currentPage.text.slice(0, 100)}..."
+                        Current page: "{currentPage?.text?.slice(0, 100) || 'No text available'}..."
                       </p>
                     </div>
 
@@ -377,14 +380,14 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
                   className="cursor-pointer transform hover:scale-105 transition-transform"
                   onClick={() => setZoomedImage({ 
                     url: getPageImageUrl(currentPage) || getCoreImageUrl(story)!, 
-                    title: getPageImageUrl(currentPage) ? `Page ${currentPage.pageNumber} Illustration` : `${story.title} Core Image`
+                    title: getPageImageUrl(currentPage) ? `Page ${currentPage?.pageNumber || 1} Illustration` : `${story.title} Core Image`
                   })}
                   data-testid="page-image-container"
                 >
                   <img 
                     key={currentPage?.imageFileId || story.coreImageFileId}
                     src={getPageImageUrl(currentPage) || getCoreImageUrl(story)}
-                    alt={getPageImageUrl(currentPage) ? `Story illustration for page ${currentPage.pageNumber}` : `${story.title} core image`}
+                    alt={getPageImageUrl(currentPage) ? `Story illustration for page ${currentPage?.pageNumber || 1}` : `${story.title} core image`}
                     className="w-full rounded-xl shadow-lg"
                     data-testid="page-image"
                   />

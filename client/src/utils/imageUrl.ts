@@ -25,20 +25,29 @@ export function getImageUrl(imageFileId?: string | null, fallbackUrl?: string | 
 /**
  * Get core image URL for a story
  */
-export function getCoreImageUrl(story: { coreImageFileId?: string | null; coreImageUrl?: string | null }): string | undefined {
+export function getCoreImageUrl(story?: { coreImageFileId?: string | null; coreImageUrl?: string | null } | null): string | undefined {
+  if (!story) {
+    return undefined;
+  }
   return getImageUrl(story.coreImageFileId, story.coreImageUrl);
 }
 
 /**
  * Get character image URL
  */
-export function getCharacterImageUrl(character: { imageFileId?: string | null; imageUrl?: string | null }): string | undefined {
+export function getCharacterImageUrl(character?: { imageFileId?: string | null; imageUrl?: string | null } | null): string | undefined {
+  if (!character) {
+    return undefined;
+  }
   return getImageUrl(character.imageFileId, character.imageUrl);
 }
 
 /**
  * Get page image URL
  */
-export function getPageImageUrl(page: { imageFileId?: string | null; imageUrl?: string | null }): string | undefined {
+export function getPageImageUrl(page?: { imageFileId?: string | null; imageUrl?: string | null } | null): string | undefined {
+  if (!page) {
+    return undefined;
+  }
   return getImageUrl(page.imageFileId, page.imageUrl);
 }
