@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ImageViewerDialog } from "@/components/image-viewer-dialog";
 import { ImageHistoryDialog } from "@/components/image-history-dialog";
+import { CustomInputModal } from "@/components/custom-input-modal";
 import { getCoreImageUrl, getPageImageUrl } from "@/utils/imageUrl";
 import { PDFExport } from "@/components/pdf-export";
 import { ChevronLeft, ChevronRight, Volume2, Bookmark, Share, Download, Edit, Save, BookOpen, Users, Clock, RefreshCw, Loader2, FileText, History, Settings } from "lucide-react";
@@ -30,6 +31,8 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string } | null>(null);
+  const [isCustomInputModalOpen, setIsCustomInputModalOpen] = useState(false);
+  const [customInput, setCustomInput] = useState<Record<string, any> | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -128,6 +131,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
       const response = await apiRequest("POST", `/api/stories/${story.id}/pages/${currentPage.pageNumber}/regenerate-image`, {
         customPrompt,
         overrideModelId: overrideModelId || undefined,
+        customInput: customInput || undefined,
       });
       return response.json();
     },
@@ -140,6 +144,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
       setIsRegenerateDialogOpen(false);
       setCustomPrompt("");
       setOverrideModelId("");
+      setCustomInput(null);
     },
     onError: (error) => {
       toast({
@@ -252,6 +257,20 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
                         <p className="text-sm text-gray-500 mt-1">
                           Override your default model preference for this regeneration
                         </p>
+                        
+                        {/* Customize button for non-default models */}
+                        {overrideModelId && overrideModelId !== '' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsCustomInputModalOpen(true)}
+                            className="mt-2"
+                            data-testid="button-customize-model"
+                          >
+                            <Settings className="h-4 w-4 mr-2" />
+                            Customize Model Input
+                          </Button>
+                        )}
                       </div>
                     )}
                     <div className="flex flex-wrap gap-2 justify-end">
@@ -434,6 +453,25 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
           </div>
         </div>
       </div>
+      
+      {/* Custom Input Modal */}
+      {overrideModelId && (
+        <CustomInputModal
+          open={isCustomInputModalOpen}
+          onOpenChange={setIsCustomInputModalOpen}
+          template={userTemplates.find(t => t.modelId === overrideModelId)!}
+          story={story}
+          onSubmit={(input) => {
+            setCustomInput(input);
+            setIsCustomInputModalOpen(false);
+            toast({
+              title: "Custom Input Applied",
+              description: "Your custom model settings have been configured for this regeneration.",
+            });
+          }}
+          title="Customize Page Regeneration"
+        />
+      )}
     </Card>
   );
 }

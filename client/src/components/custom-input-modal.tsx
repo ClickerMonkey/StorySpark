@@ -180,7 +180,7 @@ export function CustomInputModal({ open, onOpenChange, template, story, onSubmit
     
     // Process each field to convert image selections to base64
     Object.keys(finalInput).forEach(fieldName => {
-      const property = template.inputProperties?.[fieldName];
+      const property = template.inputSchema?.properties?.[fieldName];
       if (property?.isImageField) {
         const value = finalInput[fieldName];
         if (Array.isArray(value)) {
@@ -203,7 +203,7 @@ export function CustomInputModal({ open, onOpenChange, template, story, onSubmit
   const renderField = (fieldName: string, property: any) => {
     const value = customInput[fieldName] ?? property.default ?? '';
     const isRequired = property.required || false;
-    const isArrayField = template.imageArrayFields?.includes(fieldName);
+    const isArrayField = template.imageArrayFields?.includes(fieldName) || false;
 
     // Skip prompt fields - they're handled automatically
     if (property.isPromptField) {
@@ -294,7 +294,7 @@ export function CustomInputModal({ open, onOpenChange, template, story, onSubmit
         <div className="flex items-center gap-2">
           <Switch
             id={fieldName}
-            checked={Boolean(value)}
+            checked={Boolean(value) || false}
             onCheckedChange={(checked) => handleInputChange(fieldName, checked)}
             {...commonProps}
           />
@@ -365,7 +365,7 @@ export function CustomInputModal({ open, onOpenChange, template, story, onSubmit
         
         <ScrollArea className="max-h-[60vh] px-1">
           <div className="space-y-4">
-            {template.inputProperties && Object.entries(template.inputProperties).map(([fieldName, property]) => 
+            {template.inputSchema?.properties && Object.entries(template.inputSchema.properties).map(([fieldName, property]) => 
               renderField(fieldName, property)
             )}
           </div>
