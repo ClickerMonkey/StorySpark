@@ -327,10 +327,24 @@ export class ImageGenerationService {
       }
 
       // Generate the page image with all options
-      const pageResult = await this.generatePageImage(story, page, user, {
+      // If currentImageUrl is provided, we need to override the default template behavior to use the current page image
+      let enhancedOptions = {
         ...options,
         customPrompt: finalCustomPrompt
-      });
+      };
+      
+      // Override customInput to use current page image instead of core image when reference is requested
+      if (options.currentImageUrl && options.useCurrentImageAsReference) {
+        // Find the current page's image file ID to use as reference
+        const currentPageImageFileId = page.imageFileId;
+        if (currentPageImageFileId) {
+          enhancedOptions.customInput = {
+            image_input: [{ imageId: currentPageImageFileId }]
+          };
+        }
+      }
+
+      const pageResult = await this.generatePageImage(story, page, user, enhancedOptions);
 
       // Update the specific page with the new image
       await storage.updateStoryPageImageFileId(story.id, pageNumber, pageResult.fileId);

@@ -17,6 +17,7 @@ import { CustomInputModal } from "@/components/custom-input-modal";
 import { ImageGenerationStatus } from "@/components/image-generation-status";
 import { getCoreImageUrl, getPageImageUrl } from "@/utils/imageUrl";
 import { PDFExport } from "@/components/pdf-export";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronLeft, ChevronRight, Volume2, Bookmark, Share, Download, Edit, Save, BookOpen, Users, Clock, RefreshCw, Loader2, FileText, History, Settings } from "lucide-react";
 
 interface StoryReaderProps {
@@ -34,6 +35,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
   const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string } | null>(null);
   const [isCustomInputModalOpen, setIsCustomInputModalOpen] = useState(false);
   const [customInput, setCustomInput] = useState<Record<string, any> | null>(null);
+  const [useCurrentImageAsReference, setUseCurrentImageAsReference] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -132,11 +134,19 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
       if (!currentPage) {
         throw new Error("No page selected");
       }
-      const response = await apiRequest("POST", `/api/stories/${story.id}/pages/${currentPage.pageNumber}/regenerate-image`, {
+      const requestBody: any = {
         customPrompt,
         overrideModelId: overrideModelId || undefined,
         customInput: customInput || undefined,
-      });
+        useCurrentImageAsReference,
+      };
+      
+      // Add current page image URL if reference is requested and image exists
+      if (useCurrentImageAsReference && getPageImageUrl(currentPage)) {
+        requestBody.currentImageUrl = getPageImageUrl(currentPage);
+      }
+      
+      const response = await apiRequest("POST", `/api/stories/${story.id}/pages/${currentPage.pageNumber}/regenerate-image`, requestBody);
       return response.json();
     },
     onSuccess: () => {
@@ -149,6 +159,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
       setCustomPrompt("");
       setOverrideModelId("");
       setCustomInput(null);
+      setUseCurrentImageAsReference(false);
     },
     onError: (error) => {
       toast({
@@ -237,6 +248,24 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
                       </p>
                     </div>
 
+                    {/* Use current image as reference checkbox */}
+                    {getPageImageUrl(currentPage) && (
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="use-current-image"
+                          checked={useCurrentImageAsReference}
+                          onCheckedChange={setUseCurrentImageAsReference}
+                          data-testid="checkbox-use-current-image"
+                        />
+                        <Label htmlFor="use-current-image" className="text-sm font-medium text-gray-900">
+                          Use current page image as reference
+                        </Label>
+                        <p className="text-xs text-gray-500">
+                          Keep the same visual style and elements while applying your changes
+                        </p>
+                      </div>
+                    )}
+
                     {userTemplates.length > 0 && (
                       <div>
                         <Label className="text-sm font-medium text-gray-900">
@@ -284,6 +313,7 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
                           setIsRegenerateDialogOpen(false);
                           setCustomPrompt("");
                           setOverrideModelId("");
+                          setUseCurrentImageAsReference(false);
                         }}
                         data-testid="button-cancel-regenerate"
                       >
