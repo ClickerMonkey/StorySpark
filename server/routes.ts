@@ -245,6 +245,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Logout endpoint
+  app.get("/api/auth/logout", (req, res) => {
+    // Since we're using JWT tokens (stateless), logout is handled client-side
+    // This endpoint just confirms the logout action
+    res.json({ message: "Logged out successfully" });
+  });
+
   // Update user profile (Replicate API key, preferences)
   app.patch("/api/user/profile", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {

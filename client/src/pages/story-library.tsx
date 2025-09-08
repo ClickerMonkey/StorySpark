@@ -20,7 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 export default function StoryLibrary() {
   const [, setLocation] = useLocation();
   const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string } | null>(null);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const { data: stories, isLoading, error } = useQuery<Story[]>({
     queryKey: ["/api/stories"],
@@ -144,7 +144,7 @@ export default function StoryLibrary() {
                         <span>Profile & Settings</span>
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => window.location.href = "/api/auth/logout"} data-testid="button-logout">
+                    <DropdownMenuItem onClick={logout} data-testid="button-logout">
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Log out</span>
                     </DropdownMenuItem>
