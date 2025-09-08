@@ -14,6 +14,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { ImageViewerDialog } from "@/components/image-viewer-dialog";
 import { ImageHistoryDialog } from "@/components/image-history-dialog";
 import { CustomInputModal } from "@/components/custom-input-modal";
+import { ImageGenerationStatus } from "@/components/image-generation-status";
 import { getCoreImageUrl, getPageImageUrl } from "@/utils/imageUrl";
 import { PDFExport } from "@/components/pdf-export";
 import { ChevronLeft, ChevronRight, Volume2, Bookmark, Share, Download, Edit, Save, BookOpen, Users, Clock, RefreshCw, Loader2, FileText, History, Settings } from "lucide-react";
@@ -352,6 +353,17 @@ export function StoryReader({ story, onEdit, onSave }: StoryReaderProps) {
             />
           </div>
         </div>
+      </div>
+
+      {/* Real-time Image Generation Status */}
+      <div className="px-8 pt-4 pb-0">
+        <ImageGenerationStatus 
+          storyId={story.id}
+          onImageComplete={(imageFileId, pageNumber) => {
+            // Refresh the story data to show the new image
+            queryClient.invalidateQueries({ queryKey: ['/api/stories', story.id] });
+          }}
+        />
       </div>
 
       {/* Story Page Content */}

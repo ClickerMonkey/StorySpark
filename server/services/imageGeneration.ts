@@ -4,6 +4,7 @@ import { ImagePromptGenerator } from "./imagePromptGenerator";
 import { generateCoreImage as openaiGenerateCoreImage, generatePageImage as openaiGeneratePageImage } from "./openai";
 import { ImageStorageService } from "../storage/ImageStorageService";
 import { storage } from "../storage";
+import { getWebSocketService } from "./websocketService";
 
 export interface CoreImageGenerationOptions {
   customPrompt?: string;
@@ -42,19 +43,38 @@ export class ImageGenerationService {
     user: User,
     options: CoreImageGenerationOptions = {}
   ): Promise<ImageGenerationResult> {
-    const preferredProvider = user.preferredImageProvider || "openai";
-    let imageUrl: string;
-
-    if (preferredProvider === "replicate") {
-      imageUrl = await this.generateCoreImageWithReplicate(story, user, options);
-    } else {
-      imageUrl = await this.generateCoreImageWithOpenAI(story, user, options);
-    }
-
-    // Store image as file
-    const fileId = await this.imageStorage.downloadAndStore(imageUrl, story.id, 'core');
+    const wsService = getWebSocketService();
     
-    return { fileId };
+    try {
+      // Notify start of core image generation
+      wsService?.notifyImageGenerationStart(story.id);
+      wsService?.notifyImageGenerationProgress(story.id, "Starting core image generation...");
+      
+      const preferredProvider = user.preferredImageProvider || "openai";
+      let imageUrl: string;
+
+      wsService?.notifyImageGenerationProgress(story.id, `Generating image with ${preferredProvider}...`);
+
+      if (preferredProvider === "replicate") {
+        imageUrl = await this.generateCoreImageWithReplicate(story, user, options);
+      } else {
+        imageUrl = await this.generateCoreImageWithOpenAI(story, user, options);
+      }
+
+      wsService?.notifyImageGenerationProgress(story.id, "Downloading and storing image...");
+
+      // Store image as file
+      const fileId = await this.imageStorage.downloadAndStore(imageUrl, story.id, 'core');
+
+      // Notify completion
+      wsService?.notifyImageGenerationComplete(story.id, fileId);
+      
+      return { fileId };
+    } catch (error) {
+      // Notify error
+      wsService?.notifyImageGenerationError(story.id, error instanceof Error ? error.message : "Unknown error");
+      throw error;
+    }
   }
 
   /**
@@ -66,24 +86,43 @@ export class ImageGenerationService {
     user: User,
     options: PageImageGenerationOptions = {}
   ): Promise<ImageGenerationResult> {
-    const preferredProvider = user.preferredImageProvider || "openai";
-    let imageUrl: string;
-
-    if (preferredProvider === "replicate") {
-      imageUrl = await this.generatePageImageWithReplicate(story, page, user, options);
-    } else {
-      imageUrl = await this.generatePageImageWithOpenAI(story, page, user, options);
-    }
-
-    // Store image as file
-    const fileId = await this.imageStorage.downloadAndStore(
-      imageUrl, 
-      story.id, 
-      'page', 
-      `page_${page.pageNumber}`
-    );
+    const wsService = getWebSocketService();
     
-    return { fileId };
+    try {
+      // Notify start of page image generation
+      wsService?.notifyImageGenerationStart(story.id, page.pageNumber);
+      wsService?.notifyImageGenerationProgress(story.id, `Starting page ${page.pageNumber} image generation...`, page.pageNumber);
+      
+      const preferredProvider = user.preferredImageProvider || "openai";
+      let imageUrl: string;
+
+      wsService?.notifyImageGenerationProgress(story.id, `Generating page ${page.pageNumber} with ${preferredProvider}...`, page.pageNumber);
+
+      if (preferredProvider === "replicate") {
+        imageUrl = await this.generatePageImageWithReplicate(story, page, user, options);
+      } else {
+        imageUrl = await this.generatePageImageWithOpenAI(story, page, user, options);
+      }
+
+      wsService?.notifyImageGenerationProgress(story.id, `Downloading and storing page ${page.pageNumber} image...`, page.pageNumber);
+
+      // Store image as file
+      const fileId = await this.imageStorage.downloadAndStore(
+        imageUrl, 
+        story.id, 
+        'page', 
+        `page_${page.pageNumber}`
+      );
+
+      // Notify completion
+      wsService?.notifyImageGenerationComplete(story.id, fileId, page.pageNumber);
+      
+      return { fileId };
+    } catch (error) {
+      // Notify error
+      wsService?.notifyImageGenerationError(story.id, error instanceof Error ? error.message : "Unknown error", page.pageNumber);
+      throw error;
+    }
   }
 
   /**
