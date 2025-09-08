@@ -1125,8 +1125,9 @@ Style: Bright, vibrant colors suitable for children, cartoonish and friendly ill
           };
 
           // Set primary image only if user wants to use current image as reference
+          let primaryImageBase64;
           if (useCurrentImageAsReference) {
-            const primaryImageBase64 = await getImageBase64(currentImageUrl, page.imageFileId);
+            primaryImageBase64 = await getImageBase64(currentImageUrl, page.imageFileId);
             if (primaryImageBase64) {
               imageOptions.primaryImage = primaryImageBase64;
             }
