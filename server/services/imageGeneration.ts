@@ -333,16 +333,7 @@ export class ImageGenerationService {
         customPrompt: finalCustomPrompt
       };
       
-      // Override customInput to use current page image instead of core image when reference is requested
-      if (options.currentImageUrl && options.useCurrentImageAsReference) {
-        // Find the current page's image file ID to use as reference
-        const currentPageImageFileId = page.imageFileId;
-        if (currentPageImageFileId) {
-          enhancedOptions.customInput = {
-            image_input: [{ imageId: currentPageImageFileId }]
-          };
-        }
-      }
+      // Don't override customInput here - let generatePageImage handle it properly with template awareness
 
       const pageResult = await this.generatePageImage(story, page, user, enhancedOptions);
 
@@ -363,6 +354,58 @@ export class ImageGenerationService {
   }
 
   // Private helper methods for provider-specific generation
+
+  /**
+   * Dynamically build input for template-based generation based on useCurrentImageAsReference flag
+   */
+  private buildTemplateInput(
+    template: any,
+    story: Story, 
+    page: any = null,
+    useCurrentImageAsReference: boolean = false,
+    customInput?: Record<string, any>
+  ): Record<string, any> {
+    let input: Record<string, any> = {};
+    
+    // Start with custom input if provided
+    if (customInput) {
+      input = { ...customInput };
+    }
+    
+    // Add image references based on template and preferences
+    if (template.imageFields && template.imageFields.length > 0) {
+      const firstImageField = template.imageFields[0];
+      const isArrayField = template.imageArrayFields?.includes(firstImageField);
+      
+      // Determine which image to use as reference
+      let imageReference: { imageId: string } | null = null;
+      
+      if (useCurrentImageAsReference && page?.imageFileId) {
+        // Use current page image if explicitly requested and available
+        imageReference = { imageId: page.imageFileId };
+      } else if (story.coreImageFileId) {
+        // Fall back to core image for consistency
+        imageReference = { imageId: story.coreImageFileId };
+      }
+      
+      // Apply the reference to the template field if we have one
+      if (imageReference) {
+        if (isArrayField) {
+          // Array field - include image in array format
+          // Preserve existing array items and add/replace our reference
+          const existingArray = input[firstImageField] || [];
+          input[firstImageField] = [imageReference, ...existingArray.filter((item: any) => 
+            !item.imageId || (item.imageId !== story.coreImageFileId && item.imageId !== page?.imageFileId)
+          )];
+        } else {
+          // Single image field - use image as single value
+          input[firstImageField] = imageReference;
+        }
+      }
+    }
+    
+    return input;
+  }
 
   private async generateCoreImageWithReplicate(
     story: Story,
@@ -394,15 +437,20 @@ export class ImageGenerationService {
     const userTemplates = user.replicateModelTemplates || [];
     const template = userTemplates.find((t: any) => t.modelId === modelId);
     
-    if (template && options.customInput) {
-      // Use intelligent template-based generation with custom input
+    if (template) {
+      // Use intelligent template-based generation with dynamic input
+      const templateInput = this.buildTemplateInput(
+        template,
+        story,
+        null, // No page context for core image
+        options.useCurrentImageAsReference || false,
+        options.customInput
+      );
+      
       return await replicateService.generateImageWithTemplate(template, prompt, {
-        customInput: options.customInput,
+        customInput: templateInput,
         storyContext: story
       });
-    } else if (template) {
-      // Use intelligent template-based generation
-      return await replicateService.generateImageWithTemplate(template, prompt);
     } else {
       // Use basic model without template
       return await replicateService.generateImage(modelId, prompt);
@@ -474,32 +522,18 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
     const userTemplates = user.replicateModelTemplates || [];
     const template = userTemplates.find((t: any) => t.modelId === modelId);
     
-    if (template && options.customInput) {
-      // Use intelligent template-based generation with custom input
-      return await replicateService.generateImageWithTemplate(template, prompt, {
-        customInput: options.customInput,
-        storyContext: story
-      });
-    } else if (template) {
-      // Use intelligent template-based generation with core image for consistency
-      let defaultInput = {};
-      
-      if (story.coreImageFileId && template.imageFields && template.imageFields.length > 0) {
-        // Use the first image field from the template
-        const firstImageField = template.imageFields[0];
-        const isArrayField = template.imageArrayFields?.includes(firstImageField);
-        
-        if (isArrayField) {
-          // Array field - include core image in array format
-          defaultInput[firstImageField] = [{ imageId: 'core' }];
-        } else {
-          // Single image field - include core image as single value
-          defaultInput[firstImageField] = { imageId: 'core' };
-        }
-      }
+    if (template) {
+      // Use intelligent template-based generation with dynamic input
+      const templateInput = this.buildTemplateInput(
+        template,
+        story,
+        page,
+        options.useCurrentImageAsReference || false,
+        options.customInput
+      );
       
       return await replicateService.generateImageWithTemplate(template, prompt, {
-        customInput: defaultInput,
+        customInput: templateInput,
         storyContext: story
       });
     } else {
