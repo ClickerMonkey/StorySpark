@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 export interface WebSocketMessage {
   type: 'story_update' | 'image_generation_start' | 'image_generation_progress' | 'image_generation_complete' | 'image_generation_error';
@@ -21,6 +21,7 @@ export function useWebSocket() {
   const [imageGenerationEvents, setImageGenerationEvents] = useState<ImageGenerationEvent[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const subscribedStoriesRef = useRef<Set<string>>(new Set());
 
   const connect = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -36,6 +37,9 @@ export function useWebSocket() {
     wsRef.current.onopen = () => {
       console.log('WebSocket connected');
       setIsConnected(true);
+      
+      // Clear subscribed stories on new connection
+      subscribedStoriesRef.current.clear();
       
       // Clear any reconnection timeout
       if (reconnectTimeoutRef.current) {
@@ -92,6 +96,9 @@ export function useWebSocket() {
       console.log('WebSocket disconnected');
       setIsConnected(false);
       
+      // Clear subscribed stories on disconnect
+      subscribedStoriesRef.current.clear();
+      
       // Attempt to reconnect after 3 seconds
       reconnectTimeoutRef.current = setTimeout(() => {
         console.log('Attempting to reconnect WebSocket...');
@@ -118,22 +125,24 @@ export function useWebSocket() {
     setIsConnected(false);
   };
 
-  const subscribeToStory = (storyId: string) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+  const subscribeToStory = useCallback((storyId: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN && !subscribedStoriesRef.current.has(storyId)) {
       wsRef.current.send(JSON.stringify({
         type: 'subscribe',
         storyId
       }));
+      subscribedStoriesRef.current.add(storyId);
+      console.log(`Subscribed to story: ${storyId}`);
     }
-  };
+  }, []);
 
   const clearEvents = () => {
     setImageGenerationEvents([]);
   };
 
-  const getEventsForStory = (storyId: string) => {
+  const getEventsForStory = useCallback((storyId: string) => {
     return imageGenerationEvents.filter(event => event.storyId === storyId);
-  };
+  }, [imageGenerationEvents]);
 
   useEffect(() => {
     connect();

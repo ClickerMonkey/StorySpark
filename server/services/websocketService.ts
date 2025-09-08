@@ -50,8 +50,12 @@ export class WebSocketService {
     if (!this.connections.has(storyId)) {
       this.connections.set(storyId, new Set());
     }
-    this.connections.get(storyId)!.add(ws);
-    console.log(`WebSocket subscribed to story: ${storyId}`);
+    
+    const connections = this.connections.get(storyId)!;
+    if (!connections.has(ws)) {
+      connections.add(ws);
+      console.log(`WebSocket subscribed to story: ${storyId} (${connections.size} total connections)`);
+    }
   }
 
   private unsubscribeFromAllStories(ws: WebSocket) {

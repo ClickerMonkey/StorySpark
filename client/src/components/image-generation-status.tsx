@@ -16,7 +16,7 @@ export function ImageGenerationStatus({ storyId, onImageComplete }: ImageGenerat
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (isConnected) {
+    if (isConnected && storyId) {
       subscribeToStory(storyId);
     }
   }, [isConnected, storyId, subscribeToStory]);
