@@ -183,6 +183,162 @@ export class ImageGenerationService {
     }
   }
 
+  /**
+   * Generate all images for a story - comprehensive method that handles the /generate-images endpoint
+   * This replaces the route logic entirely
+   */
+  async generateAllImages(story: Story, user: User): Promise<Story> {
+    try {
+      console.log(`Starting comprehensive image generation for story ${story.id}`);
+      
+      // Update story status to generating images
+      await storage.updateStoryStatus(story.id, "generating_images");
+      
+      // Generate core image first
+      const coreResult = await this.generateCoreImage(story, user);
+      
+      // Update story with core image file ID  
+      await storage.updateStoryCoreImageFileId(story.id, coreResult.fileId);
+      console.log(`Core image generated and stored for story ${story.id}`);
+
+      // Generate all page images in parallel for efficiency
+      const pageImagePromises = story.pages.map(async (page, index) => {
+        console.log(`Generating image for page ${page.pageNumber}`);
+        
+        // Get previous page image URL for continuity if needed
+        const previousPage = index > 0 ? story.pages[index - 1] : null;
+        const previousPageImageUrl = previousPage?.imageUrl;
+        
+        const pageResult = await this.generatePageImage(story, page, user, {
+          previousPageImageUrl,
+          coreImageUrl: coreResult.imageUrl
+        });
+        
+        console.log(`Page ${page.pageNumber} image generated and stored`);
+        return { pageNumber: page.pageNumber, imageUrl: pageResult.imageUrl, fileId: pageResult.fileId };
+      });
+
+      // Wait for all page images to complete
+      const pageResults = await Promise.all(pageImagePromises);
+
+      // Update all pages with their image file IDs
+      for (const result of pageResults) {
+        await storage.updateStoryPageImageFileId(story.id, result.pageNumber, result.fileId);
+      }
+
+      // Mark story as complete with images
+      await storage.updateStoryStatus(story.id, "complete");
+      console.log(`All images generated for story ${story.id}`);
+      
+      // Return updated story
+      const updatedStory = await storage.getStory(story.id);
+      if (!updatedStory) {
+        throw new Error("Story not found after update");
+      }
+      return updatedStory;
+      
+    } catch (error) {
+      console.error(`Error in comprehensive image generation for story ${story.id}:`, error);
+      // Update story status to indicate error
+      await storage.updateStoryStatus(story.id, "text_approved");
+      throw error;
+    }
+  }
+
+  /**
+   * Regenerate a single core image - comprehensive method that handles the /regenerate-core-image endpoint
+   * This replaces the route logic entirely
+   */
+  async regenerateCoreImageForEndpoint(
+    story: Story, 
+    user: User, 
+    options: CoreImageGenerationOptions = {}
+  ): Promise<Story> {
+    try {
+      console.log(`Starting core image regeneration for story ${story.id}`);
+      
+      const result = await this.generateCoreImage(story, user, options);
+      
+      // Update story with new core image file ID
+      await storage.updateStoryCoreImageFileId(story.id, result.fileId);
+      
+      // Return updated story
+      const updatedStory = await storage.getStory(story.id);
+      if (!updatedStory) {
+        throw new Error("Story not found after update");
+      }
+      return updatedStory;
+      
+    } catch (error) {
+      console.error(`Error in core image regeneration for story ${story.id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Regenerate a single page image - comprehensive method that handles the /regenerate-page-image endpoint
+   * This replaces the route logic entirely and includes all the complex prompt handling
+   */
+  async regeneratePageImageForEndpoint(
+    story: Story,
+    pageNumber: number,
+    user: User,
+    options: PageImageGenerationOptions & {
+      currentImageUrl?: string;
+    } = {}
+  ): Promise<Story> {
+    try {
+      console.log(`Starting page image regeneration for story ${story.id}, page ${pageNumber}`);
+      
+      const page = story.pages.find(p => p.pageNumber === pageNumber);
+      if (!page) {
+        throw new Error("Page not found");
+      }
+
+      const previousPage = story.pages.find(p => p.pageNumber === pageNumber - 1);
+      const previousPageImageUrl = previousPage?.imageUrl;
+
+      // Enhanced prompt for regeneration with strong consistency requirements
+      let finalCustomPrompt = options.customPrompt;
+      if (options.currentImageUrl) {
+        const referenceText = `\n\nCRITICAL REGENERATION INSTRUCTIONS:
+- You are regenerating an existing page image that must maintain PERFECT visual consistency with both the core story image AND the current page image
+- The core story image establishes the character designs, art style, and visual world that must be preserved
+- The current page image shows the exact composition and elements that should be kept while making requested modifications
+- Make ONLY the specific changes requested while preserving all other visual elements exactly as they appear
+- Character faces, clothing, proportions, and distinctive features must remain IDENTICAL
+- Background elements, lighting, and overall composition should stay consistent unless explicitly requested to change
+- This is a modification of an existing image, NOT a complete recreation`;
+
+        if (finalCustomPrompt) {
+          finalCustomPrompt = finalCustomPrompt + referenceText;
+        }
+      }
+
+      // Generate the page image with all options
+      const pageResult = await this.generatePageImage(story, page, user, {
+        ...options,
+        customPrompt: finalCustomPrompt,
+        previousPageImageUrl,
+        coreImageUrl: story.coreImageUrl || ""
+      });
+
+      // Update the specific page with the new image
+      await storage.updateStoryPageImageFileId(story.id, pageNumber, pageResult.fileId);
+      
+      // Return updated story
+      const updatedStory = await storage.getStory(story.id);
+      if (!updatedStory) {
+        throw new Error("Story not found after update");
+      }
+      return updatedStory;
+      
+    } catch (error) {
+      console.error(`Error in page image regeneration for story ${story.id}, page ${pageNumber}:`, error);
+      throw error;
+    }
+  }
+
   // Private helper methods for provider-specific generation
 
   private async generateCoreImageWithReplicate(

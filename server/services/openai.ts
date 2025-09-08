@@ -164,10 +164,12 @@ Style requirements:
   }
 }
 
-export async function generateStoryText(story: CreateStory, expandedSetting: string, characters: Character[], apiKey: string, baseURL?: string): Promise<GeneratedStory> {
+export async function generateStoryText(story: CreateStory, expandedSetting: string, characters: Character[], apiKey: string, baseURL?: string, storyGuidance?: string): Promise<GeneratedStory> {
   const openai = createOpenAIClient(apiKey, baseURL);
 
   const characterDescriptions = characters.map(c => `${c.name}: ${c.description}`).join('\n');
+  
+  const storyGuidanceSection = storyGuidance ? `Story Guidance: ${storyGuidance}` : "";
   
   const prompt = `Create a complete ${story.totalPages}-page children's story with the following details:
 
@@ -177,6 +179,7 @@ Characters: ${characterDescriptions}
 Plot: ${story.plot}
 Age Group: ${story.ageGroup}
 Total Pages: ${story.totalPages}
+${storyGuidanceSection}
 
 Requirements:
 - Each page should have 2-4 sentences of story text

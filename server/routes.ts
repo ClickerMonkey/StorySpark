@@ -625,7 +625,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         story.expandedSetting || story.setting,
         characters,
         req.user.openaiApiKey,
-        req.user.openaiBaseUrl
+        req.user.openaiBaseUrl,
+        story.storyGuidance || undefined
       );
 
       // Update story with generated pages
@@ -673,7 +674,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         story.expandedSetting || story.setting,
         story.extractedCharacters || [],
         req.user.openaiApiKey,
-        req.user.openaiBaseUrl
+        req.user.openaiBaseUrl,
+        story.storyGuidance || undefined
       );
 
       const updatedStory = await storage.updateStory(story.id, {
@@ -954,252 +956,101 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
         return res.status(403).json({ message: "Access denied" });
       }
 
+      // Get complete user data from database (req.user only has basic auth info)
+      const fullUser = await storage.getUser(req.user!.id);
+      if (!fullUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
       // Check API keys based on preferred provider
-      const preferredProvider = req.user?.preferredImageProvider || "openai";
+      const preferredProvider = fullUser.preferredImageProvider || "openai";
       
       if (preferredProvider === "replicate") {
-        if (!req.user?.replicateApiKey) {
+        if (!fullUser.replicateApiKey) {
           return res.status(400).json({ message: "Replicate API key required" });
         }
       } else {
-        if (!req.user?.openaiApiKey) {
+        if (!fullUser.openaiApiKey) {
           return res.status(400).json({ message: "OpenAI API key required" });
         }
       }
 
-      await storage.updateStoryStatus(story.id, "generating_images");
-
-      // Initialize image storage service
-      const imageStorage = new ImageStorageService();
-
-      // Generate core image using preferred provider and store as file
-      let coreImageUrl: string;
-      let coreImageFileId: string;
+      // Use comprehensive service method
+      const imageGenerationService = new ImageGenerationService();
+      const updatedStory = await imageGenerationService.generateAllImages(story, fullUser);
       
-      if (preferredProvider === "replicate") {
-        // Use Replicate for core image generation
-        const replicateService = new ReplicateService(req.user.replicateApiKey!);
-        
-        // Generate optimized core image prompt using LLM
-        const promptGenerator = new ImagePromptGenerator(req.user.openaiApiKey!, req.user.openaiBaseUrl);
-        const replicatePrompt = await promptGenerator.generateCoreImagePrompt(story);
-
-        // Use the user's preferred model or a default working FLUX model
-        let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
-        // Fallback to working model if user has invalid model set
-        if (modelId === "prunaai/flux-kontext-dev") {
-          modelId = "black-forest-labs/flux-schnell";
-        }
-        
-        // Check if user has a template for this model
-        const fullUser = await storage.getUser(req.user!.id);
-        if (!fullUser) {
-          return res.status(404).json({ message: "User not found" });
-        }
-        const userTemplates = fullUser.replicateModelTemplates || [];
-        const template = userTemplates.find((t: any) => t.modelId === modelId);
-        
-        if (template) {
-          // Use intelligent template-based generation
-          coreImageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt);
-        } else {
-          // Fall back to legacy hardcoded generation
-          coreImageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
-            width: 1024,
-            height: 1024,
-            numSteps: 50,
-            guidanceScale: 7.5,
-          });
-        }
-      } else {
-        // Generate optimized core image prompt using LLM for OpenAI too
-        const promptGenerator = new ImagePromptGenerator(req.user.openaiApiKey!, req.user.openaiBaseUrl);
-        const optimizedPrompt = await promptGenerator.generateCoreImagePrompt(story);
-        
-        // Use OpenAI for core image generation with optimized prompt
-        coreImageUrl = await generateCoreImage(
-          optimizedPrompt, // Use LLM-generated prompt instead of raw setting
-          story.extractedCharacters || [],
-          req.user.openaiApiKey!,
-          req.user.openaiBaseUrl
-        );
-      }
+      res.json({ story: updatedStory });
       
-      // Download and store the core image as a file
-      coreImageFileId = await imageStorage.downloadAndStore(
-        coreImageUrl,
-        story.id,
-        'core',
-        'core_image'
-      );
-      
-      // Update story with both URL (for backward compatibility) and file ID
-      await storage.updateStoryCoreImage(story.id, coreImageUrl);
-      await storage.updateStoryCoreImageFileId(story.id, coreImageFileId);
-
-      // Generate character images using preferred provider and store as files
-      if (story.extractedCharacters && story.extractedCharacters.length > 0) {
-        const characterImages: Record<string, string> = {};
-        for (const character of story.extractedCharacters) {
-          let characterImageUrl: string;
-          
-          if (preferredProvider === "replicate") {
-            // Use Replicate for character image generation
-            const replicateService = new ReplicateService(req.user.replicateApiKey!);
-            
-            const settingDescription = story.expandedSetting || story.setting;
-            const storyGuidanceText = story.storyGuidance ? `\nStory guidance: ${story.storyGuidance}` : "";
-            
-            const characterPrompt = `Create a beautiful character portrait for a children's storybook:
-
-Character: ${character.name}
-Description: ${character.description}
-Setting context: ${settingDescription}${storyGuidanceText}
-
-Style requirements:
-- Child-friendly, cartoonish illustration style
-- Bright, vibrant colors
-- Clear character design suitable for children's books
-- Show the character's personality through expression and pose
-- High quality digital illustration
-- No text or words in the image
-- Safe and wholesome content only`;
-
-            // Use the user's preferred model or a default working FLUX model
-            let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
-            // Fallback to working model if user has invalid model set
-            if (modelId === "prunaai/flux-kontext-dev") {
-              modelId = "black-forest-labs/flux-schnell";
-            }
-            
-            // Check if user has a template for this model
-            const fullUser = await storage.getUser(req.user!.id);
-            if (!fullUser) {
-              return res.status(404).json({ message: "User not found" });
-            }
-            const userTemplates = fullUser.replicateModelTemplates || [];
-            const template = userTemplates.find((t: any) => t.modelId === modelId);
-            
-            if (template) {
-              // Use intelligent template-based generation
-              characterImageUrl = await replicateService.generateImageWithTemplate(template, characterPrompt);
-            } else {
-              // Fall back to legacy hardcoded generation
-              characterImageUrl = await replicateService.generateImage(modelId, characterPrompt, {
-                width: 1024,
-                height: 1024,
-                numSteps: 50,
-                guidanceScale: 7.5,
-              });
-            }
-          } else {
-            // Use OpenAI for character image generation
-            characterImageUrl = await generateCharacterImage(
-              character,
-              story.expandedSetting || story.setting,
-              req.user.openaiApiKey!,
-              req.user.openaiBaseUrl
-            );
-          }
-          
-          // Download and store character image as file
-          const characterImageFileId = await imageStorage.downloadAndStore(
-            characterImageUrl,
-            story.id,
-            'character',
-            `${character.name.toLowerCase().replace(/\s+/g, '_')}_character`
-          );
-          
-          characterImages[character.name] = characterImageUrl;
-          await storage.updateCharacterImage(story.id, character.name, characterImageUrl);
-          await storage.updateCharacterImageFileId(story.id, character.name, characterImageFileId);
-        }
-      }
-
-      // Generate page images
-      const updatedPages = [...story.pages];
-      // Build full story context by combining all page texts
-      const storyContext = story.pages.map(p => `Page ${p.pageNumber}: ${p.text}`).join('\n\n');
-      
-      for (let i = 0; i < story.pages.length; i++) {
-        const page = story.pages[i];
-        const previousPageImageUrl = i > 0 ? updatedPages[i - 1].imageUrl : undefined;
-
-        let imageUrl: string;
-
-        if (preferredProvider === "replicate") {
-          // Use Replicate for image generation
-          const replicateService = new ReplicateService(req.user.replicateApiKey!);
-          
-          // Generate optimized image prompt using LLM
-          const promptGenerator = new ImagePromptGenerator(req.user.openaiApiKey!, req.user.openaiBaseUrl);
-          const previousPages = story.pages.slice(0, i); // Get pages before current one
-          const replicatePrompt = await promptGenerator.generateImagePrompt(story, page, previousPages);
-
-          // Use the user's preferred model or a default working FLUX model
-          let modelId = req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
-          // Fallback to working model if user has invalid model set
-          if (modelId === "prunaai/flux-kontext-dev") {
-            modelId = "black-forest-labs/flux-schnell";
-          }
-          
-          imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
-            width: 1024,
-            height: 1024,
-            numSteps: 50,
-            guidanceScale: 7.5,
-            imageInput: story.coreImageUrl || undefined // Pass reference image for visual consistency
-          });
-        } else {
-          // Generate optimized image prompt using LLM for OpenAI too
-          const promptGenerator = new ImagePromptGenerator(req.user.openaiApiKey!, req.user.openaiBaseUrl);
-          const previousPages = story.pages.slice(0, i); // Get pages before current one
-          const optimizedPrompt = await promptGenerator.generateImagePrompt(story, page, previousPages);
-          
-          // Use OpenAI for image generation with optimized prompt
-          imageUrl = await generatePageImage(
-            optimizedPrompt, // Use LLM-generated prompt instead of page.text
-            coreImageUrl,
-            previousPageImageUrl,
-            story.expandedSetting || story.setting,
-            story.extractedCharacters || undefined,
-            req.user.openaiApiKey!,
-            req.user.openaiBaseUrl,
-            undefined, // customPrompt
-            "", // no additional story context needed (already in optimized prompt)
-            undefined, // story guidance already incorporated in prompt
-            undefined // page guidance already incorporated in prompt
-          );
-        }
-        
-        // Download and store page image as file
-        const pageImageFileId = await imageStorage.downloadAndStore(
-          imageUrl,
-          story.id,
-          'page',
-          `page_${page.pageNumber}`
-        );
-
-        updatedPages[i] = { ...page, imageUrl, imageFileId: pageImageFileId };
-        
-        // Update the page with file ID
-        await storage.updateStoryPageImageFileId(story.id, page.pageNumber, pageImageFileId);
-      }
-
-      const finalStory = await storage.updateStory(story.id, {
-        pages: updatedPages,
-        status: "completed"
-      });
-
-      res.json({ story: finalStory });
     } catch (error) {
       console.error("Error generating images:", error);
-      await storage.updateStoryStatus(req.params.id, "text_approved");
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to generate images" });
+      // Update story status to indicate error
+      try {
+        await storage.updateStoryStatus(req.params.id, "text_approved");
+      } catch (statusUpdateError) {
+        console.error("Failed to update story status:", statusUpdateError);
+      }
+      res.status(500).json({ message: "Failed to generate images" });
     }
   });
 
-  // Regenerate page image with custom prompt
+  // Remove the now-unused generateImagesAsync function (it will be replaced by service methods)
+  
+  app.post("/api/stories/:id/regenerate-core-image", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { storyId, customPrompt, useCurrentImageAsReference, customModel, customInput } = regenerateCoreImageSchema.parse({
+        storyId: req.params.id,
+        ...req.body
+      });
+      
+      const story = await storage.getStory(storyId);
+      if (!story) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+
+      if (story.userId !== req.user!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get complete user data from database (req.user only has basic auth info)
+      const fullUser = await storage.getUser(req.user!.id);
+      if (!fullUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check API keys based on preferred provider
+      const preferredProvider = fullUser.preferredImageProvider || "openai";
+      
+      if (preferredProvider === "replicate") {
+        if (!fullUser.replicateApiKey) {
+          return res.status(400).json({ message: "Replicate API key required" });
+        }
+      } else {
+        if (!fullUser.openaiApiKey) {
+          return res.status(400).json({ message: "OpenAI API key required" });
+        }
+      }
+
+      // Use comprehensive service method
+      const imageGenerationService = new ImageGenerationService();
+      const updatedStory = await imageGenerationService.regenerateCoreImageForEndpoint(story, fullUser, {
+        customPrompt,
+        useCurrentImageAsReference,
+        customModel,
+        customInput
+      });
+      
+      res.json({ story: updatedStory });
+      
+    } catch (error) {
+      console.error("Error regenerating core image:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to regenerate core image" });
+      }
+    }
+  });
+
   app.post("/api/stories/:id/pages/:pageNumber/regenerate-image", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const { storyId, pageNumber, customPrompt, currentImageUrl, useCurrentImageAsReference, customModel, customInput } = regenerateImageSchema.parse({
@@ -1236,214 +1087,29 @@ Style requirements:
         }
       }
 
-      const page = story.pages.find(p => p.pageNumber === pageNumber);
-      if (!page) {
-        return res.status(404).json({ message: "Page not found" });
-      }
-
-      const previousPage = story.pages.find(p => p.pageNumber === pageNumber - 1);
-      const previousPageImageUrl = previousPage?.imageUrl;
-
-      // Enhanced prompt for regeneration with strong consistency requirements
-      let finalCustomPrompt = customPrompt;
-      if (currentImageUrl) {
-        const referenceText = `\n\nCRITICAL REGENERATION INSTRUCTIONS:
-- You are regenerating an existing page image that must maintain PERFECT visual consistency with both the core story image AND the current page image
-- The core story image establishes the character designs, art style, and visual world that must be preserved
-- The current page image shows the exact composition and elements that should be kept while making requested modifications
-- Do NOT change the fundamental character designs, art style, or color palette established in the core image
-- Do NOT drastically alter the composition or main elements unless specifically requested
-- Focus on making the specific changes mentioned in the custom prompt while preserving all established visual consistency
-- This is a refinement/modification of an existing image, not a completely new creation`;
-        
-        finalCustomPrompt = customPrompt 
-          ? customPrompt + referenceText 
-          : "Please regenerate this image keeping the same composition, style, and character designs while making minor improvements or adjustments." + referenceText;
-      }
-
-      // Build full story context for regeneration
-      const storyContext = story.pages.map(p => `Page ${p.pageNumber}: ${p.text}`).join('\n\n');
-
-      let imageUrl: string;
-
-      // Initialize image storage service and helper function for both providers
-      const imageStorage = new ImageStorageService();
-      const getImageBase64 = async (url: string | undefined, fileId: string | undefined): Promise<string | undefined> => {
-        if (fileId) {
-          try {
-            const fileData = await imageStorage.retrieve(fileId);
-            if (fileData) {
-              return `data:${fileData.mimeType};base64,${fileData.buffer.toString('base64')}`;
-            }
-          } catch (error) {
-            console.error('Error loading image file:', fileId, error);
-          }
-        }
-        return url; // Fallback to original URL if no fileId or error
-      };
-
-      if (preferredProvider === "replicate") {
-        // Use Replicate for image generation
-        const replicateService = new ReplicateService(fullUser.replicateApiKey!);
-        
-        // Generate optimized image prompt using LLM for page regeneration
-        const promptGenerator = new ImagePromptGenerator(fullUser.openaiApiKey!, fullUser.openaiBaseUrl || undefined);
-        const previousPages = story.pages.filter(p => p.pageNumber < pageNumber); // Get pages before current one
-        
-        let replicatePrompt = await promptGenerator.generateImagePrompt(story, page, previousPages);
-        
-        // Append custom modifications if provided
-        if (finalCustomPrompt) {
-          replicatePrompt += `\n\nCustom modifications: ${finalCustomPrompt}`;
-        }
-
-        // Use custom model if provided, otherwise use user's preferred model or default
-        let modelId = customModel || fullUser.preferredReplicateModel || "black-forest-labs/flux-schnell";
-        // Fallback to working model if user has invalid model set
-        if (modelId === "prunaai/flux-kontext-dev") {
-          modelId = "black-forest-labs/flux-schnell";
-        }
-        
-        // Check if user has a template for this model
-        const userTemplates = fullUser.replicateModelTemplates || [];
-        console.log('Page regeneration - Debug template lookup:');
-        console.log('- Looking for modelId:', modelId);
-        console.log('- User templates count:', userTemplates.length);
-        console.log('- Available template modelIds:', userTemplates.map((t: any) => t.modelId));
-        
-        const template = userTemplates.find((t: any) => t.modelId === modelId);
-        console.log('- Template found:', !!template);
-        if (template) {
-          console.log('- Template details:', JSON.stringify(template, null, 2));
-        }
-        
-        if (template) {
-          // Use intelligent template-based generation with multi-image support
-          console.log('Using template-based page regeneration with template:', JSON.stringify(template, null, 2));
-          
-          // Prepare multi-image inputs for models that support them
-          const imageOptions: any = {
-            additionalPrompt: finalCustomPrompt,
-            customInput: customInput || undefined,
-            storyContext: story // Pass the story context for image ID resolution
-          };
-
-          // Get fresh story data to ensure we have the latest core image
-          const freshStory = await storage.getStory(storyId);
-          const coreImageBase64 = await getImageBase64(freshStory?.coreImageUrl || undefined, freshStory?.coreImageFileId || undefined);
-          
-          if (useCurrentImageAsReference) {
-            // When user wants to use current image as reference, send current page + core + previous page
-            const primaryImageBase64 = await getImageBase64(currentImageUrl || undefined, page.imageFileId || undefined);
-            if (primaryImageBase64) {
-              imageOptions.primaryImage = primaryImageBase64;
-            }
-            
-            // Add core image as reference for consistency
-            if (coreImageBase64 && coreImageBase64 !== primaryImageBase64) {
-              imageOptions.referenceImage = coreImageBase64;
-            }
-            
-            // Add previous page image for additional context
-            // if (previousPage?.imageFileId) {
-            //   const prevImageBase64 = await getImageBase64(previousPageImageUrl || undefined, previousPage.imageFileId || undefined);
-            //   if (prevImageBase64 && prevImageBase64 !== primaryImageBase64 && prevImageBase64 !== coreImageBase64) {
-            //     imageOptions.additionalImages = { previous_page: prevImageBase64 };
-            //   }
-            // }
-          } else {
-            // When user doesn't want current image as reference, only send core image
-            if (coreImageBase64) {
-              imageOptions.referenceImage = coreImageBase64;
-            }
-            // No additional images when not using current as reference
-          }
-          
-          console.log('Page regeneration - Using multiple images:', {
-            primaryImage: !!imageOptions.primaryImage,
-            referenceImage: !!imageOptions.referenceImage,
-            additionalImages: imageOptions.additionalImages ? Object.keys(imageOptions.additionalImages) : [],
-            primaryImageType: truncateForLog(imageOptions.primaryImage),
-            referenceImageType: truncateForLog(imageOptions.referenceImage)
-          });
-          
-          imageUrl = await replicateService.generateImageWithTemplate(template, replicatePrompt, imageOptions);
-        } else {
-          // Fall back to legacy hardcoded generation with primary reference image
-          let legacyImageBase64;
-          if (useCurrentImageAsReference) {
-            legacyImageBase64 = await getImageBase64(currentImageUrl || undefined, page.imageFileId || undefined);
-          }
-          if (!legacyImageBase64) {
-            legacyImageBase64 = (await getImageBase64(previousPageImageUrl || undefined, previousPage?.imageFileId || undefined)) || 
-                               (await getImageBase64(story.coreImageUrl || undefined, story.coreImageFileId || undefined));
-          }
-          
-          imageUrl = await replicateService.generateImage(modelId, replicatePrompt, {
-            width: 1024,
-            height: 1024,
-            numSteps: 50,
-            guidanceScale: 7.5,
-            imageInput: legacyImageBase64
-          });
-        }
-      } else {
-        // Use OpenAI for image generation with base64 encoded files
-
-        const openaiCoreImageUrl = (await getImageBase64(story.coreImageUrl || undefined, story.coreImageFileId || undefined)) || "";
-        const openaiPreviousImageUrl = await getImageBase64(previousPageImageUrl || undefined, previousPage?.imageFileId || undefined);
-        
-        // Generate optimized image prompt using LLM for OpenAI regeneration too
-        const promptGenerator = new ImagePromptGenerator(fullUser.openaiApiKey!, fullUser.openaiBaseUrl || undefined);
-        const previousPages = story.pages.filter(p => p.pageNumber < pageNumber); // Get pages before current one
-        let optimizedPrompt = await promptGenerator.generateImagePrompt(story, page, previousPages);
-        
-        // Append custom modifications if provided
-        if (finalCustomPrompt) {
-          optimizedPrompt += `\n\nCustom modifications: ${finalCustomPrompt}`;
-        }
-        
-        imageUrl = await generatePageImage(
-          optimizedPrompt, // Use LLM-generated prompt instead of page.text
-          openaiCoreImageUrl,
-          openaiPreviousImageUrl,
-          story.expandedSetting || story.setting,
-          story.extractedCharacters || undefined,
-          fullUser.openaiApiKey!,
-          fullUser.openaiBaseUrl || undefined,
-          undefined, // custom prompt already included in optimizedPrompt
-          "", // story context already included in optimizedPrompt
-          undefined, // story guidance already included in optimizedPrompt
-          undefined // page guidance already included in optimizedPrompt
-        );
-      }
+      // Use comprehensive service method
+      const imageGenerationService = new ImageGenerationService();
+      const updatedStory = await imageGenerationService.regeneratePageImageForEndpoint(story, pageNumber, fullUser, {
+        customPrompt,
+        currentImageUrl,
+        useCurrentImageAsReference,
+        customModel,
+        customInput
+      });
       
-      console.log('Page regeneration - About to downloadAndStore imageUrl:', truncateForLog(imageUrl));
-      
-      // Download and store the regenerated page image as a file
-      const pageImageFileId = await imageStorage.downloadAndStore(
-        imageUrl,
-        story.id,
-        'page',
-        `page_${pageNumber}_regenerated`
-      );
-      
-      console.log('Page regeneration - Downloaded and stored as fileId:', pageImageFileId);
-      
-      // Update story with file ID only (no URL storage)
-      await storage.updateStoryPageImageFileId(story.id, pageNumber, pageImageFileId);
-      
-      const updatedStory = await storage.getStory(storyId);
       res.json({ story: updatedStory });
+      
     } catch (error) {
       console.error("Error regenerating page image:", error);
       if (error instanceof z.ZodError) {
-        res.status(400).json({ message: "Invalid input data", errors: error.errors });
+        res.status(400).json({ message: "Invalid request data", errors: error.errors });
       } else {
-        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to regenerate page image" });
+        res.status(500).json({ message: "Failed to regenerate page image" });
       }
     }
   });
+
+  // Create/manage revisions for the story
 
   // Restore an image version from history
   app.post("/api/stories/:id/pages/:pageNumber/restore-image", requireAuth, async (req: AuthenticatedRequest, res) => {
