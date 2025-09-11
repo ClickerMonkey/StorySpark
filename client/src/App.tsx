@@ -31,7 +31,7 @@ function Router() {
           </div>
         ) : !isAuthenticated ? (
           <GoogleLogin onLogin={login} />
-        ) : !user?.openaiApiKey ? (
+        ) : (!user?.openaiApiKey && !user?.freeMode) ? (
           <OpenAISetup user={user} onSetupComplete={updateUser} />
         ) : (
           <Switch>
