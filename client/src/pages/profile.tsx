@@ -392,8 +392,8 @@ export default function Profile() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="openai">OpenAI DALL-E</SelectItem>
-                    <SelectItem value="replicate">Replicate Models</SelectItem>
+                    <SelectItem value="openai">OpenAI</SelectItem>
+                    <SelectItem value="replicate">Replicate</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
