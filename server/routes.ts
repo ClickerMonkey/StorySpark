@@ -6,7 +6,7 @@ import { generateStoryText, generateCoreImage, generatePageImage, expandSetting,
 import { ReplicateService } from "./services/replicate";
 import { ImagePromptGenerator } from "./services/imagePromptGenerator";
 import { ImageStorageService } from "./storage/ImageStorageService";
-import { ImageGenerationService } from "./services/imageGeneration";
+import { ImageGenerationService, getApiKeys } from "./services/imageGeneration";
 import { createStorySchema, approveStorySchema, approveSettingSchema, approveCharactersSchema, regenerateImageSchema, regenerateCoreImageSchema, createRevisionSchema, updateUserProfileSchema, type Story, type User } from "@shared/schema";
 import { verifyGoogleToken, generateJWT, requireAuth, optionalAuth, type AuthenticatedRequest } from "./auth";
 import { initializeWebSocketService, getWebSocketService } from "./services/websocketService";
@@ -18,26 +18,6 @@ function truncateForLog(value: any): string {
     return value.length > 128 ? `${value.substring(0, 128)}...` : value;
   }
   return String(value);
-}
-
-// Helper function to get API keys based on user's free mode status
-function getApiKeys(user: NonNullable<AuthenticatedRequest['user']>): { openaiApiKey?: string; replicateApiKey?: string; openaiBaseUrl?: string } {
-  if (user.freeMode) {
-    // Use environment variables for free mode users
-    // SECURITY: Force canonical base URL to prevent API key exfiltration
-    return {
-      openaiApiKey: process.env.OPENAI_API_KEY || undefined,
-      replicateApiKey: process.env.REPLICATE_API_KEY || undefined,
-      openaiBaseUrl: "https://api.openai.com/v1"
-    };
-  } else {
-    // Use user's own API keys
-    return {
-      openaiApiKey: user.openaiApiKey || undefined,
-      replicateApiKey: user.replicateApiKey || undefined,
-      openaiBaseUrl: user.openaiBaseUrl || undefined
-    };
-  }
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -881,13 +861,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check API keys based on preferred provider
       const preferredProvider = fullUser.preferredImageProvider || "openai";
+      const apiKeys = getApiKeys(req.user!);
       
       if (preferredProvider === "replicate") {
-        if (!fullUser.replicateApiKey) {
+        if (!apiKeys.replicateApiKey) {
           return res.status(400).json({ message: "Replicate API key required" });
         }
       } else {
-        if (!fullUser.openaiApiKey) {
+        if (!apiKeys.openaiApiKey) {
           return res.status(400).json({ message: "OpenAI API key required" });
         }
       }
@@ -936,13 +917,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check API keys based on preferred provider
       const preferredProvider = fullUser.preferredImageProvider || "openai";
+      const apiKeys = getApiKeys(req.user!);
       
       if (preferredProvider === "replicate") {
-        if (!fullUser.replicateApiKey) {
+        if (!apiKeys.replicateApiKey) {
           return res.status(400).json({ message: "Replicate API key required" });
         }
       } else {
-        if (!fullUser.openaiApiKey) {
+        if (!apiKeys.openaiApiKey) {
           return res.status(400).json({ message: "OpenAI API key required" });
         }
       }
@@ -993,13 +975,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check API keys based on preferred provider
       const preferredProvider = fullUser.preferredImageProvider || "openai";
+      const apiKeys = getApiKeys(req.user!);
       
       if (preferredProvider === "replicate") {
-        if (!fullUser.replicateApiKey) {
+        if (!apiKeys.replicateApiKey) {
           return res.status(400).json({ message: "Replicate API key required" });
         }
       } else {
-        if (!fullUser.openaiApiKey) {
+        if (!apiKeys.openaiApiKey) {
           return res.status(400).json({ message: "OpenAI API key required" });
         }
       }

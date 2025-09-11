@@ -1,10 +1,11 @@
-import { Story, StoryPage, Character, User } from "@shared/schema";
+import { Story, StoryPage, User } from "@shared/schema";
 import { ReplicateService } from "./replicate";
 import { ImagePromptGenerator } from "./imagePromptGenerator";
 import { generateCoreImage as openaiGenerateCoreImage, generatePageImage as openaiGeneratePageImage } from "./openai";
 import { ImageStorageService } from "../storage/ImageStorageService";
 import { storage } from "../storage";
 import { getWebSocketService } from "./websocketService";
+import { AuthenticatedRequest } from "server/auth";
 
 export interface CoreImageGenerationOptions {
   customPrompt?: string;
@@ -420,11 +421,12 @@ export class ImageGenerationService {
     user: User,
     options: CoreImageGenerationOptions
   ): Promise<string> {
-    const replicateService = new ReplicateService(user.replicateApiKey!);
+    const apiKeys = getApiKeys(user);
+    const replicateService = new ReplicateService(apiKeys.replicateApiKey!);
     
     let prompt: string;
     // Always generate the base story prompt first
-    const promptGenerator = new ImagePromptGenerator(user.openaiApiKey!, user.openaiBaseUrl || undefined);
+    const promptGenerator = new ImagePromptGenerator(apiKeys.openaiApiKey!, apiKeys.openaiBaseUrl || undefined);
     const basePrompt = await promptGenerator.generateCoreImagePrompt(story);
     
     if (options.customPrompt) {
@@ -466,6 +468,8 @@ export class ImageGenerationService {
     user: User,
     options: CoreImageGenerationOptions
   ): Promise<string> {
+    const apiKeys = getApiKeys(user);
+    
     if (options.customPrompt) {
       // Use custom prompt for regeneration
       const { regenerateCoreImage } = await import("./openai");
@@ -474,8 +478,8 @@ export class ImageGenerationService {
         story.extractedCharacters || [],
         options.customPrompt,
         options.useCurrentImageAsReference || false,
-        user.openaiApiKey!,
-        user.openaiBaseUrl || undefined,
+        apiKeys.openaiApiKey!,
+        apiKeys.openaiBaseUrl || undefined,
         story.coreImageUrl || undefined
       );
     } else {
@@ -492,8 +496,8 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
       return await openaiGenerateCoreImage(
         coreImagePrompt,
         [],
-        user.openaiApiKey!,
-        user.openaiBaseUrl || undefined
+        apiKeys.openaiApiKey!,
+        apiKeys.openaiBaseUrl || undefined
       );
     }
   }
@@ -504,14 +508,15 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
     user: User,
     options: PageImageGenerationOptions
   ): Promise<string> {
-    const replicateService = new ReplicateService(user.replicateApiKey!);
+    const apiKeys = getApiKeys(user);
+    const replicateService = new ReplicateService(apiKeys.replicateApiKey!);
     
     let prompt: string;
     if (options.customPrompt) {
       prompt = options.customPrompt;
     } else {
       // Generate optimized page image prompt using LLM
-      const promptGenerator = new ImagePromptGenerator(user.openaiApiKey!, user.openaiBaseUrl || undefined);
+      const promptGenerator = new ImagePromptGenerator(apiKeys.openaiApiKey!, apiKeys.openaiBaseUrl || undefined);
       prompt = await promptGenerator.generateImagePrompt(story, page);
     }
 
@@ -548,6 +553,8 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
     user: User,
     options: PageImageGenerationOptions
   ): Promise<string> {
+    const apiKeys = getApiKeys(user);
+    
     // Use the generatePageImage function which accepts custom prompts
     return await openaiGeneratePageImage(
       page.text,
@@ -555,12 +562,32 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
       "", // No longer storing/using previous page URLs
       story.expandedSetting || story.setting || undefined,
       story.extractedCharacters || [],
-      user.openaiApiKey!,
-      user.openaiBaseUrl || undefined,
+      apiKeys.openaiApiKey!,
+      apiKeys.openaiBaseUrl || undefined,
       options.customPrompt, // custom prompt if provided
       story.title + " " + story.plot,
       story.storyGuidance || undefined,
       page.imageGuidance || undefined
     );
+  }
+}
+
+// Helper function to get API keys based on user's free mode status
+export function getApiKeys(user: User): { openaiApiKey?: string; replicateApiKey?: string; openaiBaseUrl?: string } {
+  if (user.freeMode) {
+    // Use environment variables for free mode users
+    // SECURITY: Force canonical base URL to prevent API key exfiltration
+    return {
+      openaiApiKey: process.env.OPENAI_API_KEY || undefined,
+      replicateApiKey: process.env.REPLICATE_API_KEY || undefined,
+      openaiBaseUrl: "https://api.openai.com/v1"
+    };
+  } else {
+    // Use user's own API keys
+    return {
+      openaiApiKey: user.openaiApiKey || undefined,
+      replicateApiKey: user.replicateApiKey || undefined,
+      openaiBaseUrl: user.openaiBaseUrl || undefined
+    };
   }
 }
