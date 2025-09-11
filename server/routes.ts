@@ -204,6 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: user.id,
           email: user.email,
           name: user.name,
+          freeMode: user.freeMode,
           profileImageUrl: user.profileImageUrl,
           openaiApiKey: user.openaiApiKey,
           openaiBaseUrl: user.openaiBaseUrl,
@@ -291,8 +292,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/replicate/models", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const { q: query, limit = "20" } = req.query;
-      
-      const apiKeys = getApiKeys(req.user!);
+
+      const user = await storage.getUserById(req.user!.id);
+      if (!user) {
+        return res.status(403).json({ message: "Authentication required" });
+      }
+      const apiKeys = getApiKeys(user);
       
       if (!apiKeys.replicateApiKey) {
         return res.status(400).json({ message: "Replicate API key required" });
@@ -322,7 +327,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Model ID is required" });
       }
 
-      const apiKeys = getApiKeys(req.user!);
+      const user = await storage.getUserById(req.user!.id);
+      if (!user) {
+        return res.status(403).json({ message: "Authentication required" });
+      }
+      const apiKeys = getApiKeys(user);
       
       if (!apiKeys.replicateApiKey) {
         return res.status(400).json({ message: "Replicate API key required" });
@@ -421,8 +430,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/generate-story-idea", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const { ageGroup } = req.body;
-      
-      const apiKeys = getApiKeys(req.user!);
+
+      const user = await storage.getUserById(req.user!.id);
+      if (!user) {
+        return res.status(403).json({ message: "Authentication required" });
+      }
+      const apiKeys = getApiKeys(user);
       
       if (!apiKeys.openaiApiKey) {
         return res.status(400).json({ message: "OpenAI API key required. Please configure it in your settings." });
@@ -446,7 +459,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const storyData = createStorySchema.parse(req.body);
       
-      const apiKeys = getApiKeys(req.user!);
+      const user = await storage.getUserById(req.user!.id);
+      if (!user) {
+        return res.status(403).json({ message: "Authentication required" });
+      }
+      const apiKeys = getApiKeys(user);
       
       if (!apiKeys.openaiApiKey) {
         return res.status(400).json({ message: "OpenAI API key required. Please configure it in your settings." });
@@ -509,7 +526,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      const apiKeys = getApiKeys(req.user!);
+      const user = await storage.getUserById(req.user!.id);
+      if (!user) {
+        return res.status(403).json({ message: "Authentication required" });
+      }
+      const apiKeys = getApiKeys(user);
       
       if (!apiKeys.openaiApiKey) {
         return res.status(400).json({ message: "OpenAI API key required" });
@@ -585,7 +606,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      const apiKeys = getApiKeys(req.user!);
+      const user = await storage.getUserById(req.user!.id);
+      if (!user) {
+        return res.status(403).json({ message: "Authentication required" });
+      }
+      const apiKeys = getApiKeys(user);
       
       if (!apiKeys.openaiApiKey) {
         return res.status(400).json({ message: "OpenAI API key required" });
@@ -629,7 +654,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      const apiKeys = getApiKeys(req.user!);
+      const user = await storage.getUserById(req.user!.id);
+      if (!user) {
+        return res.status(403).json({ message: "Authentication required" });
+      }
+      const apiKeys = getApiKeys(user);
       
       if (!apiKeys.openaiApiKey) {
         return res.status(400).json({ message: "OpenAI API key required" });
@@ -694,7 +723,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      const apiKeys = getApiKeys(req.user!);
+      const user = await storage.getUserById(req.user!.id);
+      if (!user) {
+        return res.status(403).json({ message: "Authentication required" });
+      }
+      const apiKeys = getApiKeys(user);
       
       if (!apiKeys.openaiApiKey) {
         return res.status(400).json({ message: "OpenAI API key required" });
@@ -750,14 +783,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get complete user data from database to check API keys and preferences
-      const fullUser = await storage.getUser(req.user!.id);
-      if (!fullUser) {
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
       // Check API keys based on preferred provider for image generation
-      const preferredProvider = fullUser.preferredImageProvider || "openai";
-      const apiKeys = getApiKeys(req.user!);
+      const preferredProvider = user.preferredImageProvider || "openai";
+      const apiKeys = getApiKeys(user);
       
       if (preferredProvider === "replicate") {
         if (!apiKeys.replicateApiKey) {
@@ -778,7 +811,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Start image generation asynchronously  
       if (updatedStory) {
         const imageService = new ImageGenerationService();
-        imageService.generateStoryImages(updatedStory, fullUser);
+        imageService.generateStoryImages(updatedStory, user);
       }
 
       res.json({ story: updatedStory });
@@ -805,8 +838,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check API keys based on preferred provider
-      const preferredProvider = req.user?.preferredImageProvider || "openai";
-      const apiKeys = getApiKeys(req.user!);
+      const user = await storage.getUserById(req.user!.id);
+      if (!user) {
+        return res.status(403).json({ message: "Authentication required" });
+      }
+      const preferredProvider = user.preferredImageProvider || "openai";
+      const apiKeys = getApiKeys(user);
       
       if (preferredProvider === "replicate") {
         if (!apiKeys.replicateApiKey) {
@@ -854,14 +891,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get complete user data from database (req.user only has basic auth info)
-      const fullUser = await storage.getUser(req.user!.id);
-      if (!fullUser) {
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
       // Check API keys based on preferred provider
-      const preferredProvider = fullUser.preferredImageProvider || "openai";
-      const apiKeys = getApiKeys(req.user!);
+      const preferredProvider = user.preferredImageProvider || "openai";
+      const apiKeys = getApiKeys(user);
       
       if (preferredProvider === "replicate") {
         if (!apiKeys.replicateApiKey) {
@@ -875,7 +912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use comprehensive service method
       const imageGenerationService = new ImageGenerationService();
-      const updatedStory = await imageGenerationService.generateAllImages(story, fullUser);
+      const updatedStory = await imageGenerationService.generateAllImages(story, user);
       
       res.json({ story: updatedStory });
       
@@ -910,14 +947,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get complete user data from database (req.user only has basic auth info)
-      const fullUser = await storage.getUser(req.user!.id);
-      if (!fullUser) {
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
       // Check API keys based on preferred provider
-      const preferredProvider = fullUser.preferredImageProvider || "openai";
-      const apiKeys = getApiKeys(req.user!);
+      const preferredProvider = user.preferredImageProvider || "openai";
+      const apiKeys = getApiKeys(user);
       
       if (preferredProvider === "replicate") {
         if (!apiKeys.replicateApiKey) {
@@ -931,7 +968,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use comprehensive service method
       const imageGenerationService = new ImageGenerationService();
-      const updatedStory = await imageGenerationService.regenerateCoreImageForEndpoint(story, fullUser, {
+      const updatedStory = await imageGenerationService.regenerateCoreImageForEndpoint(story, user, {
         customPrompt,
         useCurrentImageAsReference,
         customModel,
@@ -968,14 +1005,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get complete user data from database (req.user only has basic auth info)
-      const fullUser = await storage.getUser(req.user!.id);
-      if (!fullUser) {
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
       // Check API keys based on preferred provider
-      const preferredProvider = fullUser.preferredImageProvider || "openai";
-      const apiKeys = getApiKeys(req.user!);
+      const preferredProvider = user.preferredImageProvider || "openai";
+      const apiKeys = getApiKeys(user);
       
       if (preferredProvider === "replicate") {
         if (!apiKeys.replicateApiKey) {
@@ -989,7 +1026,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use comprehensive service method
       const imageGenerationService = new ImageGenerationService();
-      const updatedStory = await imageGenerationService.regeneratePageImageForEndpoint(story, pageNumber, fullUser, {
+      const updatedStory = await imageGenerationService.regeneratePageImageForEndpoint(story, pageNumber, user, {
         customPrompt,
         currentImageUrl,
         useCurrentImageAsReference,
@@ -1065,8 +1102,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check API keys based on preferred provider
-      const preferredProvider = req.user?.preferredImageProvider || "openai";
-      const apiKeys = getApiKeys(req.user!);
+      const user = await storage.getUserById(req.user!.id);
+      if (!user) {
+        return res.status(403).json({ message: "Authentication required" });
+      }
+      const apiKeys = getApiKeys(user);
+      const preferredProvider = user.preferredImageProvider || "openai";
       
       if (preferredProvider === "replicate") {
         if (!apiKeys.replicateApiKey) {
@@ -1098,13 +1139,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (modelId === "prunaai/flux-kontext-dev") {
           modelId = "black-forest-labs/flux-schnell";
         }
-        
-        // Check if user has a template for this model
-        const fullUser = await storage.getUser(req.user!.id);
-        if (!fullUser) {
-          return res.status(404).json({ message: "User not found" });
-        }
-        const userTemplates = fullUser.replicateModelTemplates || [];
+
+        const userTemplates = user.replicateModelTemplates || [];
         const template = userTemplates.find((t: any) => t.modelId === modelId);
         
         if (template) {
