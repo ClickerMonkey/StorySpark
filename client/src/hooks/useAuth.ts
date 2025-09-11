@@ -13,6 +13,7 @@ interface User {
   preferredImageProvider?: string;
   preferredReplicateModel?: string;
   replicateModelTemplates?: any[];
+  freeMode?: boolean;
 }
 
 interface AuthState {

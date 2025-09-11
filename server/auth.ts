@@ -21,6 +21,7 @@ export interface AuthenticatedRequest extends Request {
     preferredImageProvider?: string;
     preferredReplicateModel?: string;
     replicateModelTemplates?: any[];
+    freeMode: boolean;
   };
 }
 
@@ -86,6 +87,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
       preferredImageProvider: user.preferredImageProvider || undefined,
       preferredReplicateModel: user.preferredReplicateModel || undefined,
       replicateModelTemplates: user.replicateModelTemplates || [],
+      freeMode: user.freeMode || false,
     };
     next();
   } catch (error) {
@@ -113,6 +115,7 @@ export async function optionalAuth(req: AuthenticatedRequest, res: Response, nex
           preferredImageProvider: user.preferredImageProvider || undefined,
           preferredReplicateModel: user.preferredReplicateModel || undefined,
           replicateModelTemplates: user.replicateModelTemplates || [],
+          freeMode: user.freeMode || false,
         };
       }
     }

@@ -277,48 +277,68 @@ export default function Profile() {
             </CardContent>
           </Card>
 
-          {/* OpenAI Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Key className="h-5 w-5" />
-                OpenAI Configuration
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="openai-api-key">OpenAI API Key</Label>
-                <div className="relative">
-                  <Input
-                    id="openai-api-key"
-                    type={showApiKeys.openai ? "text" : "password"}
-                    value={formData.openaiApiKey}
-                    onChange={(e) => setFormData(prev => ({...prev, openaiApiKey: e.target.value}))}
-                    placeholder="sk-..."
-                    className="pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => toggleApiKeyVisibility('openai')}
-                  >
-                    {showApiKeys.openai ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
+          {/* Free Mode Notice */}
+          {user?.freeMode && (
+            <Card className="border-green-200 bg-green-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-green-800">
+                  <CheckCircle className="h-5 w-5" />
+                  Free Mode Active
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-green-700">
+                  You're using StoryMaker AI in free mode! All AI generation is powered by our system API keys, so you don't need to configure your own. 
+                  You can still customize your preferred image provider and model settings below.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* OpenAI Settings - Hidden in Free Mode */}
+          {!user?.freeMode && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="h-5 w-5" />
+                  OpenAI Configuration
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="openai-api-key">OpenAI API Key</Label>
+                  <div className="relative">
+                    <Input
+                      id="openai-api-key"
+                      type={showApiKeys.openai ? "text" : "password"}
+                      value={formData.openaiApiKey}
+                      onChange={(e) => setFormData(prev => ({...prev, openaiApiKey: e.target.value}))}
+                      placeholder="sk-..."
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3"
+                      onClick={() => toggleApiKeyVisibility('openai')}
+                    >
+                      {showApiKeys.openai ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <Label htmlFor="openai-base-url">OpenAI Base URL</Label>
-                <Input
-                  id="openai-base-url"
-                  value={formData.openaiBaseUrl}
-                  onChange={(e) => setFormData(prev => ({...prev, openaiBaseUrl: e.target.value}))}
-                  placeholder="https://api.openai.com/v1"
-                />
-              </div>
-            </CardContent>
-          </Card>
+                <div>
+                  <Label htmlFor="openai-base-url">OpenAI Base URL</Label>
+                  <Input
+                    id="openai-base-url"
+                    value={formData.openaiBaseUrl}
+                    onChange={(e) => setFormData(prev => ({...prev, openaiBaseUrl: e.target.value}))}
+                    placeholder="https://api.openai.com/v1"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Replicate Settings */}
           <Card>

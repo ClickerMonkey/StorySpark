@@ -20,6 +20,26 @@ function truncateForLog(value: any): string {
   return String(value);
 }
 
+// Helper function to get API keys based on user's free mode status
+function getApiKeys(user: NonNullable<AuthenticatedRequest['user']>): { openaiApiKey?: string; replicateApiKey?: string; openaiBaseUrl?: string } {
+  if (user.freeMode) {
+    // Use environment variables for free mode users
+    // SECURITY: Force canonical base URL to prevent API key exfiltration
+    return {
+      openaiApiKey: process.env.OPENAI_API_KEY || undefined,
+      replicateApiKey: process.env.REPLICATE_API_KEY || undefined,
+      openaiBaseUrl: "https://api.openai.com/v1"
+    };
+  } else {
+    // Use user's own API keys
+    return {
+      openaiApiKey: user.openaiApiKey || undefined,
+      replicateApiKey: user.replicateApiKey || undefined,
+      openaiBaseUrl: user.openaiBaseUrl || undefined
+    };
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register image serving routes
   app.use('/images', imageRoutes);
@@ -292,11 +312,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { q: query, limit = "20" } = req.query;
       
-      if (!req.user?.replicateApiKey) {
+      const apiKeys = getApiKeys(req.user!);
+      
+      if (!apiKeys.replicateApiKey) {
         return res.status(400).json({ message: "Replicate API key required" });
       }
 
-      const replicateService = new ReplicateService(req.user.replicateApiKey);
+      const replicateService = new ReplicateService(apiKeys.replicateApiKey);
       
       if (query && typeof query === 'string') {
         const models = await replicateService.searchModels(query, parseInt(limit as string));
@@ -320,21 +342,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Model ID is required" });
       }
 
-      if (!req.user?.replicateApiKey) {
+      const apiKeys = getApiKeys(req.user!);
+      
+      if (!apiKeys.replicateApiKey) {
         return res.status(400).json({ message: "Replicate API key required" });
       }
 
-      if (!req.user?.openaiApiKey) {
+      if (!apiKeys.openaiApiKey) {
         return res.status(400).json({ message: "OpenAI API key required for schema analysis" });
       }
 
       // Get model schema from Replicate
-      const replicateService = new ReplicateService(req.user.replicateApiKey);
+      const replicateService = new ReplicateService(apiKeys.replicateApiKey);
       const modelSchema = await replicateService.getModelSchema(modelId);
 
       // Analyze schema with LLM
       const { ModelSchemaAnalyzer } = await import('./services/ModelSchemaAnalyzer');
-      const analyzer = new ModelSchemaAnalyzer(req.user.openaiApiKey, req.user.openaiBaseUrl);
+      const analyzer = new ModelSchemaAnalyzer(apiKeys.openaiApiKey!, apiKeys.openaiBaseUrl);
       const template = await analyzer.analyzeModelSchema(modelSchema);
 
       res.json({ template });
@@ -418,14 +442,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { ageGroup } = req.body;
       
-      if (!req.user?.openaiApiKey) {
+      const apiKeys = getApiKeys(req.user!);
+      
+      if (!apiKeys.openaiApiKey) {
         return res.status(400).json({ message: "OpenAI API key required. Please configure it in your settings." });
       }
 
       const storyIdea = await generateStoryIdea(
         ageGroup,
-        req.user.openaiApiKey,
-        req.user.openaiBaseUrl
+        apiKeys.openaiApiKey,
+        apiKeys.openaiBaseUrl
       );
 
       res.json(storyIdea);
@@ -440,12 +466,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const storyData = createStorySchema.parse(req.body);
       
-      if (!req.user?.openaiApiKey) {
+      const apiKeys = getApiKeys(req.user!);
+      
+      if (!apiKeys.openaiApiKey) {
         return res.status(400).json({ message: "OpenAI API key required. Please configure it in your settings." });
       }
 
       const story = await storage.createStory({
-        userId: req.user.id,
+        userId: req.user!.id,
         ...storyData,
         status: "draft"
       });
@@ -501,7 +529,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      if (!req.user?.openaiApiKey) {
+      const apiKeys = getApiKeys(req.user!);
+      
+      if (!apiKeys.openaiApiKey) {
         return res.status(400).json({ message: "OpenAI API key required" });
       }
 
@@ -510,8 +540,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         story.characters,
         story.plot,
         story.ageGroup,
-        req.user.openaiApiKey,
-        req.user.openaiBaseUrl,
+        apiKeys.openaiApiKey,
+        apiKeys.openaiBaseUrl,
         story.storyGuidance || undefined
       );
 
@@ -575,7 +605,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      if (!req.user?.openaiApiKey) {
+      const apiKeys = getApiKeys(req.user!);
+      
+      if (!apiKeys.openaiApiKey) {
         return res.status(400).json({ message: "OpenAI API key required" });
       }
 
@@ -583,8 +615,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         story.characters,
         story.expandedSetting || story.setting,
         story.ageGroup,
-        req.user.openaiApiKey,
-        req.user.openaiBaseUrl,
+        apiKeys.openaiApiKey,
+        apiKeys.openaiBaseUrl,
         story.storyGuidance || undefined
       );
 
@@ -617,7 +649,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      if (!req.user?.openaiApiKey) {
+      const apiKeys = getApiKeys(req.user!);
+      
+      if (!apiKeys.openaiApiKey) {
         return res.status(400).json({ message: "OpenAI API key required" });
       }
 
@@ -643,8 +677,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         story.expandedSetting || story.setting,
         characters,
-        req.user.openaiApiKey,
-        req.user.openaiBaseUrl,
+        apiKeys.openaiApiKey,
+        apiKeys.openaiBaseUrl,
         story.storyGuidance || undefined
       );
 
@@ -680,7 +714,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      if (!req.user?.openaiApiKey) {
+      const apiKeys = getApiKeys(req.user!);
+      
+      if (!apiKeys.openaiApiKey) {
         return res.status(400).json({ message: "OpenAI API key required" });
       }
 
@@ -695,8 +731,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         story.expandedSetting || story.setting,
         story.extractedCharacters || [],
-        req.user.openaiApiKey,
-        req.user.openaiBaseUrl,
+        apiKeys.openaiApiKey,
+        apiKeys.openaiBaseUrl,
         story.storyGuidance || undefined
       );
 
@@ -741,13 +777,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check API keys based on preferred provider for image generation
       const preferredProvider = fullUser.preferredImageProvider || "openai";
+      const apiKeys = getApiKeys(req.user!);
       
       if (preferredProvider === "replicate") {
-        if (!fullUser.replicateApiKey) {
+        if (!apiKeys.replicateApiKey) {
           return res.status(400).json({ message: "Replicate API key required for image generation" });
         }
       } else {
-        if (!fullUser.openaiApiKey) {
+        if (!apiKeys.openaiApiKey) {
           return res.status(400).json({ message: "OpenAI API key required for image generation" });
         }
       }
@@ -936,13 +973,14 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
 
       // Check API keys based on preferred provider
       const preferredProvider = req.user?.preferredImageProvider || "openai";
+      const apiKeys = getApiKeys(req.user!);
       
       if (preferredProvider === "replicate") {
-        if (!req.user?.replicateApiKey) {
+        if (!apiKeys.replicateApiKey) {
           return res.status(400).json({ message: "Replicate API key required" });
         }
       } else {
-        if (!req.user?.openaiApiKey) {
+        if (!apiKeys.openaiApiKey) {
           return res.status(400).json({ message: "OpenAI API key required" });
         }
       }
@@ -1192,13 +1230,14 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
 
       // Check API keys based on preferred provider
       const preferredProvider = req.user?.preferredImageProvider || "openai";
+      const apiKeys = getApiKeys(req.user!);
       
       if (preferredProvider === "replicate") {
-        if (!req.user?.replicateApiKey) {
+        if (!apiKeys.replicateApiKey) {
           return res.status(400).json({ message: "Replicate API key required" });
         }
       } else {
-        if (!req.user?.openaiApiKey) {
+        if (!apiKeys.openaiApiKey) {
           return res.status(400).json({ message: "OpenAI API key required" });
         }
       }
@@ -1211,14 +1250,14 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
 
       if (preferredProvider === "replicate") {
         // Use Replicate for core image regeneration
-        const replicateService = new ReplicateService(req.user.replicateApiKey!);
+        const replicateService = new ReplicateService(apiKeys.replicateApiKey!);
         
         // Generate optimized core image prompt using LLM
-        const promptGenerator = new ImagePromptGenerator(req.user.openaiApiKey!, req.user.openaiBaseUrl);
+        const promptGenerator = new ImagePromptGenerator(apiKeys.openaiApiKey!, apiKeys.openaiBaseUrl);
         let replicatePrompt = await promptGenerator.generateCoreImagePrompt(story, customPrompt);
 
         // Use custom model if provided, otherwise use user's preferred model or default
-        let modelId = customModel || req.user.preferredReplicateModel || "black-forest-labs/flux-schnell";
+        let modelId = customModel || req.user!.preferredReplicateModel || "black-forest-labs/flux-schnell";
         // Fallback to working model if user has invalid model set
         if (modelId === "prunaai/flux-kontext-dev") {
           modelId = "black-forest-labs/flux-schnell";
@@ -1258,7 +1297,7 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
         }
       } else {
         // Generate optimized core image prompt using LLM for OpenAI regeneration too
-        const promptGenerator = new ImagePromptGenerator(req.user.openaiApiKey!, req.user.openaiBaseUrl || undefined);
+        const promptGenerator = new ImagePromptGenerator(apiKeys.openaiApiKey!, apiKeys.openaiBaseUrl || undefined);
         const optimizedPrompt = await promptGenerator.generateCoreImagePrompt(story, customPrompt);
         
         // Use OpenAI for core image regeneration with optimized prompt
@@ -1267,8 +1306,8 @@ Style: Bright, colorful, safe for children, storybook illustration style. Make i
           story.extractedCharacters || [],
           "", // custom prompt already included in optimizedPrompt
           useCurrentImageAsReference,
-          req.user.openaiApiKey!,
-          req.user.openaiBaseUrl || undefined,
+          apiKeys.openaiApiKey!,
+          apiKeys.openaiBaseUrl || undefined,
           useCurrentImageAsReference ? (story.coreImageUrl || undefined) : undefined
         );
         console.log('OpenAI generation returned imageUrl:', truncateForLog(imageUrl));
