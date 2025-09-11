@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -15,6 +15,7 @@ export const users = pgTable("users", {
   preferredImageProvider: text("preferred_image_provider").default("openai"), // openai, replicate
   preferredReplicateModel: text("preferred_replicate_model"),
   replicateModelTemplates: jsonb("replicate_model_templates").$type<ReplicateModelTemplate[]>().default([]),
+  freeMode: boolean("free_mode").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
