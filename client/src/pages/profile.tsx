@@ -72,9 +72,9 @@ export default function Profile() {
   }, [user]);
 
   const handleModelSearch = () => {
-    if (formData.replicateApiKey && modelSearch.trim()) {
+    if (user?.freeMode || (formData.replicateApiKey && modelSearch.trim())) {
       searchModels();
-    } else if (!formData.replicateApiKey) {
+    } else if (!formData.replicateApiKey && !user?.freeMode) {
       toast({
         title: "Replicate API Key Required",
         description: "Please enter your Replicate API key first to search models.",
@@ -349,33 +349,38 @@ export default function Profile() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="replicate-api-key">Replicate API Key</Label>
-                <div className="relative">
-                  <Input
-                    id="replicate-api-key"
-                    type={showApiKeys.replicate ? "text" : "password"}
-                    value={formData.replicateApiKey}
-                    onChange={(e) => setFormData(prev => ({...prev, replicateApiKey: e.target.value}))}
-                    placeholder="r8_..."
-                    className="pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => toggleApiKeyVisibility('replicate')}
-                  >
-                    {showApiKeys.replicate ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">
-                  Optional: Get your API key from <a href="https://replicate.com/account/api-tokens" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Replicate</a>
-                </p>
-              </div>
+              {/* Hide API key input only in free mode */}
+              {!user?.freeMode && (
+                <>
+                  <div>
+                    <Label htmlFor="replicate-api-key">Replicate API Key</Label>
+                    <div className="relative">
+                      <Input
+                        id="replicate-api-key"
+                        type={showApiKeys.replicate ? "text" : "password"}
+                        value={formData.replicateApiKey}
+                        onChange={(e) => setFormData(prev => ({...prev, replicateApiKey: e.target.value}))}
+                        placeholder="r8_..."
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3"
+                        onClick={() => toggleApiKeyVisibility('replicate')}
+                      >
+                        {showApiKeys.replicate ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Optional: Get your API key from <a href="https://replicate.com/account/api-tokens" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Replicate</a>
+                    </p>
+                  </div>
 
-              <Separator />
+                  <Separator />
+                </>
+              )}
 
               <div>
                 <Label htmlFor="preferred-provider">Preferred Image Provider</Label>
@@ -447,7 +452,7 @@ export default function Profile() {
                         type="button"
                         variant="outline"
                         onClick={handleModelSearch}
-                        disabled={modelsLoading || !formData.replicateApiKey || !modelSearch.trim()}
+                        disabled={modelsLoading || (!user?.freeMode && !formData.replicateApiKey) || !modelSearch.trim()}
                         data-testid="button-search-models"
                       >
                         {modelsLoading ? (
