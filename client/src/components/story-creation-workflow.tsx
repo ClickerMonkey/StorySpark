@@ -24,7 +24,7 @@ import { ProgressIndicator } from "@/components/ui/progress-indicator";
 import { RevisionPanel } from "@/components/revision-panel";
 import { Loader2, BookOpen, Users, ScrollText, Palette, Eye, Edit, Check, Plus, History, RefreshCw, Sparkles, ZoomIn, ZoomOut, RotateCcw, X, AlertCircle, Settings, Trash2 } from "lucide-react";
 
-type WorkflowStep = "details" | "setting" | "characters" | "review" | "images" | "complete";
+type WorkflowStep = "details" | "setting" | "characters" | "review" | "core-imagery" | "images" | "complete";
 
 interface StoryCreationWorkflowProps {
   onComplete?: (story: Story) => void;
@@ -630,9 +630,13 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
     if (!existingStory.extractedCharacters || existingStory.extractedCharacters.length === 0) return "characters";
     if (!existingStory.pages || existingStory.pages.length === 0) return "review";
     
-    // If story has images, go to images step, otherwise review
-    const hasImages = existingStory.pages.some(page => getPageImageUrl(page));
-    return hasImages ? "complete" : "images";
+    // Check if we have a core image to determine between core-imagery and images
+    const hasCoreImage = getCoreImageUrl(existingStory);
+    if (!hasCoreImage) return "core-imagery";
+    
+    // If story has page images, go to complete, otherwise images
+    const hasPageImages = existingStory.pages.some(page => getPageImageUrl(page));
+    return hasPageImages ? "complete" : "images";
   };
   
   const [currentStep, setCurrentStep] = useState<WorkflowStep>(getInitialStep());
@@ -744,7 +748,7 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
     },
     onSuccess: async (data) => {
       setGeneratedStory(data.story);
-      setCurrentStep("images");
+      setCurrentStep("core-imagery");
       
       // Save review step completion
       saveStepMutation.mutate({
@@ -754,13 +758,8 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
       
       toast({
         title: "Story Approved!",
-        description: "Image generation started in the background. We'll update the UI as images are ready!",
+        description: "Now let's create your core imagery to guide the page illustrations.",
       });
-      
-      // Start polling for image generation updates
-      if (data.story) {
-        startImageGenerationPolling(data.story.id);
-      }
     },
     onError: (error) => {
       toast({
@@ -1040,9 +1039,10 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
     { number: 1, label: "Story Details", completed: !["details"].includes(currentStep), current: currentStep === "details" },
     { number: 2, label: "Expand Setting", completed: !["details", "setting"].includes(currentStep), current: currentStep === "setting" },
     { number: 3, label: "Define Characters", completed: !["details", "setting", "characters"].includes(currentStep), current: currentStep === "characters" },
-    { number: 4, label: "Review Story", completed: ["images", "complete"].includes(currentStep), current: currentStep === "review" },
-    { number: 5, label: "Generate Images", completed: currentStep === "complete", current: currentStep === "images" },
-    { number: 6, label: "Final Story", completed: false, current: currentStep === "complete" },
+    { number: 4, label: "Review Story", completed: ["core-imagery", "images", "complete"].includes(currentStep), current: currentStep === "review" },
+    { number: 5, label: "Core Imagery", completed: ["images", "complete"].includes(currentStep), current: currentStep === "core-imagery" },
+    { number: 6, label: "Generate Images", completed: currentStep === "complete", current: currentStep === "images" },
+    { number: 7, label: "Final Story", completed: false, current: currentStep === "complete" },
   ];
 
   // Function to navigate to a specific step
@@ -1924,23 +1924,14 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
         </Card>
       )}
 
-      {/* Step 3: Image Generation */}
-      {currentStep === "images" && generatedStory && (
+      {/* Step 5: Core Imagery */}
+      {currentStep === "core-imagery" && generatedStory && (
         <Card className="bg-white shadow-lg">
           <CardContent className="p-8">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-3">Creating Your Story Images</h2>
-              <p className="text-lg text-gray-600">AI is painting beautiful pictures for each page of your story!</p>
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">Create Your Core Imagery</h2>
+              <p className="text-lg text-gray-600">Let's create a reference image featuring your main characters and setting. This will guide all page illustrations for visual consistency.</p>
             </div>
-
-            {/* Real-time Image Generation Status */}
-            <ImageGenerationStatus 
-              storyId={generatedStory.id}
-              onImageComplete={(imageFileId, pageNumber) => {
-                // Refresh the story data to show the new image
-                queryClient.invalidateQueries({ queryKey: [`/api/stories/${generatedStory.id}`] });
-              }}
-            />
 
             <div className="space-y-6">
               {/* Core Character/Setting Image */}
@@ -2025,29 +2016,6 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                       storyId={generatedStory.id}
                       onImageRegenerated={(updatedStory) => setGeneratedStory(updatedStory)}
                     />
-                    
-                    {/* Regenerate All Page Images Button */}
-                    <div className="mt-4 text-center">
-                      <Button
-                        variant="outline"
-                        onClick={() => regenerateAllPageImagesMutation.mutate()}
-                        disabled={regenerateAllPageImagesMutation.isPending || generatedStory.status === "generating_images"}
-                        className="bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
-                        data-testid="button-regenerate-all-page-images"
-                      >
-                        {regenerateAllPageImagesMutation.isPending || generatedStory.status === "generating_images" ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Regenerating Page Images...
-                          </>
-                        ) : (
-                          <>
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                            Regenerate All Page Images
-                          </>
-                        )}
-                      </Button>
-                    </div>
                   </div>
                 ) : (
                   <div className="bg-white rounded-lg p-8 text-center border-2 border-dashed border-gray-300">
@@ -2059,6 +2027,112 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
                     </p>
                   </div>
                 )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-4 justify-center mt-8 pt-6 border-t border-gray-200">
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentStep("review")}
+                  data-testid="button-back-to-review"
+                >
+                  <ScrollText className="w-4 h-4 mr-2" />
+                  Back to Review
+                </Button>
+                <Button
+                  onClick={() => {
+                    setCurrentStep("images");
+                    // Save core imagery step completion
+                    saveStepMutation.mutate({
+                      step: "core-imagery",
+                      storyData: { coreImageGenerated: !!getCoreImageUrl(generatedStory) },
+                    });
+                  }}
+                  disabled={!getCoreImageUrl(generatedStory)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2"
+                  data-testid="button-proceed-to-images"
+                >
+                  <Palette className="w-4 h-4 mr-2" />
+                  Generate Page Images
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 6: Image Generation */}
+      {currentStep === "images" && generatedStory && (
+        <Card className="bg-white shadow-lg">
+          <CardContent className="p-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">Creating Your Story Images</h2>
+              <p className="text-lg text-gray-600">AI is painting beautiful pictures for each page of your story!</p>
+            </div>
+
+            {/* Real-time Image Generation Status */}
+            <ImageGenerationStatus 
+              storyId={generatedStory.id}
+              onImageComplete={(imageFileId, pageNumber) => {
+                // Refresh the story data to show the new image
+                queryClient.invalidateQueries({ queryKey: [`/api/stories/${generatedStory.id}`] });
+              }}
+            />
+
+            {/* Action Buttons */}
+            <div className="flex justify-center mt-8 pt-6 border-t border-gray-200">
+              <Button
+                variant="outline"
+                onClick={() => setCurrentStep("core-imagery")}
+                data-testid="button-back-to-core-imagery"
+              >
+                <Palette className="w-4 h-4 mr-2" />
+                Back to Core Imagery
+              </Button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Core Image Reference */}
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <Palette className="text-indigo-600 mr-2" size={20} />
+                    Core Character & Setting Reference
+                  </h3>
+                  <div className="flex items-center text-emerald-600">
+                    <Check className="mr-2" size={16} />
+                    <span className="font-medium">Complete</span>
+                  </div>
+                </div>
+                
+                <CoreImageDisplay 
+                  imageUrl={getCoreImageUrl(generatedStory) || ""}
+                  storyId={generatedStory.id}
+                  onImageRegenerated={(updatedStory) => setGeneratedStory(updatedStory)}
+                />
+                
+                {/* Regenerate All Page Images Button */}
+                <div className="mt-4 text-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => regenerateAllPageImagesMutation.mutate()}
+                    disabled={regenerateAllPageImagesMutation.isPending || generatedStory.status === "generating_images"}
+                    className="bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+                    data-testid="button-regenerate-all-page-images"
+                  >
+                    {regenerateAllPageImagesMutation.isPending || generatedStory.status === "generating_images" ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Regenerating Page Images...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Regenerate All Page Images
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
 
               {/* Page Images Progress */}
@@ -2178,11 +2252,19 @@ export function StoryCreationWorkflow({ onComplete, existingStory }: StoryCreati
               </Button>
               <Button
                 variant="outline"
+                onClick={() => setCurrentStep("core-imagery")}
+                data-testid="button-edit-core-imagery"
+              >
+                <Palette className="w-4 h-4 mr-2" />
+                Edit Core Imagery
+              </Button>
+              <Button
+                variant="outline"
                 onClick={() => setCurrentStep("images")}
                 data-testid="button-edit-images"
               >
                 <Edit className="w-4 h-4 mr-2" />
-                Edit Images
+                Edit Page Images
               </Button>
               <Button
                 variant="outline"
